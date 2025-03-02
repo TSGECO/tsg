@@ -15,11 +15,11 @@ resolver = "2"
 [dependencies]
 thiserror = "2.0"
 anyhow = "1.0"
-rayon = { version = "1.5" }
+rayon = { version = "1.10" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-flate2 = { version = "1.0.35", features = [
+flate2 = { version = "1.1.0", features = [
     "zlib-ng",
 ], default-features = false }
 graphina = "0.2.1"
