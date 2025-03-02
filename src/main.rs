@@ -1,3 +1,7 @@
+mod graph;
+
+use graph::test_read;
+
 fn main() {
-    println!("Hello, world!");
+    test_read();
 }
