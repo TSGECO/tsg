@@ -23,6 +23,7 @@ flate2 = { version = "1.0.35", features = [
     "zlib-ng",
 ], default-features = false }
 graphina = "0.2.1"
+bstr = "1.11.3"
 
 
 tracing = "0.1.41"

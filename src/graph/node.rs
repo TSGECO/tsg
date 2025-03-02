@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use anyhow::Result;
 use anyhow::anyhow;
+use bstr::BString;
 
 // Define the interval struct
 // []
@@ -64,6 +65,6 @@ impl Exons {
 }
 
 pub struct NodeAttributes {
-    pub id: String,
+    pub id: BString,
     pub exons: Exons,
 }
