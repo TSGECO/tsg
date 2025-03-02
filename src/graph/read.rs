@@ -1,8 +1,8 @@
-use graphina::core::types::Graph;
+use graphina::core::types::Digraph;
 
 pub fn test_read() {
     // Create a new undirected graph
-    let mut graph = Graph::new();
+    let mut graph = Digraph::new();
 
     // Add nodes and edges to the graph
     let n0 = graph.add_node(1);
