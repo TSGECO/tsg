@@ -2,8 +2,8 @@ mod edge;
 mod group;
 mod node;
 mod read;
-mod write;
 
+use std::fmt;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -17,12 +17,13 @@ pub use edge::*;
 pub use group::*;
 pub use node::*;
 pub use read::*;
-pub use write::*;
 
 use anyhow::Result;
 use anyhow::anyhow;
 use bstr::BString;
-use graphina::core::types::{Digraph, EdgeId, NodeId};
+
+use petgraph::dot::{Config, Dot};
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 
 /// Represents an optional attribute
 #[derive(Debug, Clone)]
@@ -32,6 +33,12 @@ pub struct Attribute {
     pub value: BString,
 }
 
+impl fmt::Display for Attribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}\t{}\t{}", self.tag, self.attribute_type, self.value)
+    }
+}
+
 /// Header information in the TSG file
 #[derive(Debug, Clone)]
 pub struct Header {
@@ -39,13 +46,19 @@ pub struct Header {
     pub value: BString,
 }
 
+impl fmt::Display for Header {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "H\t{}\t{}", self.tag, self.value)
+    }
+}
+
 /// The complete transcript segment graph
 #[derive(Debug, Clone, Default)]
 pub struct TSGraph {
     pub headers: Vec<Header>,
-    _graph: Digraph<NodeData, EdgeData>,
-    pub node_indices: HashMap<BString, NodeId>,
-    pub edge_indices: HashMap<BString, EdgeId>,
+    _graph: DiGraph<NodeData, EdgeData>,
+    pub node_indices: HashMap<BString, NodeIndex>,
+    pub edge_indices: HashMap<BString, EdgeIndex>,
     pub groups: HashMap<BString, Group>,
     pub chains: HashMap<BString, Group>, // We store chains separately but they're also in groups
 }
@@ -57,13 +70,17 @@ impl TSGraph {
     }
 
     /// Add a node to the graph
-    pub fn add_node(&mut self, node_data: NodeData) -> Result<NodeId> {
+    pub fn add_node(&mut self, node_data: NodeData) -> Result<NodeIndex> {
         let id = node_data.id.clone();
 
         // Check if node already exists
         if let Some(&idx) = self.node_indices.get(&id) {
             // Update node data
-            self._graph.try_update_node(idx, node_data)?;
+            if let Some(attr) = self._graph.node_weight_mut(idx) {
+                *attr = node_data;
+            } else {
+                return Err(anyhow!("Node with ID {} not found in graph", id));
+            }
             return Ok(idx);
         }
 
@@ -79,7 +96,7 @@ impl TSGraph {
         source_id: &BStr,
         sink_id: &BStr,
         edge_data: EdgeData,
-    ) -> Result<EdgeId> {
+    ) -> Result<EdgeIndex> {
         let id = edge_data.id.clone();
 
         // Get source and sink node indices
@@ -93,16 +110,8 @@ impl TSGraph {
             .get(sink_id.as_bytes())
             .ok_or_else(|| anyhow!("Sink node with ID {} not found", sink_id))?;
 
-        // Check if edge already exists
-        if let Some(&idx) = self.edge_indices.get(&id) {
-            // Update edge data
-            self._graph.try_remove_edge(idx)?;
-            self._graph.add_edge(source_idx, sink_idx, edge_data);
-            return Ok(idx);
-        }
+        let edge_idx = self._graph.update_edge(source_idx, sink_idx, edge_data);
 
-        // Add new edge
-        let edge_idx = self._graph.add_edge(source_idx, sink_idx, edge_data);
         self.edge_indices.insert(id, edge_idx);
         Ok(edge_idx)
     }
@@ -124,7 +133,7 @@ impl TSGraph {
     /// Parse a node line
     fn parse_node_line(&mut self, fields: &str) -> Result<()> {
         let node_data = NodeData::from_str(fields)?;
-        self.add_node(node_data);
+        self.add_node(node_data)?;
         Ok(())
     }
 
@@ -275,12 +284,8 @@ impl TSGraph {
             "N" => {
                 if let Some(&node_idx) = self.node_indices.get(&element_id) {
                     // A  <element_type>  <element_id>  <tag>  <type>  <value>
-
-                    if let Some(node) = self._graph.node_attr_mut(node_idx) {
-                        // Since we can't mutate directly with node_weight, we need to create a new node with the attribute
-                        let mut node_data = node.clone();
+                    if let Some(node_data) = self._graph.node_weight_mut(node_idx) {
                         node_data.attributes.insert(tag, attribute);
-                        self._graph.try_update_node(node_idx, node_data)?;
                     } else {
                         return Err(anyhow!("Node with ID {} not found in graph", element_id));
                     }
@@ -290,19 +295,8 @@ impl TSGraph {
             }
             "E" => {
                 if let Some(&edge_idx) = self.edge_indices.get(&element_id) {
-                    if let Some(edge) = self._graph.edge_attr_mut(edge_idx) {
-                        // Similar approach as with nodes
-                        let (source_idx, sink_idx) = self
-                            ._graph
-                            .endpoints(edge_idx)
-                            .ok_or_else(|| anyhow!("Edge endpoints not found"))?;
-
-                        let mut edge_data = edge.clone();
+                    if let Some(edge_data) = self._graph.edge_weight_mut(edge_idx) {
                         edge_data.attributes.insert(tag, attribute);
-
-                        self._graph.try_remove_edge(edge_idx)?;
-                        let new_edge_idx = self._graph.add_edge(source_idx, sink_idx, edge_data);
-                        self.edge_indices.insert(element_id, new_edge_idx);
                     } else {
                         return Err(anyhow!("Edge with ID {} not found in graph", element_id));
                     }
@@ -321,13 +315,6 @@ impl TSGraph {
                         }
                         Group::Chain { attributes, .. } => {
                             attributes.insert(tag, attribute);
-                        }
-                    }
-
-                    // If it's a chain, also update the chains map
-                    if let Some(chain) = self.chains.get_mut(&element_id) {
-                        if let Group::Chain { attributes, .. } = chain {
-                            attributes.insert(tag.clone(), attribute.clone());
                         }
                     }
                 } else {
@@ -474,64 +461,8 @@ impl TSGraph {
         Ok(tsgraph)
     }
 
-    /// Build a graph directly from chains
-    pub fn from_chains(chains: Vec<Group>) -> Result<Self> {
-        let mut tsgraph = TSGraph::new();
-
-        // Extract chains into separate map for convenience
-        for chain in chains {
-            if let Group::Chain {
-                id,
-                elements,
-                attributes,
-            } = chain.clone()
-            {
-                tsgraph.chains.insert(id.clone(), chain.clone());
-                tsgraph.groups.insert(id, chain);
-
-                // Process each element in the chain
-                for (i, element_id) in elements.iter().enumerate() {
-                    if i % 2 == 0 {
-                        // It's a node - check if we need to create it
-                        if !tsgraph.node_indices.contains_key(element_id) {
-                            // Create a placeholder node
-                            let node_data = NodeData {
-                                id: element_id.clone(),
-                                ..Default::default()
-                            };
-                            tsgraph.add_node(node_data)?;
-                        }
-                    } else {
-                        // It's an edge - check if we need to create it
-                        if !tsgraph.edge_indices.contains_key(element_id) {
-                            // Get connecting nodes
-                            let source_id = &elements[i - 1];
-                            let sink_id = &elements[i + 1];
-
-                            // Create a placeholder edge
-                            let edge_data = EdgeData {
-                                id: element_id.clone(),
-                                ..Default::default()
-                            };
-
-                            if let Err(e) =
-                                tsgraph.add_edge(source_id.as_bstr(), sink_id.as_bstr(), edge_data)
-                            {
-                                return Err(anyhow!("Failed to add edge from chain: {}", e));
-                            }
-                        }
-                    }
-                }
-            } else {
-                return Err(anyhow!("Expected Chain type group"));
-            }
-        }
-
-        Ok(tsgraph)
-    }
-
     /// Get the nodes in a chain in order
-    pub fn get_chain_nodes(&self, chain_id: &BStr) -> Option<Vec<NodeId>> {
+    pub fn get_chain_nodes(&self, chain_id: &BStr) -> Option<Vec<NodeIndex>> {
         let group = self.chains.get(chain_id)?;
 
         match group {
@@ -556,7 +487,7 @@ impl TSGraph {
     }
 
     /// Get the edges in a chain in order
-    pub fn get_chain_edges(&self, chain_id: &BStr) -> Option<Vec<EdgeId>> {
+    pub fn get_chain_edges(&self, chain_id: &BStr) -> Option<Vec<EdgeIndex>> {
         let group = self.chains.get(chain_id)?;
 
         match group {
@@ -590,53 +521,26 @@ impl TSGraph {
 
         // Write headers
         for header in &self.headers {
-            writeln!(
-                writer,
-                "H\t{}\t{}",
-                header.tag.to_str().unwrap_or(""),
-                header.value.to_str().unwrap_or("")
-            )?;
+            writeln!(writer, "{}", header)?;
         }
 
         // Write nodes
-        for (&node_id, &node_idx) in &self.node_indices {
-            if let Some(node) = self._graph.node_attr(node_idx) {
-                writeln!(
-                    writer,
-                    "N\t{}\t{}\t{}",
-                    node_id.to_str().unwrap_or(""),
-                    node.exons.to_string(),
-                    node.reads
-                        .iter()
-                        .map(|x| x.to_string())
-                        .collect::<Vec<_>>()
-                        .join(" ")
-                )?;
+        for node_idx in self._graph.node_indices() {
+            if let Some(node_data) = self._graph.node_weight(node_idx) {
+                writeln!(writer, "{}", node_data)?;
             }
         }
 
         // Write edges
-        for (&edge_id, &edge_idx) in &self.edge_indices {
-            if let Some(edge) = self._graph.edge_attr(edge_idx) {
-                if let Some(source_idx) = self._graph.source(edge_idx) {
-                    if let Some(sink_idx) = self._graph.target(edge_idx) {
-                        // Find source and sink node IDs
-                        let source_id = self
-                            .find_node_id_by_idx(source_idx)
-                            .ok_or_else(|| anyhow!("Source node index not found"))?;
-                        let sink_id = self
-                            .find_node_id_by_idx(sink_idx)
-                            .ok_or_else(|| anyhow!("Sink node index not found"))?;
-
-                        writeln!(
-                            writer,
-                            "E\t{}\t{}\t{}\t{}",
-                            edge.id.to_str().unwrap_or(""),
-                            source_id.to_str().unwrap_or(""),
-                            sink_id.to_str().unwrap_or(""),
-                            edge.sv
-                        )?;
-                    }
+        for edge_idx in self._graph.edge_indices() {
+            if let Some(edge) = self._graph.edge_weight(edge_idx) {
+                if let Some((source_idx, sink_idx)) = self._graph.edge_endpoints(edge_idx) {
+                    // E  e1  n1  n2  chr1,chr1,1700,2000,splice
+                    writeln!(
+                        writer,
+                        "E\t{}\t{}\t{}\t{}",
+                        edge.id, self._graph[source_idx].id, self._graph[sink_idx].id, edge.sv
+                    )?;
                 }
             }
 
@@ -685,33 +589,19 @@ impl TSGraph {
             }
 
             // Write attributes for nodes
-            for (&node_id, &node_idx) in &self.node_indices {
-                if let Some(node) = self._graph.node_attr(node_idx) {
-                    for (tag, attr) in &node.attributes {
-                        writeln!(
-                            writer,
-                            "A\tN\t{}\t{}\t{}\t{}",
-                            node_id.to_str().unwrap_or(""),
-                            tag.to_str().unwrap_or(""),
-                            attr.attribute_type,
-                            attr.value.to_str().unwrap_or("")
-                        )?;
+            for node_idx in self._graph.node_indices() {
+                if let Some(node) = self._graph.node_weight(node_idx) {
+                    for (_tag, attr) in &node.attributes {
+                        writeln!(writer, "A\tN\t{}\t{}", node.id, attr)?;
                     }
                 }
             }
 
             // Write attributes for edges
-            for (&edge_id, &edge_idx) in &self.edge_indices {
-                if let Some(edge) = self._graph.edge_attr(edge_idx) {
-                    for (tag, attr) in &edge.attributes {
-                        writeln!(
-                            writer,
-                            "A\tE\t{}\t{}\t{}\t{}",
-                            edge_id.to_str().unwrap_or(""),
-                            tag.to_str().unwrap_or(""),
-                            attr.attribute_type,
-                            attr.value.to_str().unwrap_or("")
-                        )?;
+            for edge_idx in self._graph.edge_indices() {
+                if let Some(edge) = self._graph.edge_weight(edge_idx) {
+                    for (_tag, attr) in &edge.attributes {
+                        writeln!(writer, "A\tE\t{}\t{}", edge.id, attr)?;
                     }
                 }
             }
@@ -730,15 +620,13 @@ impl TSGraph {
                     Group::Chain { attributes, .. } => attributes,
                 };
 
-                for (tag, attr) in attributes {
+                for (_tag, attr) in attributes {
                     writeln!(
                         writer,
-                        "A\t{}\t{}\t{}\t{}\t{}",
+                        "A\t{}\t{}\t{}",
                         group_type,
                         id.to_str().unwrap_or(""),
-                        tag.to_str().unwrap_or(""),
-                        attr.attribute_type,
-                        attr.value.to_str().unwrap_or("")
+                        attr
                     )?;
                 }
             }
@@ -749,7 +637,7 @@ impl TSGraph {
     }
 
     /// Helper method to find a node's ID by its index
-    fn find_node_id_by_idx(&self, node_idx: NodeId) -> Option<&BString> {
+    fn find_node_id_by_idx(&self, node_idx: NodeIndex) -> Option<&BString> {
         for (id, &idx) in &self.node_indices {
             if idx == node_idx {
                 return Some(id);
@@ -761,20 +649,20 @@ impl TSGraph {
     /// Get a node by its ID
     pub fn get_node(&self, id: &BStr) -> Option<&NodeData> {
         let node_idx = self.node_indices.get(id)?;
-        self._graph.node_attr(*node_idx)
+        self._graph.node_weight(*node_idx)
     }
 
     /// Get an edge by its ID
     pub fn get_edge(&self, id: &BStr) -> Option<&EdgeData> {
         let edge_idx = self.edge_indices.get(id)?;
-        self._graph.edge_attr(*edge_idx)
+        self._graph.edge_weight(*edge_idx)
     }
 
     /// Get all nodes in the graph
     pub fn get_nodes(&self) -> Vec<&NodeData> {
         self.node_indices
             .values()
-            .filter_map(|&idx| self._graph.node_attr(idx))
+            .filter_map(|&idx| self._graph.node_weight(idx))
             .collect()
     }
 
@@ -782,7 +670,7 @@ impl TSGraph {
     pub fn get_edges(&self) -> Vec<&EdgeData> {
         self.edge_indices
             .values()
-            .filter_map(|&idx| self._graph.edge_attr(idx))
+            .filter_map(|&idx| self._graph.edge_weight(idx))
             .collect()
     }
 }

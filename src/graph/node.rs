@@ -104,6 +104,23 @@ pub struct NodeData {
     pub attributes: HashMap<BString, Attribute>,
 }
 
+impl fmt::Display for NodeData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "N\t{}\t{}\t{}\t{}",
+            self.id,
+            self.exons,
+            self.reads
+                .iter()
+                .map(|r| r.to_string())
+                .collect::<Vec<_>>()
+                .join(","),
+            self.sequence.as_ref().unwrap_or(&"".into())
+        )
+    }
+}
+
 impl FromStr for NodeData {
     type Err = io::Error;
 
