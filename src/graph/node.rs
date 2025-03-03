@@ -1,3 +1,4 @@
+use std::fmt;
 use std::str::FromStr;
 
 use crate::graph::Attribute;
@@ -44,7 +45,7 @@ impl FromStr for Interval {
     }
 }
 
-#[derive(Debug, Builder, Clone)]
+#[derive(Debug, Builder, Clone, Default)]
 pub struct Exons {
     pub exons: Vec<Interval>,
 }
@@ -57,6 +58,18 @@ impl FromStr for Exons {
             .map(|x| x.parse())
             .collect::<Result<Vec<Interval>, Self::Err>>()?;
         Ok(Exons { exons })
+    }
+}
+
+impl fmt::Display for Exons {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let exons = self
+            .exons
+            .iter()
+            .map(|x| format!("{}-{}", x.start, x.end))
+            .collect::<Vec<String>>()
+            .join(",");
+        write!(f, "{}", exons)
     }
 }
 
@@ -82,11 +95,45 @@ impl Exons {
 }
 
 /// Node in the transcript segment graph
-#[derive(Debug, Clone)]
-pub struct Node {
-    pub id: String,
+#[derive(Debug, Clone, Default, Builder)]
+pub struct NodeData {
+    pub id: BString,
     pub exons: Exons,
     pub reads: Vec<BString>,
-    pub sequence: Option<String>,
-    pub attributes: HashMap<String, Attribute>,
+    pub sequence: Option<BString>,
+    pub attributes: HashMap<BString, Attribute>,
+}
+
+impl FromStr for NodeData {
+    type Err = io::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // N  <id>  <exons>  <reads>  [<seq>]
+
+        let fields: Vec<&str> = s.split('\t').collect();
+        if fields.len() < 4 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Invalid node line format: {}", s),
+            ));
+        }
+
+        let id: BString = fields[1].into();
+        let exons: Exons = fields[2].parse()?;
+        let reads = fields[3].split(',').map(|s| s.into()).collect::<Vec<_>>();
+
+        let sequence = if fields.len() > 4 && !fields[4].is_empty() {
+            Some(fields[4].into())
+        } else {
+            None
+        };
+
+        Ok(NodeData {
+            id,
+            exons,
+            reads,
+            sequence,
+            ..Default::default()
+        })
+    }
 }

@@ -1,5 +1,5 @@
-use std::io;
 use std::str::FromStr;
+use std::{fmt, io};
 
 use ahash::HashMap;
 use anyhow::Result;
@@ -8,7 +8,7 @@ use derive_builder::Builder;
 
 use super::Attribute;
 
-#[derive(Debug, Builder, Clone)]
+#[derive(Debug, Builder, Clone, Default)]
 pub struct StructuralVariant {
     pub reference_name1: BString,
     pub reference_name2: BString,
@@ -21,6 +21,7 @@ impl FromStr for StructuralVariant {
     type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // E  <id>  <source_id>  <sink_id>  <SV>
         let parts: Vec<&str> = s.split(',').collect();
         if parts.len() != 5 {
             return Err(io::Error::new(
@@ -53,12 +54,24 @@ impl FromStr for StructuralVariant {
     }
 }
 
+impl fmt::Display for StructuralVariant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{},{},{},{},{}",
+            self.reference_name1,
+            self.reference_name2,
+            self.breakpoint1,
+            self.breakpoint2,
+            self.sv_type
+        )
+    }
+}
+
 /// Edge in the transcript segment graph
-#[derive(Debug, Clone)]
-pub struct Edge {
+#[derive(Debug, Clone, Default)]
+pub struct EdgeData {
     pub id: BString,
-    pub source_id: BString,
-    pub sink_id: BString,
     pub sv: StructuralVariant,
-    pub attributes: HashMap<String, Attribute>,
+    pub attributes: HashMap<BString, Attribute>,
 }
