@@ -2,9 +2,9 @@
 H	TSG	1.0
 H	reference	GRCh38
 # Nodes (exons)
-N	n1	1000-1200,1500-1700	read1,read2,read3	ACGTACGT
-N	n2	2000-2200	read4,read5	TGCATGCA
-N	n3	2500-2700	read6,read7	CTGACTGA
+N	n1	1000-1200,1500-1700	read1:SO,read2:SO,read3:SO	ACGTACGT
+N	n2	2000-2200	read4:IN,read5:IN	TGCATGCA
+N	n3	2500-2700	read6:SI,read7:SI	CTGACTGA
 # Edges (splice junctions)
 E	e1	n1	n2	chr1,chr1,1700,2000,splice
 E	e2	n2	n3	chr1,chr1,2200,2500,splice

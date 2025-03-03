@@ -763,7 +763,7 @@ mod tests {
     #[test]
     fn test_parse_node_line() -> Result<()> {
         let mut graph = TSGraph::new();
-        let line = "N\tnode1\t100-200\tread1,read2\tACGT";
+        let line = "N\tnode1\t100-200\tread1:SO,read2:IN\tACGT";
 
         graph.parse_node_line(line)?;
 
@@ -774,7 +774,18 @@ mod tests {
         assert_eq!(node.exons.exons[0].end, 200);
         assert_eq!(
             node.reads,
-            vec![BString::from("read1"), BString::from("read2")]
+            vec![
+                ReadDataBuilder::default()
+                    .id("read1")
+                    .identity("SO")
+                    .build()
+                    .unwrap(),
+                ReadDataBuilder::default()
+                    .id("read2")
+                    .identity("IN")
+                    .build()
+                    .unwrap(),
+            ]
         );
         assert_eq!(node.sequence, Some("ACGT".into()));
 
