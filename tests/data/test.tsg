@@ -1,17 +1,23 @@
 # Header information
 H	TSG	1.0
 H	reference	GRCh38
+# Nodes (exons)
 N	n1	1000-1200,1500-1700	read1,read2,read3	ACGTACGT
 N	n2	2000-2200	read4,read5	TGCATGCA
 N	n3	2500-2700	read6,read7	CTGACTGA
+# Edges (splice junctions)
 E	e1	n1	n2	chr1,chr1,1700,2000,splice
 E	e2	n2	n3	chr1,chr1,2200,2500,splice
 E	e3	n1	n3	chr1,chr1,1700,2500,splice
+# Chains (building the graph)
 C	chain1	n1	e1	n2	e2	n3
 C	chain2	n1	e3	n3
+# Paths (traversals through the constructed graph)
 O	transcript1	n1+	e1+	n2+	e2+	n3+
 O	transcript2	n1+	e3+	n3+
+# Sets (grouping elements)
 U	exon_set	n1	n2	n3
+# Attributes (metadata)
 A	N	n1	expression	f	10.5
 A	O	transcript1	tpm	f	8.2
 A	O	transcript2	tpm	f	3.7
