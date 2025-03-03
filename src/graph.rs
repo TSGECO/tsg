@@ -13,6 +13,7 @@ use std::str::FromStr;
 use ahash::{HashMap, HashMapExt};
 use bstr::BStr;
 use bstr::ByteSlice;
+use derive_builder::Builder;
 pub use edge::*;
 pub use group::*;
 pub use node::*;
@@ -40,9 +41,11 @@ impl fmt::Display for Attribute {
 }
 
 /// Header information in the TSG file
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Builder)]
 pub struct Header {
+    #[builder(setter(into))]
     pub tag: BString,
+    #[builder(setter(into))]
     pub value: BString,
 }
 
@@ -524,6 +527,13 @@ impl TSGraph {
             writeln!(writer, "{}", header)?;
         }
 
+        let new_headr = Header {
+            tag: "PG".into(),
+            value: "tsg".into(),
+        };
+
+        writeln!(writer, "{}", new_headr)?;
+
         // Write nodes
         for node_idx in self._graph.node_indices() {
             if let Some(node_data) = self._graph.node_weight(node_idx) {
@@ -543,96 +553,96 @@ impl TSGraph {
                     )?;
                 }
             }
+        }
 
-            // Write groups
-            for (group_id, group) in &self.groups {
-                match group {
-                    Group::Unordered { id, elements, .. } => {
-                        let elements_str: Vec<String> = elements
-                            .iter()
-                            .map(|e| e.to_str().unwrap_or("").to_string())
-                            .collect();
-                        writeln!(
-                            writer,
-                            "U\t{}\t{}",
-                            id.to_str().unwrap_or(""),
-                            elements_str.join(" ")
-                        )?;
-                    }
-                    Group::Ordered { id, elements, .. } => {
-                        let elements_str: Vec<String> =
-                            elements.iter().map(|e| e.to_string()).collect();
-                        writeln!(
-                            writer,
-                            "O\t{}\t{}",
-                            id.to_str().unwrap_or(""),
-                            elements_str.join(" ")
-                        )?;
-                    }
-                    Group::Chain { id, elements, .. } => {
-                        // Skip writing chains that are duplicated with groups
-                        if group_id != id {
-                            continue;
-                        }
-                        let elements_str: Vec<String> = elements
-                            .iter()
-                            .map(|e| e.to_str().unwrap_or("").to_string())
-                            .collect();
-                        writeln!(
-                            writer,
-                            "C\t{}\t{}",
-                            id.to_str().unwrap_or(""),
-                            elements_str.join(" ")
-                        )?;
-                    }
-                }
-            }
-
-            // Write attributes for nodes
-            for node_idx in self._graph.node_indices() {
-                if let Some(node) = self._graph.node_weight(node_idx) {
-                    for attr in node.attributes.values() {
-                        writeln!(writer, "A\tN\t{}\t{}", node.id, attr)?;
-                    }
-                }
-            }
-
-            // Write attributes for edges
-            for edge_idx in self._graph.edge_indices() {
-                if let Some(edge) = self._graph.edge_weight(edge_idx) {
-                    for attr in edge.attributes.values() {
-                        writeln!(writer, "A\tE\t{}\t{}", edge.id, attr)?;
-                    }
-                }
-            }
-
-            // Write attributes for groups
-            for (id, group) in &self.groups {
-                let group_type = match group {
-                    Group::Unordered { .. } => "U",
-                    Group::Ordered { .. } => "O",
-                    Group::Chain { .. } => "C",
-                };
-
-                let attributes = match group {
-                    Group::Unordered { attributes, .. } => attributes,
-                    Group::Ordered { attributes, .. } => attributes,
-                    Group::Chain { attributes, .. } => attributes,
-                };
-
-                for attr in attributes.values() {
+        // Write groups
+        for (group_id, group) in &self.groups {
+            match group {
+                Group::Unordered { id, elements, .. } => {
+                    let elements_str: Vec<String> = elements
+                        .iter()
+                        .map(|e| e.to_str().unwrap_or("").to_string())
+                        .collect();
                     writeln!(
                         writer,
-                        "A\t{}\t{}\t{}",
-                        group_type,
+                        "U\t{}\t{}",
                         id.to_str().unwrap_or(""),
-                        attr
+                        elements_str.join(" ")
+                    )?;
+                }
+                Group::Ordered { id, elements, .. } => {
+                    let elements_str: Vec<String> =
+                        elements.iter().map(|e| e.to_string()).collect();
+                    writeln!(
+                        writer,
+                        "O\t{}\t{}",
+                        id.to_str().unwrap_or(""),
+                        elements_str.join(" ")
+                    )?;
+                }
+                Group::Chain { id, elements, .. } => {
+                    // Skip writing chains that are duplicated with groups
+                    if group_id != id {
+                        continue;
+                    }
+                    let elements_str: Vec<String> = elements
+                        .iter()
+                        .map(|e| e.to_str().unwrap_or("").to_string())
+                        .collect();
+                    writeln!(
+                        writer,
+                        "C\t{}\t{}",
+                        id.to_str().unwrap_or(""),
+                        elements_str.join(" ")
                     )?;
                 }
             }
-
-            writer.flush()?;
         }
+
+        // Write attributes for nodes
+        for node_idx in self._graph.node_indices() {
+            if let Some(node) = self._graph.node_weight(node_idx) {
+                for attr in node.attributes.values() {
+                    writeln!(writer, "A\tN\t{}\t{}", node.id, attr)?;
+                }
+            }
+        }
+
+        // Write attributes for edges
+        for edge_idx in self._graph.edge_indices() {
+            if let Some(edge) = self._graph.edge_weight(edge_idx) {
+                for attr in edge.attributes.values() {
+                    writeln!(writer, "A\tE\t{}\t{}", edge.id, attr)?;
+                }
+            }
+        }
+
+        // Write attributes for groups
+        for (id, group) in &self.groups {
+            let group_type = match group {
+                Group::Unordered { .. } => "U",
+                Group::Ordered { .. } => "O",
+                Group::Chain { .. } => "C",
+            };
+
+            let attributes = match group {
+                Group::Unordered { attributes, .. } => attributes,
+                Group::Ordered { attributes, .. } => attributes,
+                Group::Chain { attributes, .. } => attributes,
+            };
+
+            for attr in attributes.values() {
+                writeln!(
+                    writer,
+                    "A\t{}\t{}\t{}",
+                    group_type,
+                    id.to_str().unwrap_or(""),
+                    attr
+                )?;
+            }
+        }
+
+        writer.flush()?;
         Ok(())
     }
 
@@ -821,6 +831,8 @@ mod tests {
         assert_eq!(graph.headers.len(), 2);
         assert_eq!(graph.get_nodes().len(), 5);
         assert_eq!(graph.get_edges().len(), 4);
+
+        graph.write_to_file("test_out.tsg")?;
 
         Ok(())
     }

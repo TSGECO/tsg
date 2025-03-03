@@ -105,7 +105,7 @@ pub struct ReadData {
 
 impl fmt::Display for ReadData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}\t{:?}", self.id, self.identity)
+        write!(f, "{}:{:?}", self.id, self.identity)
     }
 }
 
