@@ -7,6 +7,7 @@ use anyhow::Context;
 use bstr::BString;
 use derive_builder::Builder;
 use std::io;
+use tracing::debug;
 
 // Define the interval struct
 // []
@@ -93,6 +94,14 @@ impl Exons {
     pub fn span(&self) -> usize {
         self.exons.iter().map(|x| x.end - x.start + 1).sum()
     }
+
+    pub fn first_exon(&self) -> &Interval {
+        &self.exons[0]
+    }
+
+    pub fn last_exon(&self) -> &Interval {
+        &self.exons[self.exons.len() - 1]
+    }
 }
 
 #[derive(Debug, Clone, Builder, PartialEq)]
@@ -170,19 +179,32 @@ impl From<&str> for ReadIdentity {
 /// Node in the transcript segment graph
 #[derive(Debug, Clone, Default, Builder)]
 pub struct NodeData {
+    #[builder(setter(into))]
     pub id: BString,
+    #[builder(setter(into))]
+    pub reference_id: BString,
     pub exons: Exons,
     pub reads: Vec<ReadData>,
     pub sequence: Option<BString>,
     pub attributes: HashMap<BString, Attribute>,
 }
 
+impl NodeData {
+    pub fn reference_start(&self) -> usize {
+        self.exons.first_exon().start
+    }
+    pub fn reference_end(&self) -> usize {
+        self.exons.last_exon().end
+    }
+}
+
 impl fmt::Display for NodeData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "N\t{}\t{}\t{}\t{}",
+            "N\t{}\t{}:{}\t{}\t{}",
             self.id,
+            self.reference_id,
             self.exons,
             self.reads
                 .iter()
@@ -208,8 +230,13 @@ impl FromStr for NodeData {
             ));
         }
 
+        debug!("Parsing node: {}", s);
         let id: BString = fields[1].into();
-        let exons: Exons = fields[2].parse()?;
+
+        let reference_and_exons: Vec<&str> = fields[2].split(":").collect();
+        let reference_id = reference_and_exons[0].into();
+        let exons = reference_and_exons[1].parse()?;
+
         let reads = fields[3]
             .split(',')
             .map(|s| s.parse().context("failed to parse reads").unwrap())
@@ -223,6 +250,7 @@ impl FromStr for NodeData {
 
         Ok(NodeData {
             id,
+            reference_id,
             exons,
             reads,
             sequence,

@@ -1,7 +1,7 @@
 mod graph;
 
 use graph::test_read;
-use tracing::{debug, info};
+use tracing::info;
 use tracing_subscriber;
 
 use anyhow::Result;

@@ -2,11 +2,11 @@
 H	TSG	1.0
 H	reference	GRCh38
 # Nodes
-N	n1	1000-1200,1500-1700	read1:SO,read2:SO	ACGTACGT
-N	n2	2000-2200	read4:SO,read5:SO	TGCATGCA
-N	n3	2500-2700	read1:IN,read2:IN,read3:IN,read4:IN	CTGACTGA
-N	n4	2500-2700	read1:SI,read2:SI	CTGACTGA
-N	n5	2500-2700	read3:SI,read4:SI	CTGACTGA
+N	n1	chr1:1000-1200,1500-1700	read1:SO,read2:SO	ACGTACGT
+N	n2	chr1:2000-2200	read4:SO,read5:SO	TGCATGCA
+N	n3	chr1:2500-2700	read1:IN,read2:IN,read3:IN,read4:IN	CTGACTGA
+N	n4	chr1:2500-2700	read1:SI,read2:SI	CTGACTGA
+N	n5	chr1:2500-2700	read3:SI,read4:SI	CTGACTGA
 # Edges
 E	e1	n1	n3	chr1,chr1,1700,2000,splice
 E	e2	n3	n4	chr1,chr1,1700,2000,splice

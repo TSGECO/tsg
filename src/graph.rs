@@ -932,6 +932,8 @@ impl TSGPath {
 
 #[cfg(test)]
 mod tests {
+    use serde::de;
+
     use super::*;
 
     #[test]
@@ -949,6 +951,7 @@ mod tests {
         let mut graph = TSGraph::new();
         let node = NodeData {
             id: "node1".into(),
+            reference_id: "chr1".into(),
             exons: Exons { exons: vec![] },
             reads: vec![],
             sequence: None,
@@ -970,18 +973,13 @@ mod tests {
         // Add nodes first
         let node1 = NodeData {
             id: "node1".into(),
-            exons: Exons { exons: vec![] },
-            reads: vec![],
-            sequence: None,
-            attributes: HashMap::new(),
+            reference_id: "chr1".into(),
+            ..Default::default()
         };
 
         let node2 = NodeData {
             id: "node2".into(),
-            exons: Exons { exons: vec![] },
-            reads: vec![],
-            sequence: None,
-            attributes: HashMap::new(),
+            ..Default::default()
         };
 
         graph.add_node(node1)?;
@@ -1018,7 +1016,7 @@ mod tests {
     #[test]
     fn test_parse_node_line() -> Result<()> {
         let mut graph = TSGraph::new();
-        let line = "N\tnode1\t100-200\tread1:SO,read2:IN\tACGT";
+        let line = "N\tnode1\tchr1:100-200\tread1:SO,read2:IN\tACGT";
 
         graph.parse_node_line(line)?;
 
