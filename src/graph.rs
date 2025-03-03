@@ -735,15 +735,7 @@ mod tests {
         // Add edge
         let edge = EdgeData {
             id: "edge1".into(),
-            sv: StructuralVariantBuilder::default()
-                .reference_name1("chr1".into())
-                .reference_name2("chr2".into())
-                .breakpoint1(1)
-                .breakpoint2(2)
-                .sv_type("INV".into())
-                .build()
-                .unwrap(),
-            attributes: HashMap::new(),
+            ..Default::default()
         };
 
         graph.add_edge("node1".into(), "node2".into(), edge.clone())?;
