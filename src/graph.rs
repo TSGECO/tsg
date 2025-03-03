@@ -801,4 +801,16 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_read_from_file() -> Result<()> {
+        let file = "tests/data/test.tsg";
+        let graph = TSGraph::from_file(file)?;
+
+        assert_eq!(graph.headers.len(), 2);
+        assert_eq!(graph.get_nodes().len(), 3);
+        assert_eq!(graph.get_edges().len(), 3);
+
+        Ok(())
+    }
 }
