@@ -14,12 +14,13 @@ E	e2	n3	n4	chr1,chr1,1700,2000,splice
 E	e3	n2	n3	chr1,chr1,2200,2500,splice
 E	e4	n3	n5	chr1,chr1,1700,2500,splice
 # Groups
-C	chain2	n2 e3 n3 e4 n5
-C	chain1	n1 e1 n3 e2 n4
 O	transcript2	n2+ e3+ n3+ e4+ n5+
-O	transcript1	n1+ e1+ n3+ e2+ n4+
 U	exon_set	n1 n2 n3
+C	chain1	n1 e1 n3 e2 n4
+O	transcript1	n1+ e1+ n3+ e2+ n4+
+C	chain2	n2 e3 n3 e4 n5
 # Attributes
 A	N	n1	expression	f	10.5
+A	N	n1	ptc	i	10
 A	O	transcript2	tpm	f	3.7
 A	O	transcript1	tpm	f	8.2

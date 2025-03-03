@@ -24,13 +24,12 @@ TSG is a tab-delimited text format with each line beginning with a single letter
 Contains metadata about the file.
 
 ```
-H  <tag>  <type>  <value>
+H  <tag>  <value>
 ```
 
 Fields:
 
 - `tag`: Identifier for the header entry
-- `type`: Type of the value (optional)
 - `value`: Header value
 
 ### Nodes (N)
@@ -38,14 +37,18 @@ Fields:
 Represent exons or transcript segments.
 
 ```
-N  <id>  <exons>  <reads>  [<seq>]
+N  <id>  <genomic_location>  <reads>  [<seq>]
 ```
 
 Fields:
 
 - `id`: Unique identifier for the node
-- `exons`: Comma-separated list of start-end coordinates, e.g., "start1-end1,start2-end2"
-- `reads`: List of read identifiers supporting this node, comma-separated
+- `genomic_location`: Format `chromosome:strand:coordinates` where:
+  - `chromosome`: Chromosome name (e.g., "chr1")
+  - `strand`: "+" for forward strand, "-" for reverse strand
+  - `coordinates`: Comma-separated list of exon coordinates in "start-end" format
+- `reads`: Comma-separated list of reads supporting this node, in format `read_id:type`
+  - Types might include SO (spanning), IN (internal), SI (significant), etc.
 - `seq` (optional): Sequence of the node
 
 ### Edges (E)
@@ -125,17 +128,11 @@ Fields:
 
 ### Node Semantics
 
-Nodes in TSG represent exons or transcript segments. Each node can span multiple genomic regions through the `exons` field, allowing for representation of complex exonic structures. Nodes can be backed by read evidence through the `reads` field, and can optionally include the sequence.
+Nodes in TSG represent exons or transcript segments. Each node has a genomic location that includes chromosome, strand, and coordinates. The genomic location specifies where the node is located in the reference genome. Nodes can be supported by different types of read evidence through the `reads` field, and can optionally include the sequence.
 
 ### Edge Semantics
 
 Edges in TSG represent connections between nodes, such as splice junctions or structural variants. The `SV` field provides details about the genomic context of the connection, including reference names, breakpoints, and the type of structural variant or splice.
-
-### Group and Chain Semantics
-
-- **Unordered Groups (U)**: Represent the subgraph induced by the vertices and edges in the collection. Includes all edges between pairs of segments in the list and all segments adjacent to edges in the list.
-- **Ordered Groups (O)**: Represent paths in the graph consisting of the listed objects and implied adjacent objects between consecutive items, where orientation matters.
-- **Chains (C)**: Represent a concrete path through the graph with explicitly listed nodes and edges in alternating sequence. A chain must start and end with a node, and must maintain the correct connectivity between elements.
 
 ### Chains vs. Paths
 
@@ -155,85 +152,6 @@ Chains and paths serve fundamentally different purposes in the TSG format:
    - Paths can represent transcript isoforms, alternative splicing patterns, or other biological features.
 
 This distinction is critical: chains define what the graph is, while paths define ways to traverse the graph.
-
-### Hierarchical Relationships
-
-- A set (U) can contain references to paths (O) or chains (C), but not vice versa
-- U-lines, O-lines, and C-lines must have unique identifiers (cannot share the same name)
-
-## Type Definitions for Attributes
-
-- `i`: Integer
-- `f`: Float
-- `Z`: String
-- `J`: JSON
-- `H`: Hex string
-- `B`: Byte array
-
-## Example
-
-```
-# Header information
-H  TSG  1.0
-H  reference  GRCh38
-
-# Nodes (exons)
-N  n1  1000-1200,1500-1700  read1,read2,read3  ACGTACGT...
-N  n2  2000-2200  read4,read5  TGCATGCA...
-N  n3  2500-2700  read6,read7  CTGACTGA...
-
-# Edges (splice junctions)
-E  e1  n1  n2  chr1,chr1,1700,2000,splice
-E  e2  n2  n3  chr1,chr1,2200,2500,splice
-E  e3  n1  n3  chr1,chr1,1700,2500,splice
-
-# Chains (building the graph)
-C  chain1  n1 e1 n2 e2 n3   # Regular splicing
-C  chain2  n1 e3 n3         # Exon skipping event
-
-# Paths (traversals through the constructed graph)
-O  transcript1  n1+ e1+ n2+ e2+ n3+
-O  transcript2  n1+ e3+ n3+
-
-# Sets (grouping elements)
-U  exon_set  n1 n2 n3
-
-# Attributes (metadata)
-A  N  n1  expression  f  10.5
-A  O  transcript1  tpm  f  8.2
-A  O  transcript2  tpm  f  3.7
-```
-
-In this example:
-
-1. The graph is constructed from the nodes and edges in two chains (chain1 and chain2)
-2. Two paths (transcript1 and transcript2) define ways to traverse the graph
-3. Both chains and paths describe the same structures, but chains built the graph while paths traverse it
-
-## Usage Guidelines
-
-### When to Use Unordered Groups (U)
-
-- Representing gene families or clusters
-- Collecting exons that belong to the same gene
-- Defining subgraphs for analysis or visualization
-- Creating sets of related elements without imposing order
-
-### When to Use Ordered Groups/Paths (O)
-
-- Representing traversals through the established graph
-- Defining transcript isoforms as paths through the existing graph
-- Analyzing potential transcript variants
-- Defining traversals where orientation matters (e.g., strand-specific transcription)
-- Highlighting specific routes through a complex transcript graph
-
-### When to Use Chains (C)
-
-- Building the fundamental structure of the TSG graph
-- Contributing the nodes and edges that make up the graph
-- Representing the source transcript evidence used to construct the graph
-- Preserving the original transcript observations
-- Documenting how the graph was constructed
 
 ## Processing Model
 
@@ -256,41 +174,119 @@ If the TSG file does not contain explicit node and edge records, or contains onl
 3. Chains provide both the structure and the evidence for the graph
 4. Paths (O) define traversals through the graph constructed from chains
 
-This dual approach allows TSG to represent both:
+## Type Definitions for Attributes
 
-- Explicitly constructed graphs with supporting evidence (Case 1)
-- Graphs that are implicitly defined by their source chains (Case 2)
+- `i`: Integer
+- `f`: Float
+- `Z`: String
+- `J`: JSON
+- `H`: Hex string
+- `B`: Byte array
 
-### Performance Considerations
+## Example
 
-- For large graphs, consider indexing nodes and edges for efficient lookup
-- When processing chains, validation of connectivity can be computationally expensive
-- Consider lazy loading of sequences for memory efficiency
+```
+# Header information
+H  TSG  1.0
+H  reference  GRCh38
+# Nodes
+N  n1  chr1:+:1000-1200,1500-1700  read1:SO,read2:SO  ACGTACGT
+N  n2  chr1:+:2000-2200  read4:SO,read5:SO  TGCATGCA
+N  n3  chr1:+:2500-2700  read1:IN,read2:IN,read3:IN,read4:IN  CTGACTGA
+N  n4  chr1:-:2500-2700  read1:SI,read2:SI  CTGACTGA
+N  n5  chr1:+:2500-2700  read3:SI,read4:SI  CTGACTGA
+# Edges
+E  e1  n1  n3  chr1,chr1,1700,2000,splice
+E  e2  n3  n4  chr1,chr1,1700,2000,splice
+E  e3  n2  n3  chr1,chr1,2200,2500,splice
+E  e4  n3  n5  chr1,chr1,1700,2500,splice
+# Chains (building the graph)
+C  chain1  n1  e1  n3  e2  n4
+C  chain2  n2  e3  n3  e4  n5
+# Paths (traversals through the constructed graph)
+O  transcript1  n1+  e1+  n3+  e2+  n4+
+O  transcript2  n2+  e3+  n3+  e4+  n5+
+# Sets (grouping elements)
+U  exon_set  n1  n2  n3
+# Attributes (metadata)
+A  N  n1  expression  f  10.5
+A  N  n1  ptc  i  10
+A  O  transcript1  tpm  f  8.2
+A  O  transcript2  tpm  f  3.7
+```
+
+In this example:
+
+1. The graph contains 5 nodes and 4 edges
+2. Two chains (chain1 and chain2) represent evidence used to construct the graph
+3. Two paths (transcript1 and transcript2) represent ways to traverse the graph
+4. One set (exon_set) groups related nodes
+5. Attributes provide additional information about nodes and paths
+
+## Implementation Considerations
+
+### Genomic Location Parsing
+
+Implementations should carefully parse the genomic location field, which contains:
+
+- Chromosome (e.g., "chr1")
+- Strand ("+" or "-")
+- Coordinates (comma-separated list of "start-end" pairs)
+
+These components are separated by colons.
+
+### Read Evidence
+
+Read evidence is recorded with both read identifiers and types. Implementations should:
+
+- Parse the read identifier and read type, separated by a colon
+- Support different read types (SO, IN, SI, etc.) as used in the implementation
+
+### Validation Requirements
+
+Implementations should validate that:
+
+- Chains have an odd number of elements (starting and ending with nodes)
+- Adjacent elements in chains are correctly connected in the graph
+- Group identifiers are unique across U, O, and C types
+- Paths (O-lines) only reference elements that exist in the graph
+
+### Chain Processing
+
+- When encountering a chain, implementations should extract all nodes and edges and add them to the graph
+- The same node or edge can appear in multiple chains
+- The structural integrity of the graph is defined by the chains
+
+### Path Processing
+
+- Paths do not add new elements to the graph
+- Paths must reference existing nodes and edges
+- Paths can include orientation information (+ or -) for elements
 
 ### Biological Interpretation in Transcript Analysis
 
 In the context of transcript analysis, the TSG format elements typically represent:
 
-### Nodes (N)
+#### Nodes (N)
 
 - **Exons**: Genomic regions that are transcribed and remain in the mature RNA
 - Can include multiple segments (e.g., for complex exon structures)
-- Read support indicates which sequencing reads support this exon
+- Read support indicates which sequencing reads support this exon, with different types of support
 
-### Edges (E)
+#### Edges (E)
 
 - **Splice Junctions**: Connections between exons
 - **Structural Variants**: Genomic rearrangements like fusions, deletions, or insertions
 - The SV field provides details on the exact genomic coordinates
 
-### Chains (C)
+#### Chains (C)
 
 - **Original Transcripts**: Complete transcript sequences observed in the data
 - **Source Evidence**: The actual RNA molecules detected
 - **Assembled Transcripts**: Transcripts assembled from read data
 - These build the structure of the transcript graph
 
-### Paths (O)
+#### Paths (O)
 
 - **Transcript Isoforms**: Alternative splicing variants
 - **Expression Patterns**: Different ways genes are expressed
