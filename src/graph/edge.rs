@@ -10,10 +10,13 @@ use super::Attribute;
 
 #[derive(Debug, Builder, Clone, Default)]
 pub struct StructuralVariant {
+    #[builder(setter(into))]
     pub reference_name1: BString,
+    #[builder(setter(into))]
     pub reference_name2: BString,
     pub breakpoint1: usize,
     pub breakpoint2: usize,
+    #[builder(setter(into))]
     pub sv_type: BString,
 }
 
@@ -69,8 +72,9 @@ impl fmt::Display for StructuralVariant {
 }
 
 /// Edge in the transcript segment graph
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Builder, Default)]
 pub struct EdgeData {
+    #[builder(setter(into))]
     pub id: BString,
     pub sv: StructuralVariant,
     pub attributes: HashMap<BString, Attribute>,

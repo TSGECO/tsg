@@ -151,7 +151,7 @@ impl TSGraph {
         let edge_data = EdgeData {
             id,
             sv,
-            ..Default::default()
+            attributes: HashMap::new(),
         };
 
         self.add_edge(source_id.as_bstr(), sink_id.as_bstr(), edge_data)?;
@@ -338,7 +338,7 @@ impl TSGraph {
 
         // If nodes and edges are missing, build them from chains
         if !self.chains.is_empty() {
-            for (_, group) in &self.chains.clone() {
+            for group in self.chains.clone().values() {
                 if let Group::Chain { elements, .. } = group {
                     // Process each element in the chain
                     for (i, element_id) in elements.iter().enumerate() {
@@ -591,7 +591,7 @@ impl TSGraph {
             // Write attributes for nodes
             for node_idx in self._graph.node_indices() {
                 if let Some(node) = self._graph.node_weight(node_idx) {
-                    for (_tag, attr) in &node.attributes {
+                    for attr in node.attributes.values() {
                         writeln!(writer, "A\tN\t{}\t{}", node.id, attr)?;
                     }
                 }
@@ -600,7 +600,7 @@ impl TSGraph {
             // Write attributes for edges
             for edge_idx in self._graph.edge_indices() {
                 if let Some(edge) = self._graph.edge_weight(edge_idx) {
-                    for (_tag, attr) in &edge.attributes {
+                    for attr in edge.attributes.values() {
                         writeln!(writer, "A\tE\t{}\t{}", edge.id, attr)?;
                     }
                 }
@@ -620,7 +620,7 @@ impl TSGraph {
                     Group::Chain { attributes, .. } => attributes,
                 };
 
-                for (_tag, attr) in attributes {
+                for attr in attributes.values() {
                     writeln!(
                         writer,
                         "A\t{}\t{}\t{}",
@@ -672,5 +672,141 @@ impl TSGraph {
             .values()
             .filter_map(|&idx| self._graph.edge_weight(idx))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_create_empty_graph() {
+        let graph = TSGraph::new();
+        assert_eq!(graph.headers.len(), 0);
+        assert_eq!(graph.get_nodes().len(), 0);
+        assert_eq!(graph.get_edges().len(), 0);
+        assert_eq!(graph.groups.len(), 0);
+        assert_eq!(graph.chains.len(), 0);
+    }
+
+    #[test]
+    fn test_add_node() -> Result<()> {
+        let mut graph = TSGraph::new();
+        let node = NodeData {
+            id: "node1".into(),
+            exons: Exons { exons: vec![] },
+            reads: vec![],
+            sequence: None,
+            attributes: HashMap::new(),
+        };
+
+        graph.add_node(node.clone())?;
+
+        assert_eq!(graph.get_nodes().len(), 1);
+        assert_eq!(graph.get_node("node1".into()).unwrap().id, node.id);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_add_edge() -> Result<()> {
+        let mut graph = TSGraph::new();
+
+        // Add nodes first
+        let node1 = NodeData {
+            id: "node1".into(),
+            exons: Exons { exons: vec![] },
+            reads: vec![],
+            sequence: None,
+            attributes: HashMap::new(),
+        };
+
+        let node2 = NodeData {
+            id: "node2".into(),
+            exons: Exons { exons: vec![] },
+            reads: vec![],
+            sequence: None,
+            attributes: HashMap::new(),
+        };
+
+        graph.add_node(node1)?;
+        graph.add_node(node2)?;
+
+        // Add edge
+        let edge = EdgeData {
+            id: "edge1".into(),
+            sv: StructuralVariantBuilder::default()
+                .reference_name1("chr1".into())
+                .reference_name2("chr2".into())
+                .breakpoint1(1)
+                .breakpoint2(2)
+                .sv_type("INV".into())
+                .build()
+                .unwrap(),
+            attributes: HashMap::new(),
+        };
+
+        graph.add_edge("node1".into(), "node2".into(), edge.clone())?;
+
+        assert_eq!(graph.get_edges().len(), 1);
+        assert_eq!(graph.get_edge("edge1".into()).unwrap().id, edge.id);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_header_line() -> Result<()> {
+        let mut graph = TSGraph::new();
+        let fields = vec!["H", "VN", "1.0"];
+
+        graph.parse_header_line(&fields)?;
+
+        assert_eq!(graph.headers.len(), 1);
+        assert_eq!(graph.headers[0].tag, "VN");
+        assert_eq!(graph.headers[0].value, "1.0");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_node_line() -> Result<()> {
+        let mut graph = TSGraph::new();
+        let line = "N\tnode1\t100-200\tread1,read2\tACGT";
+
+        graph.parse_node_line(line)?;
+
+        let node = graph.get_node("node1".into()).unwrap();
+        assert_eq!(node.id, "node1");
+        assert_eq!(node.exons.exons.len(), 1);
+        assert_eq!(node.exons.exons[0].start, 100);
+        assert_eq!(node.exons.exons[0].end, 200);
+        assert_eq!(
+            node.reads,
+            vec![BString::from("read1"), BString::from("read2")]
+        );
+        assert_eq!(node.sequence, Some("ACGT".into()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_parse_unordered_group() -> Result<()> {
+        let mut graph = TSGraph::new();
+        let fields = vec!["U", "group1", "node1", "node2", "edge1"];
+
+        graph.parse_unordered_group_line(&fields)?;
+
+        assert_eq!(graph.groups.len(), 1);
+        if let Group::Unordered { id, elements, .. } = &graph.groups["group1".as_bytes()] {
+            assert_eq!(id, "group1");
+            assert_eq!(elements.len(), 3);
+            assert_eq!(elements[0], "node1");
+            assert_eq!(elements[1], "node2");
+            assert_eq!(elements[2], "edge1");
+        } else {
+            panic!("Expected Unordered group");
+        }
+
+        Ok(())
     }
 }

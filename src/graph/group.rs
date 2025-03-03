@@ -24,14 +24,14 @@ impl FromStr for OrientedElement {
     type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.ends_with('+') {
+        if let Some(stripped) = s.strip_suffix('+') {
             Ok(OrientedElement {
-                id: s[..s.len() - 1].into(),
+                id: stripped.into(),
                 orientation: Some(Orientation::Forward),
             })
-        } else if s.ends_with('-') {
+        } else if let Some(stripped) = s.strip_suffix('-') {
             Ok(OrientedElement {
-                id: s[..s.len() - 1].into(),
+                id: stripped.into(),
                 orientation: Some(Orientation::Reverse),
             })
         } else {
