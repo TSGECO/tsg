@@ -183,6 +183,7 @@ pub struct NodeData {
     pub id: BString,
     #[builder(setter(into))]
     pub reference_id: BString,
+    pub strand: char,
     pub exons: Exons,
     pub reads: Vec<ReadData>,
     pub sequence: Option<BString>,
@@ -235,7 +236,8 @@ impl FromStr for NodeData {
 
         let reference_and_exons: Vec<&str> = fields[2].split(":").collect();
         let reference_id = reference_and_exons[0].into();
-        let exons = reference_and_exons[1].parse()?;
+        let strand = reference_and_exons[1].chars().next().unwrap();
+        let exons = reference_and_exons[2].parse()?;
 
         let reads = fields[3]
             .split(',')
@@ -251,6 +253,7 @@ impl FromStr for NodeData {
         Ok(NodeData {
             id,
             reference_id,
+            strand,
             exons,
             reads,
             sequence,
