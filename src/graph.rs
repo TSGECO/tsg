@@ -683,6 +683,244 @@ impl TSGraph {
             .filter_map(|&idx| self._graph.edge_weight(idx))
             .collect()
     }
+
+    /// Traverse the graph and return all valid paths from source nodes to sink nodes.
+    ///
+    /// A valid path must respect read continuity, especially for nodes with Intermediary (IN) reads.
+    /// For nodes with IN reads, we ensure that:
+    /// 1. The node shares at least one read with previous nodes in the path
+    /// 2. The node can connect to at least one subsequent node that shares a read with it
+    ///
+    /// Example graph:
+    /// n1 (r1) -> n3 (r1,r2) -> n4 (r1)
+    /// n2 (r2) -> n3 (r1,r2) -> n5 (r2)
+    ///
+    /// If n3 has IN reads, then only these paths are valid:
+    /// - n1 -> n3 -> n4 (valid because they all share read r1)
+    /// - n2 -> n3 -> n5 (valid because they all share read r2)
+    ///
+    /// These paths would be invalid:
+    /// - n1 -> n3 -> n5 (invalid because n1 and n5 don't share a common read)
+    /// - n2 -> n3 -> n4 (invalid because n2 and n4 don't share a common read)
+    pub fn traverse(&self) -> Result<Vec<TSGPath>> {
+        use petgraph::visit::EdgeRef;
+        use std::collections::{HashSet, VecDeque};
+
+        // Find all source nodes (nodes with no incoming edges)
+        let source_nodes: Vec<NodeIndex> = self
+            ._graph
+            .node_indices()
+            .filter(|&idx| {
+                self._graph
+                    .edges_directed(idx, petgraph::Direction::Incoming)
+                    .count()
+                    == 0
+            })
+            .collect();
+
+        if source_nodes.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut all_paths = Vec::new();
+
+        // For each source node, perform a traversal
+        for &start_node in &source_nodes {
+            let start_data = self._graph.node_weight(start_node).unwrap();
+            let mut queue = VecDeque::new();
+
+            // Initialize with the start node's reads
+            let mut initial_reads = HashSet::new();
+            for read in &start_data.reads {
+                initial_reads.insert(read.id.clone());
+            }
+
+            // (node, path, active_reads)
+            queue.push_back((start_node, TSGPath::new(), initial_reads));
+
+            while let Some((current_node, mut path, active_reads)) = queue.pop_front() {
+                // Add current node to path
+                path.add_node(current_node);
+
+                // Get outgoing edges
+                let outgoing_edges: Vec<_> = self
+                    ._graph
+                    .edges_directed(current_node, petgraph::Direction::Outgoing)
+                    .collect();
+
+                // If this is a sink node (no outgoing edges), save the path
+                if outgoing_edges.is_empty() {
+                    path.validate()?;
+                    all_paths.push(path);
+                    continue;
+                }
+
+                for edge_ref in outgoing_edges {
+                    let edge_idx = edge_ref.id();
+                    let target_node = edge_ref.target();
+                    let target_data = self._graph.node_weight(target_node).unwrap();
+
+                    // Get all read IDs from the target node
+                    let target_read_ids: HashSet<&BString> =
+                        target_data.reads.iter().map(|r| &r.id).collect();
+
+                    // Check if target node has IN reads
+                    let has_in_reads = target_data
+                        .reads
+                        .iter()
+                        .any(|r| r.identity == ReadIdentity::IN);
+
+                    // Calculate reads that continue from current path to target
+                    let continuing_reads: HashSet<_> = active_reads
+                        .iter()
+                        .filter(|id| target_read_ids.contains(id))
+                        .cloned()
+                        .collect();
+
+                    if continuing_reads.is_empty() {
+                        // No read continuity, skip this edge
+                        continue;
+                    }
+
+                    if has_in_reads {
+                        // For IN nodes, we need to check if there's a valid path forward
+                        let outgoing_from_target: Vec<_> = self
+                            ._graph
+                            .edges_directed(target_node, petgraph::Direction::Outgoing)
+                            .map(|e| e.target())
+                            .collect();
+
+                        let mut can_continue = false;
+
+                        for &next_node in &outgoing_from_target {
+                            if let Some(next_data) = self._graph.node_weight(next_node) {
+                                let next_read_ids: HashSet<&BString> =
+                                    next_data.reads.iter().map(|r| &r.id).collect();
+
+                                // Check if there's at least one read that continues through
+                                if continuing_reads.iter().any(|id| next_read_ids.contains(id)) {
+                                    can_continue = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if !can_continue {
+                            // No valid continuation, skip this edge
+                            continue;
+                        }
+                    }
+
+                    // Create new path and continue traversal
+                    let mut new_path = path.clone();
+                    new_path.add_edge(edge_idx);
+                    queue.push_back((target_node, new_path, continuing_reads));
+                }
+            }
+        }
+
+        Ok(all_paths)
+    }
+
+    pub fn to_dot(&self) -> Result<String> {
+        let dot = Dot::with_config(&self._graph, &[Config::GraphContentOnly]);
+        Ok(format!("{:?}", dot))
+    }
+}
+
+/// A path in the transcript segment graph
+///
+/// A path is a sequence of nodes and edges that form a valid path through the graph.
+/// Paths can represent transcripts, exon chains, or other traversals through the graph.
+#[derive(Debug, Clone, Default)]
+pub struct TSGPath {
+    /// The nodes in the path
+    pub nodes: Vec<NodeIndex>,
+    /// The edges connecting the nodes in the path
+    pub edges: Vec<EdgeIndex>,
+    /// Optional identifier for the path
+    pub id: Option<BString>,
+}
+
+impl fmt::Display for TSGPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let nodes: Vec<String> = self
+            .nodes
+            .iter()
+            .map(|&idx| idx.index().to_string())
+            .collect();
+
+        let edges: Vec<String> = self
+            .edges
+            .iter()
+            .map(|&idx| idx.index().to_string())
+            .collect();
+
+        write!(f, "P\t{}\t{}", nodes.join(","), edges.join(","))
+    }
+}
+
+impl TSGPath {
+    /// Create a new empty path
+    pub fn new() -> Self {
+        Self {
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            id: None,
+        }
+    }
+
+    /// Create a new path with the given ID
+    pub fn with_id<S: Into<BString>>(id: S) -> Self {
+        Self {
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            id: Some(id.into()),
+        }
+    }
+
+    /// Add a node to the path
+    pub fn add_node(&mut self, node: NodeIndex) {
+        self.nodes.push(node);
+    }
+
+    /// Add an edge to the path
+    pub fn add_edge(&mut self, edge: EdgeIndex) {
+        self.edges.push(edge);
+    }
+
+    /// Get the number of nodes in the path
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
+
+    /// Get the number of edges in the path
+    pub fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
+
+    /// Check if the path is empty
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
+    /// Set the ID of the path
+    pub fn set_id<S: Into<BString>>(&mut self, id: S) {
+        self.id = Some(id.into());
+    }
+
+    /// Get the ID of the path, if it has one
+    pub fn id(&self) -> Option<&BStr> {
+        self.id.as_ref().map(|s| s.as_bstr())
+    }
+
+    fn validate(&self) -> Result<()> {
+        if self.nodes.len() != self.edges.len() + 1 {
+            return Err(anyhow!("Invalid path: node count must be edge count + 1"));
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -833,6 +1071,31 @@ mod tests {
         assert_eq!(graph.get_edges().len(), 4);
 
         graph.write_to_file("test_out.tsg")?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_traverse() -> Result<()> {
+        let file = "tests/data/test.tsg";
+        let graph = TSGraph::from_file(file)?;
+
+        let paths = graph.traverse()?;
+        // assert_eq!(paths.len(), 2);
+
+        for path in paths {
+            println!("{}", path);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_dot() -> Result<()> {
+        let file = "tests/data/test.tsg";
+        let graph = TSGraph::from_file(file)?;
+
+        let dot = graph.to_dot()?;
+        println!("{}", dot);
 
         Ok(())
     }
