@@ -522,6 +522,7 @@ impl TSGraph {
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
 
+        writeln!(writer, "# Header")?;
         // Write headers
         for header in &self.headers {
             writeln!(writer, "{}", header)?;
@@ -534,6 +535,7 @@ impl TSGraph {
 
         writeln!(writer, "{}", new_headr)?;
 
+        writeln!(writer, "# Nodes")?;
         // Write nodes
         for node_idx in self._graph.node_indices() {
             if let Some(node_data) = self._graph.node_weight(node_idx) {
@@ -541,6 +543,7 @@ impl TSGraph {
             }
         }
 
+        writeln!(writer, "# Edges")?;
         // Write edges
         for edge_idx in self._graph.edge_indices() {
             if let Some(edge) = self._graph.edge_weight(edge_idx) {
@@ -555,6 +558,7 @@ impl TSGraph {
             }
         }
 
+        writeln!(writer, "# Groups")?;
         // Write groups
         for (group_id, group) in &self.groups {
             match group {
@@ -599,6 +603,7 @@ impl TSGraph {
             }
         }
 
+        writeln!(writer, "# Attributes")?;
         // Write attributes for nodes
         for node_idx in self._graph.node_indices() {
             if let Some(node) = self._graph.node_weight(node_idx) {
