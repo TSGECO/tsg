@@ -2,19 +2,22 @@
 H	TSG	1.0
 H	reference	GRCh38
 # Nodes (exons)
-N	n1	1000-1200,1500-1700	read1:SO,read2:SO,read3:SO	ACGTACGT
-N	n2	2000-2200	read4:IN,read5:IN	TGCATGCA
-N	n3	2500-2700	read6:SI,read7:SI	CTGACTGA
+N	n1	1000-1200,1500-1700	read1:SO,read2:SO	ACGTACGT
+N	n2	2000-2200	read4:SO,read5:SO	TGCATGCA
+N	n3	2500-2700	read1:IN,read2:IN,read3:IN,read4:IN	CTGACTGA
+N	n4	2500-2700	read1:SI,read2:SI	CTGACTGA
+N	n5	2500-2700	read3:SI,read4:SI	CTGACTGA
 # Edges (splice junctions)
-E	e1	n1	n2	chr1,chr1,1700,2000,splice
-E	e2	n2	n3	chr1,chr1,2200,2500,splice
-E	e3	n1	n3	chr1,chr1,1700,2500,splice
+E	e1	n1	n3	chr1,chr1,1700,2000,splice
+E	e2	n3	n4	chr1,chr1,1700,2000,splice
+E	e3	n2	n3	chr1,chr1,2200,2500,splice
+E	e4	n3	n5	chr1,chr1,1700,2500,splice
 # Chains (building the graph)
-C	chain1	n1	e1	n2	e2	n3
-C	chain2	n1	e3	n3
+C	chain1	n1	e1	n3	e2	n4
+C	chain2	n2	e3	n3  e4  n5
 # Paths (traversals through the constructed graph)
-O	transcript1	n1+	e1+	n2+	e2+	n3+
-O	transcript2	n1+	e3+	n3+
+O	transcript1	n1+	e1+	n3+	e2+	n4+
+O	transcript2	n2+	e3+	n3+ e4+ n5+
 # Sets (grouping elements)
 U	exon_set	n1	n2	n3
 # Attributes (metadata)

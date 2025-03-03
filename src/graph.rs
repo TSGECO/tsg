@@ -819,8 +819,8 @@ mod tests {
         let graph = TSGraph::from_file(file)?;
 
         assert_eq!(graph.headers.len(), 2);
-        assert_eq!(graph.get_nodes().len(), 3);
-        assert_eq!(graph.get_edges().len(), 3);
+        assert_eq!(graph.get_nodes().len(), 5);
+        assert_eq!(graph.get_edges().len(), 4);
 
         Ok(())
     }
