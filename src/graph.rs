@@ -25,6 +25,7 @@ use bstr::BString;
 
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use tracing::debug;
 
 /// Represents an optional attribute
 #[derive(Debug, Clone)]
@@ -443,7 +444,8 @@ impl TSGraph {
                 "C" => tsgraph.parse_chain_line(&fields)?,
                 "A" => tsgraph.parse_attribute_line(&fields)?,
                 _ => {
-                    return Err(anyhow!("Unknown record type: {}", fields[0]));
+                    // ignore unknown record types
+                    debug!("Ignoring unknown record type: {}", fields[0]);
                 }
             }
         }
