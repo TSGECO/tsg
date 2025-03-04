@@ -672,14 +672,14 @@ impl TSGraph {
     }
 
     /// Get a node by its ID
-    pub fn get_node_by_id(&self, id: &BStr) -> Option<&NodeData> {
-        let node_idx = self.node_indices.get(id)?;
+    pub fn get_node_by_id(&self, id: &str) -> Option<&NodeData> {
+        let node_idx = self.node_indices.get(&BString::from(id))?;
         self._graph.node_weight(*node_idx)
     }
 
     /// Get an edge by its ID
-    pub fn get_edge_by_id(&self, id: &BStr) -> Option<&EdgeData> {
-        let edge_idx = self.edge_indices.get(id)?;
+    pub fn get_edge_by_id(&self, id: &str) -> Option<&EdgeData> {
+        let edge_idx = self.edge_indices.get(&BString::from(id))?;
         self._graph.edge_weight(*edge_idx)
     }
 
@@ -740,6 +740,8 @@ impl TSGraph {
 
         let mut all_paths = Vec::new();
 
+        let mut path_id = 0;
+
         // For each source node, perform a traversal
         for &start_node in &source_nodes {
             let start_data = self._graph.node_weight(start_node).unwrap();
@@ -767,6 +769,8 @@ impl TSGraph {
                 // If this is a sink node (no outgoing edges), save the path
                 if outgoing_edges.is_empty() {
                     path.validate()?;
+                    path.set_id(format!("{}", path_id).as_str());
+                    path_id += 1;
                     all_paths.push(path);
                     continue;
                 }
@@ -850,6 +854,30 @@ impl TSGraph {
         let dot = Dot::with_config(&self._graph, &config);
         Ok(format!("{:?}", dot))
     }
+
+    pub fn annotate_node_with_sequence<P: AsRef<Path>>(
+        &mut self,
+        reference_genome_path: P,
+    ) -> Result<()> {
+        use noodles::fasta;
+        let mut reader = fasta::io::indexed_reader::Builder::default()
+            .build_from_path(reference_genome_path.as_ref())?;
+
+        for node_idx in self.node_indices.values() {
+            let node_data = self._graph.node_weight_mut(*node_idx).unwrap();
+
+            let region = format!(
+                "{}:{}-{}",
+                node_data.reference_id,
+                node_data.reference_start() - 1, // 0-based
+                node_data.reference_end(),
+            )
+            .parse()?;
+            let record = reader.query(&region)?;
+            node_data.sequence = Some(record.sequence().as_ref().into());
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -889,13 +917,13 @@ mod tests {
 
         // Add nodes first
         let node1 = NodeData {
-            id: "node1",
-            reference_id: "chr1",
+            id: "node1".into(),
+            reference_id: "chr1".into(),
             ..Default::default()
         };
 
         let node2 = NodeData {
-            id: "node2",
+            id: "node2".into(),
             ..Default::default()
         };
 
@@ -904,7 +932,7 @@ mod tests {
 
         // Add edge
         let edge = EdgeData {
-            id: "edge1",
+            id: "edge1".into(),
             ..Default::default()
         };
 

@@ -1,8 +1,10 @@
 use std::fmt;
 
+use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use bstr::{BStr, BString, ByteSlice};
+use bstr::BString;
+use bstr::ByteVec;
 use petgraph::graph::{EdgeIndex, NodeIndex};
 
 use super::TSGraph;
@@ -18,7 +20,7 @@ pub struct TSGPath {
     /// The edges connecting the nodes in the path
     pub edges: Vec<EdgeIndex>,
     /// Optional identifier for the path
-    pub id: Option<BString>,
+    id: Option<BString>,
 }
 
 impl fmt::Display for TSGPath {
@@ -50,7 +52,7 @@ impl TSGPath {
     }
 
     /// Create a new path with the given ID
-    pub fn with_id<S: Into<BString>>(id: S) -> Self {
+    pub fn with_id(id: &str) -> Self {
         Self {
             nodes: Vec::new(),
             edges: Vec::new(),
@@ -82,39 +84,44 @@ impl TSGPath {
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
-
     /// Set the ID of the path
-    pub fn set_id<S: Into<BString>>(&mut self, id: S) {
+    pub fn set_id(&mut self, id: &str) {
         self.id = Some(id.into());
     }
 
-    /// Get the ID of the path, if it has one
-    pub fn id(&self) -> Option<&BStr> {
-        self.id.as_ref().map(|s| s.as_bstr())
+    pub fn get_id(&self) -> Option<&BString> {
+        self.id.as_ref()
     }
 
     pub fn validate(&self) -> Result<()> {
         if self.nodes.len() != self.edges.len() + 1 {
             return Err(anyhow!("Invalid path: node count must be edge count + 1"));
         }
-
         Ok(())
     }
 
-    pub fn to_gtf(&self, tsg_graph: &TSGraph, path_id: usize) -> Result<BString> {
+    pub fn to_gtf(&self, tsg_graph: &TSGraph) -> Result<BString> {
         todo!()
     }
 
-    pub fn to_vcf(&self, tsg_graph: &TSGraph, path_id: usize) -> Result<BString> {
+    pub fn to_vcf(&self, tsg_graph: &TSGraph) -> Result<BString> {
         todo!()
     }
 
-    pub fn to_fa<P: AsRef<P>>(
-        &self,
-        tsg_graph: &TSGraph,
-        path_id: usize,
-        reference_path: P,
-    ) -> Result<BString> {
-        todo!()
+    pub fn to_fa(&self, tsg_graph: &TSGraph) -> Result<BString> {
+        let mut seq = BString::from("");
+        for node_idx in &self.nodes {
+            let node_data = tsg_graph
+                .get_node_by_idx(*node_idx)
+                .context(format!("Node not found for index: {}", node_idx.index()))
+                .unwrap();
+
+            let node_seq = node_data
+                .sequence
+                .as_ref()
+                .ok_or_else(|| anyhow!("Node sequence not found"))?;
+            seq.push_str(node_seq);
+        }
+        Ok(seq)
     }
 }

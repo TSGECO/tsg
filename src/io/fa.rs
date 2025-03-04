@@ -1,14 +1,24 @@
+use std::path::Path;
+
 use crate::graph::TSGraph;
 use anyhow::Result;
+use std::io::Write;
 
-pub fn annotate_node_with_sequence<P: AsRef<P>>(
-    tsg_graph: &TSGraph,
+pub fn to_fa<P: AsRef<Path>, Q: AsRef<Path>>(
+    tsg_graph: &mut TSGraph,
     reference_genome_path: P,
+    output: Q,
 ) -> Result<()> {
-    todo!()
-}
+    tsg_graph.annotate_node_with_sequence(reference_genome_path)?;
+    let paths = tsg_graph.traverse()?;
 
-pub fn to_fa<P: AsRef<P>>(tsg_graph: &TSGraph, reference_genome_path: P, output: P) -> Result<()> {
-    annotate_node_with_sequence(tsg_graph, reference_genome_path)?;
-    todo!()
+    let output_file = std::fs::File::create(output)?;
+    let mut writer = std::io::BufWriter::new(output_file);
+
+    for path in paths {
+        let seq = path.to_fa(tsg_graph)?;
+        writeln!(writer, ">{}", path.get_id().unwrap())?;
+        writeln!(writer, "{}", seq)?;
+    }
+    Ok(())
 }

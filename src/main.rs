@@ -72,6 +72,16 @@ fn run() -> Result<()> {
             }
             Ok(())
         }
+
+        Commands::Fa {
+            input,
+            reference_genome,
+            output,
+        } => {
+            info!("Converting TSG file to FASTA: {}", input.display());
+            cli::to_fa(input, reference_genome, output)?;
+            Ok(())
+        }
     }
 }
 
