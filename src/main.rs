@@ -1,12 +1,13 @@
+mod cli;
 mod graph;
 mod io;
 
 use tracing::info;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::Parser;
+use cli::Commands;
 use graph::TSGraph;
-use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(author, version, about = "Transcript Segment Graph (TSG) CLI tool")]
@@ -14,41 +15,8 @@ struct Cli {
     /// Sets the level of verbosity
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
-
     #[command(subcommand)]
     command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Parse a TSG file and validate its structure
-    Parse {
-        /// Input TSG file path
-        #[arg(required = true)]
-        input: PathBuf,
-    },
-
-    /// Convert a TSG file to DOT format for visualization
-    Dot {
-        /// Input TSG file path
-        #[arg(required = true)]
-        input: PathBuf,
-
-        /// Output DOT file path
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-
-    /// Find all valid paths through the graph
-    Traverse {
-        /// Input TSG file path
-        #[arg(required = true)]
-        input: PathBuf,
-
-        /// Output file path for the paths
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
 }
 
 fn run() -> Result<()> {
@@ -79,16 +47,7 @@ fn run() -> Result<()> {
             Ok(())
         }
         Commands::Dot { input, output } => {
-            info!("Converting TSG file to DOT: {}", input.display());
-            let graph = TSGraph::from_file(input)?;
-            let dot = graph.to_dot()?;
-
-            if let Some(output_path) = output {
-                std::fs::write(&output_path, dot)?;
-                info!("DOT file written to: {}", output_path.display());
-            } else {
-                println!("{}", dot);
-            }
+            cli::to_dot(input, output)?;
             Ok(())
         }
 
