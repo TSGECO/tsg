@@ -844,7 +844,7 @@ impl TSGraph {
             config.push(Config::NodeIndexLabel);
         }
         if edge_label {
-            config.push(Config::NodeIndexLabel);
+            config.push(Config::EdgeIndexLabel);
         }
 
         let dot = Dot::with_config(&self._graph, &config);
