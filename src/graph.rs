@@ -666,16 +666,24 @@ impl TSGraph {
         None
     }
 
+    pub fn get_node_by_idx(&self, node_idx: NodeIndex) -> Option<&NodeData> {
+        self._graph.node_weight(node_idx)
+    }
+
     /// Get a node by its ID
-    pub fn get_node(&self, id: &BStr) -> Option<&NodeData> {
+    pub fn get_node_by_id(&self, id: &BStr) -> Option<&NodeData> {
         let node_idx = self.node_indices.get(id)?;
         self._graph.node_weight(*node_idx)
     }
 
     /// Get an edge by its ID
-    pub fn get_edge(&self, id: &BStr) -> Option<&EdgeData> {
+    pub fn get_edge_by_id(&self, id: &BStr) -> Option<&EdgeData> {
         let edge_idx = self.edge_indices.get(id)?;
         self._graph.edge_weight(*edge_idx)
+    }
+
+    pub fn get_edge_by_idx(&self, edge_idx: EdgeIndex) -> Option<&EdgeData> {
+        self._graph.edge_weight(edge_idx)
     }
 
     /// Get all nodes in the graph
@@ -861,7 +869,7 @@ mod tests {
         graph.add_node(node.clone())?;
 
         assert_eq!(graph.get_nodes().len(), 1);
-        assert_eq!(graph.get_node("node1".into()).unwrap().id, node.id);
+        assert_eq!(graph.get_node_by_id("node1".into()).unwrap().id, node.id);
 
         Ok(())
     }
@@ -894,7 +902,7 @@ mod tests {
         graph.add_edge("node1".into(), "node2".into(), edge.clone())?;
 
         assert_eq!(graph.get_edges().len(), 1);
-        assert_eq!(graph.get_edge("edge1".into()).unwrap().id, edge.id);
+        assert_eq!(graph.get_edge_by_id("edge1".into()).unwrap().id, edge.id);
 
         Ok(())
     }
@@ -920,7 +928,7 @@ mod tests {
 
         graph.parse_node_line(line)?;
 
-        let node = graph.get_node("node1".into()).unwrap();
+        let node = graph.get_node_by_id("node1".into()).unwrap();
         assert_eq!(node.id, "node1");
         assert_eq!(node.exons.exons.len(), 1);
         assert_eq!(node.exons.exons[0].start, 100);

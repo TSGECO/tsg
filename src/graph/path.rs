@@ -5,6 +5,8 @@ use anyhow::anyhow;
 use bstr::{BStr, BString, ByteSlice};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 
+use super::TSGraph;
+
 /// A path in the transcript segment graph
 ///
 /// A path is a sequence of nodes and edges that form a valid path through the graph.
@@ -97,5 +99,22 @@ impl TSGPath {
         }
 
         Ok(())
+    }
+
+    pub fn to_gtf(&self, tsg_graph: &TSGraph, path_id: usize) -> Result<BString> {
+        todo!()
+    }
+
+    pub fn to_vcf(&self, tsg_graph: &TSGraph, path_id: usize) -> Result<BString> {
+        todo!()
+    }
+
+    pub fn to_fa<P: AsRef<P>>(
+        &self,
+        tsg_graph: &TSGraph,
+        path_id: usize,
+        reference_path: P,
+    ) -> Result<BString> {
+        todo!()
     }
 }
