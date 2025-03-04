@@ -889,13 +889,13 @@ mod tests {
 
         // Add nodes first
         let node1 = NodeData {
-            id: "node1".into(),
-            reference_id: "chr1".into(),
+            id: "node1",
+            reference_id: "chr1",
             ..Default::default()
         };
 
         let node2 = NodeData {
-            id: "node2".into(),
+            id: "node2",
             ..Default::default()
         };
 
@@ -904,7 +904,7 @@ mod tests {
 
         // Add edge
         let edge = EdgeData {
-            id: "edge1".into(),
+            id: "edge1",
             ..Default::default()
         };
 
