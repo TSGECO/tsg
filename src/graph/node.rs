@@ -141,9 +141,9 @@ impl FromStr for ReadData {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReadIdentity {
-    SO,
-    IN,
-    SI,
+    SO, // source
+    IN, // intermediate
+    SI, // sink
 }
 
 impl fmt::Display for ReadIdentity {
