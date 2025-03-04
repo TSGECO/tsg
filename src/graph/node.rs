@@ -5,9 +5,10 @@ use crate::graph::Attribute;
 use ahash::HashMap;
 use anyhow::Context;
 use anyhow::Result;
+use bon::Builder;
+use bon::builder;
 use bstr::BString;
 use bstr::ByteSlice;
-use derive_builder::Builder;
 use std::io;
 use tracing::debug;
 
@@ -107,10 +108,10 @@ impl Exons {
 }
 
 #[derive(Debug, Clone, Builder, PartialEq)]
+#[builder(on(BString, into))]
+#[builder(on(ReadIdentity, into))]
 pub struct ReadData {
-    #[builder(setter(into))]
     pub id: BString,
-    #[builder(setter(into))]
     pub identity: ReadIdentity,
 }
 
@@ -209,10 +210,9 @@ impl fmt::Display for Strand {
 
 /// Node in the transcript segment graph
 #[derive(Debug, Clone, Default, Builder)]
+#[builder(on(BString, into))]
 pub struct NodeData {
-    #[builder(setter(into))]
     pub id: BString,
-    #[builder(setter(into))]
     pub reference_id: BString,
     pub strand: Strand,
     pub exons: Exons,

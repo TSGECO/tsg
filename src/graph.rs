@@ -13,7 +13,6 @@ use std::str::FromStr;
 use ahash::{HashMap, HashMapExt};
 use bstr::BStr;
 use bstr::ByteSlice;
-use derive_builder::Builder;
 pub use edge::*;
 pub use group::*;
 pub use node::*;
@@ -24,6 +23,8 @@ use anyhow::anyhow;
 use bstr::BString;
 
 use ahash::{HashSet, HashSetExt};
+use bon::Builder;
+use bon::builder;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;
@@ -31,7 +32,8 @@ use std::collections::VecDeque;
 use tracing::debug;
 
 /// Represents an optional attribute
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Builder)]
+#[builder(on(BString, into))]
 pub struct Attribute {
     pub tag: BString,
     pub attribute_type: char,
@@ -46,10 +48,9 @@ impl fmt::Display for Attribute {
 
 /// Header information in the TSG file
 #[derive(Debug, Clone, PartialEq, Builder)]
+#[builder(on(BString, into))]
 pub struct Header {
-    #[builder(setter(into))]
     pub tag: BString,
-    #[builder(setter(into))]
     pub value: BString,
 }
 
@@ -837,8 +838,16 @@ impl TSGraph {
         Ok(all_paths)
     }
 
-    pub fn to_dot(&self) -> Result<String> {
-        let dot = Dot::with_config(&self._graph, &[Config::GraphContentOnly]);
+    pub fn to_dot(&self, node_label: bool, edge_label: bool) -> Result<String> {
+        let mut config = vec![];
+        if node_label {
+            config.push(Config::NodeIndexLabel);
+        }
+        if edge_label {
+            config.push(Config::NodeIndexLabel);
+        }
+
+        let dot = Dot::with_config(&self._graph, &config);
         Ok(format!("{:?}", dot))
     }
 }
@@ -936,16 +945,8 @@ mod tests {
         assert_eq!(
             node.reads,
             vec![
-                ReadDataBuilder::default()
-                    .id("read1")
-                    .identity("SO")
-                    .build()
-                    .unwrap(),
-                ReadDataBuilder::default()
-                    .id("read2")
-                    .identity("IN")
-                    .build()
-                    .unwrap(),
+                ReadData::builder().id("read1").identity("SO").build(),
+                ReadData::builder().id("read2").identity("IN").build(),
             ]
         );
         assert_eq!(node.sequence, Some("ACGT".into()));
@@ -1007,7 +1008,7 @@ mod tests {
         let file = "tests/data/test.tsg";
         let graph = TSGraph::from_file(file)?;
 
-        let dot = graph.to_dot()?;
+        let dot = graph.to_dot(true, true)?;
         println!("{}", dot);
 
         Ok(())
