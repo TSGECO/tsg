@@ -178,6 +178,35 @@ impl From<&str> for ReadIdentity {
     }
 }
 
+/// Represents DNA strand orientation
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Strand {
+    #[default]
+    Forward,
+    Reverse,
+}
+
+impl FromStr for Strand {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "+" => Ok(Strand::Forward),
+            "-" => Ok(Strand::Reverse),
+            _ => Err(anyhow::anyhow!("Invalid strand: {}", s)),
+        }
+    }
+}
+
+impl fmt::Display for Strand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Strand::Forward => write!(f, "+"),
+            Strand::Reverse => write!(f, "-"),
+        }
+    }
+}
+
 /// Node in the transcript segment graph
 #[derive(Debug, Clone, Default, Builder)]
 pub struct NodeData {
@@ -185,7 +214,7 @@ pub struct NodeData {
     pub id: BString,
     #[builder(setter(into))]
     pub reference_id: BString,
-    pub strand: char,
+    pub strand: Strand,
     pub exons: Exons,
     pub reads: Vec<ReadData>,
     pub sequence: Option<BString>,
@@ -255,8 +284,18 @@ impl FromStr for NodeData {
 
         let reference_and_exons: Vec<&str> = fields[2].split(":").collect();
         let reference_id = reference_and_exons[0].into();
-        let strand = reference_and_exons[1].chars().next().unwrap();
-        let exons = reference_and_exons[2].parse()?;
+        let strand = reference_and_exons[1].parse().map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Failed to parse strand: {}", e),
+            )
+        })?;
+        let exons = reference_and_exons[2].parse().map_err(|e| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Failed to parse exons: {}", e),
+            )
+        })?;
 
         let reads = fields[3]
             .split(',')
