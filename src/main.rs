@@ -2,7 +2,6 @@ mod graph;
 mod io;
 
 use tracing::info;
-use tracing_subscriber;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
