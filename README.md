@@ -242,9 +242,9 @@ Where:
 - `genomic_location` is in format `chromosome:strand:coordinates` (e.g., `chr1:+:1000-1200,1500-1700`)
 - `reads` is a comma-separated list of read IDs with types (e.g., `read1:SO,read2:IN`)
 - Read types include:
-  - `SO`: Spanning reads
-  - `IN`: Internal reads
-  - `SI`: Significant reads
+  - `SO`: Source Node
+  - `IN`: Intermediary Node
+  - `SI`: Sink Node
 
 ### Edge Format
 
