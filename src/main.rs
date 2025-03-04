@@ -1,6 +1,6 @@
 mod graph;
+mod io;
 
-use graph::test_read;
 use tracing::info;
 use tracing_subscriber;
 
@@ -119,6 +119,5 @@ fn run() -> Result<()> {
 
 fn main() -> Result<()> {
     run()?;
-    test_read();
     Ok(())
 }

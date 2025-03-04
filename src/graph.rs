@@ -1,7 +1,6 @@
 mod edge;
 mod group;
 mod node;
-mod read;
 
 use std::fmt;
 use std::fs::File;
@@ -17,7 +16,6 @@ use derive_builder::Builder;
 pub use edge::*;
 pub use group::*;
 pub use node::*;
-pub use read::*;
 
 use anyhow::Result;
 use anyhow::anyhow;

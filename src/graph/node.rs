@@ -4,7 +4,9 @@ use std::str::FromStr;
 use crate::graph::Attribute;
 use ahash::HashMap;
 use anyhow::Context;
-use bstr::BString;
+use anyhow::Result;
+use bstr::ByteSlice;
+use bstr::{BString, ByteVec};
 use derive_builder::Builder;
 use std::io;
 use tracing::debug;
@@ -197,6 +199,23 @@ impl NodeData {
     pub fn reference_end(&self) -> usize {
         self.exons.last_exon().end
     }
+
+    pub fn to_gtf(&self) -> Result<BString> {
+        // chr1    scannls exon    173867960       173867991       .       -       .       exon_id "001"; mega_exon_id "0001"; ptc "1"; ptf "1.0"; transcript_id "3x1"; gene_id "3";
+        let mut res = vec![];
+        for (idx, exon) in self.exons.exons.iter().enumerate() {
+            let mut gtf = String::from("");
+            gtf.push_str(self.reference_id.to_str().unwrap());
+            gtf.push_str("\tsg\texon\t");
+            gtf.push_str(&format!("{}\t{}\t", exon.start, exon.end));
+            gtf.push_str(".\t");
+            gtf.push_str(self.strand.to_string().as_str());
+            gtf.push_str("\t.\t");
+            gtf.push_str(format!("exon_id \"{}\"; ", idx).as_str());
+            res.push(gtf);
+        }
+        Ok(res.join("\n").into())
+    }
 }
 
 impl fmt::Display for NodeData {
@@ -221,7 +240,7 @@ impl FromStr for NodeData {
     type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // N  <id>  <exons>  <reads>  [<seq>]
+        // N  <rid>:<id>  <chrom>:<strand>:<exons>  <reads>  [<seq>]
 
         let fields: Vec<&str> = s.split('\t').collect();
         if fields.len() < 4 {
