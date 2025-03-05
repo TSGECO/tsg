@@ -5,22 +5,42 @@ mod io;
 use tracing::info;
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{Command, CommandFactory, Parser};
 use cli::Commands;
 use graph::TSGraph;
 
+use clap_complete::aot::{Generator, Shell, generate};
+use std::io::stdout;
+
 #[derive(Parser)]
 #[command(author, version, about = "Transcript Segment Graph (TSG) CLI tool")]
+#[command(propagate_version = true)]
 struct Cli {
+    // If provided, outputs the completion file for given shell
+    #[arg(long = "generate", value_enum)]
+    generator: Option<Shell>,
+
     /// Sets the level of verbosity
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
+
     #[command(subcommand)]
     command: Commands,
 }
 
+fn print_completions<G: Generator>(generator: G, cmd: &mut Command) {
+    generate(generator, cmd, cmd.get_name().to_string(), &mut stdout());
+}
+
 fn run() -> Result<()> {
     let cli = Cli::parse();
+
+    if let Some(generator) = cli.generator {
+        let mut cmd = Cli::command();
+        info!("Generating completion file for {generator:?}...");
+        print_completions(generator, &mut cmd);
+        return Ok(());
+    }
 
     // Set verbosity level
     match cli.verbose {

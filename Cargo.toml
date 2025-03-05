@@ -18,6 +18,7 @@ bon = "3.3"
 bstr = "1.11.3"
 bytes = "1"
 clap = { version = "4.5", features = ["derive"] }
+clap_complete = "4.5.46"
 
 flate2 = { version = "1.1.0", features = ["zlib-ng"], default-features = false }
 noodles = { version = "0.93", features = ["fasta"] }
