@@ -535,11 +535,7 @@ impl TSGraph {
             writeln!(writer, "{}", header)?;
         }
 
-        let new_headr = Header {
-            tag: "PG".into(),
-            value: "tsg".into(),
-        };
-
+        let new_headr = Header::builder().tag("PG").value("tsg").build();
         writeln!(writer, "{}", new_headr)?;
 
         writeln!(writer, "# Nodes")?;
@@ -874,7 +870,7 @@ impl TSGraph {
             let region = format!(
                 "{}:{}-{}",
                 node_data.reference_id,
-                node_data.reference_start() - 1, // 0-based
+                node_data.reference_start() - 1, // 0-based to 1-based
                 node_data.reference_end(),
             )
             .parse()?;
