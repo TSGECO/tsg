@@ -225,8 +225,8 @@ O  transcript1  n1+ e1+ n2+ e2+ n3+
 U  exon_set  n1 n2 n3
 
 # Attributes (metadata)
-A  N  n1  expression  f  10.5
-A  O  transcript1  tpm  f  8.2
+A  N  n1  expression:f:10.5
+A  O  transcript1  tpm:f:8.2
 ```
 
 ### Node Format
