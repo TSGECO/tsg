@@ -8,7 +8,7 @@ homepage = "https://github.com/cauliyang/tsg"
 repository = "https://github.com/cauliyang/tsg"
 license = "Apache-2.0"
 readme = "README.md"
-categories = ["bioinformatics", "algorithms"]
+categories = ["Algorithms", "Data structures", "Command line utilities"]
 
 resolver = "2"
 
