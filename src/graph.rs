@@ -1,19 +1,23 @@
+mod attr;
 mod edge;
 mod group;
+mod header;
 mod node;
 mod path;
 
-use std::fmt;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 use std::str::FromStr;
 
 use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
+pub use attr::*;
+pub use attr::*;
 use bstr::{BStr, BString, ByteSlice};
 pub use edge::*;
 pub use group::*;
+pub use header::*;
 pub use node::*;
 pub use path::*;
 
@@ -25,38 +29,8 @@ use rayon::prelude::*;
 use std::collections::VecDeque;
 use tracing::debug;
 
-/// Represents an optional attribute
-#[derive(Debug, Clone, Builder)]
-#[builder(on(BString, into))]
-pub struct Attribute {
-    pub tag: BString,
-    #[builder(default = 'Z')]
-    pub attribute_type: char,
-    pub value: BString,
-}
-
-impl fmt::Display for Attribute {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}\t{}\t{}", self.tag, self.attribute_type, self.value)
-    }
-}
-
-/// Header information in the TSG file
-#[derive(Debug, Clone, PartialEq, Builder)]
-#[builder(on(BString, into))]
-pub struct Header {
-    pub tag: BString,
-    pub value: BString,
-}
-
-impl fmt::Display for Header {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "H\t{}\t{}", self.tag, self.value)
-    }
-}
-
 /// The complete transcript segment graph
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Builder)]
 pub struct TSGraph {
     pub headers: Vec<Header>,
     _graph: DiGraph<NodeData, EdgeData>,
@@ -264,30 +238,24 @@ impl TSGraph {
 
     /// Parse an attribute line
     fn parse_attribute_line(&mut self, fields: &[&str]) -> Result<()> {
-        if fields.len() < 6 {
-            return Err(anyhow!("Invalid attribute line format"));
-        }
-
         let element_type = fields[1];
         let element_id: BString = fields[2].into();
-        let tag: BString = fields[3].into();
-        let attr_type = fields[4]
-            .chars()
-            .next()
-            .ok_or_else(|| anyhow!("Invalid attribute type character"))?;
-        let value = fields[5].into();
 
-        let attribute = Attribute {
-            tag: tag.clone(),
-            attribute_type: attr_type,
-            value,
-        };
+        let attrs: Vec<Attribute> = fields
+            .iter()
+            .skip(3)
+            .map(|s| s.parse())
+            .collect::<Result<Vec<_>>>()
+            .context("invalidate attribute line")?;
 
         match element_type {
             "N" => {
                 if let Some(&node_idx) = self.node_indices.get(&element_id) {
                     if let Some(node_data) = self._graph.node_weight_mut(node_idx) {
-                        node_data.attributes.insert(tag, attribute);
+                        for attr in attrs {
+                            let tag = attr.tag.clone();
+                            node_data.attributes.insert(tag, attr);
+                        }
                     } else {
                         return Err(anyhow!("Node with ID {} not found in graph", element_id));
                     }
@@ -298,7 +266,10 @@ impl TSGraph {
             "E" => {
                 if let Some(&edge_idx) = self.edge_indices.get(&element_id) {
                     if let Some(edge_data) = self._graph.edge_weight_mut(edge_idx) {
-                        edge_data.attributes.insert(tag, attribute);
+                        for attr in attrs {
+                            let tag = attr.tag.clone();
+                            edge_data.attributes.insert(tag, attr);
+                        }
                     } else {
                         return Err(anyhow!("Edge with ID {} not found in graph", element_id));
                     }
@@ -312,7 +283,10 @@ impl TSGraph {
                         Group::Unordered { attributes, .. }
                         | Group::Ordered { attributes, .. }
                         | Group::Chain { attributes, .. } => {
-                            attributes.insert(tag, attribute);
+                            for attr in attrs {
+                                let tag = attr.tag.clone();
+                                attributes.insert(tag, attr);
+                            }
                         }
                     }
                 } else {

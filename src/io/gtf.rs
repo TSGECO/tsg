@@ -11,7 +11,7 @@ pub fn to_gtf<P: AsRef<Path>>(tsg_graph: &TSGraph, output: P) -> Result<()> {
 
     for path in paths {
         let seq = path.to_gtf()?;
-        write!(writer, "{}", seq)?;
+        write!(writer, "{}\n", seq)?;
     }
     Ok(())
 }

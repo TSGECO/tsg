@@ -34,5 +34,6 @@
 ##ALT=<ID=INV,Description="Inversion">
 ##ALT=<ID=TRA,Description="Translocation">
 chr1	1700	e1	.	<INV>	.	.	CHR2=chr1;SVEND=2000;
-chr1	1700	e2	.	<DUP>	.	.	CHR2=chr1;SVEND=2000;chr1	2200	e3	.	<TDUP>	.	.	CHR2=chr1;SVEND=2500;
+chr1	1700	e2	.	<DUP>	.	.	CHR2=chr1;SVEND=2000;
+chr1	2200	e3	.	<TDUP>	.	.	CHR2=chr1;SVEND=2500;
 chr1	1700	e4	.	<DUP>	.	.	CHR2=chr1;SVEND=2500;

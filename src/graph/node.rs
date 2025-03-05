@@ -9,9 +9,9 @@ use bon::Builder;
 use bon::builder;
 use bstr::BString;
 use bstr::ByteSlice;
+use serde_json::json;
 use std::io;
 use tracing::debug;
-
 // Define the interval struct
 // []
 #[derive(Debug, Builder, Clone)]
@@ -227,6 +227,54 @@ impl NodeData {
     pub fn reference_end(&self) -> usize {
         self.exons.last_exon().end
     }
+    /// Converts the node data to a JSON representation
+    ///
+    /// # Arguments
+    /// * `attributes` - Optional additional attributes to include in the JSON
+    ///
+    /// # Returns
+    /// A JSON value representing the node
+    /// {
+    //                 "data": {
+    //                     "chrom": "chr2",
+    //                     "ref_start": 85539167,
+    //                     "ref_end": 85543034,
+    //                     "strand": "+",
+    //                     "is_head": true,
+    //                     "node_id": 1,
+    //                     "exons": "[85539167-85539378,85541082-85541160,85541254-85541377,85541632-85541
+    // 745,85541828-85541972,85542154-85542373,85542564-85542747,85542900-85543034]",
+    //                     "reads": "m64135_220621_211550/1114620/ccs:SO",
+    //                     "ptc": 1,
+    //                     "ptf": 0.0,
+    //                     "id": "chr2_85539167_85543034_H_1",
+    //                     "value": "chr2_85539167_85543034_H_1",
+    //                     "name": "chr2_85539167_85543034_H_1"
+    //                 }
+    //             },
+    pub fn to_json(&self, attributes: Option<&[Attribute]>) -> Result<serde_json::Value> {
+        let mut data = json!({
+            "chrom": self.reference_id.to_str().unwrap(),
+            "ref_start": self.reference_start(),
+            "ref_end": self.reference_end(),
+            "strand": self.strand.to_string(),
+            "exons": format!("[{}]",  self.exons.to_string()),
+            "reads": self.reads.iter().map(|r| r.to_string()).collect::<Vec<_>>().join(","),
+            "id": self.id.to_str().unwrap(),
+        });
+
+        for attr in self.attributes.values() {
+            data[attr.tag.to_str().unwrap()] = attr.value.to_str().unwrap().into();
+        }
+
+        if let Some(attributes) = attributes.as_ref() {
+            for attr in attributes.iter() {
+                data[attr.tag.to_str().unwrap()] = attr.value.to_str().unwrap().into();
+            }
+        }
+        let json = json!({"data": data});
+        Ok(json)
+    }
 
     pub fn to_gtf(&self, attributes: Option<&[Attribute]>) -> Result<BString> {
         // chr1    scannls exon    173867960       173867991       .       -       .       exon_id "001"; segment_id "0001"; ptc "1"; ptf "1.0"; transcript_id "3x1"; gene_id "3";
@@ -331,6 +379,8 @@ impl FromStr for NodeData {
 
 #[cfg(test)]
 mod tests {
+    use ahash::HashMapExt;
+
     use super::*;
 
     #[test]
@@ -364,5 +414,165 @@ mod tests {
         assert_eq!(exons.first_exon().end, 200);
         assert_eq!(exons.last_exon().start, 500);
         assert_eq!(exons.last_exon().end, 600);
+    }
+
+    #[test]
+    fn test_node_reference_start_end() {
+        let node = NodeData {
+            id: "node1".into(),
+            reference_id: "chr1".into(),
+            exons: Exons {
+                exons: vec![
+                    Interval {
+                        start: 100,
+                        end: 200,
+                    },
+                    Interval {
+                        start: 300,
+                        end: 400,
+                    },
+                ],
+            },
+            ..Default::default()
+        };
+
+        assert_eq!(node.reference_start(), 100);
+        assert_eq!(node.reference_end(), 400);
+    }
+
+    #[test]
+    fn test_node_to_json() -> Result<()> {
+        let node = NodeData {
+            id: "node1".into(),
+            reference_id: "chr1".into(),
+            strand: Strand::Forward,
+            exons: Exons {
+                exons: vec![
+                    Interval {
+                        start: 100,
+                        end: 200,
+                    },
+                    Interval {
+                        start: 300,
+                        end: 400,
+                    },
+                ],
+            },
+            reads: vec![
+                ReadData::builder().id("read1").identity("SO").build(),
+                ReadData::builder().id("read2").identity("IN").build(),
+            ],
+            attributes: {
+                let mut map = HashMap::new();
+                map.insert(
+                    "ptc".into(),
+                    Attribute {
+                        tag: "ptc".into(),
+                        attribute_type: 'Z',
+                        value: "1".into(),
+                    },
+                );
+                map.insert(
+                    "ptf".into(),
+                    Attribute {
+                        tag: "ptf".into(),
+                        attribute_type: 'Z',
+                        value: "0.0".into(),
+                    },
+                );
+                map
+            },
+            ..Default::default()
+        };
+
+        let json = node.to_json(None)?;
+        println!("{}", json);
+
+        // Check basic structure
+        assert!(json.get("data").is_some());
+        let data = json["data"].as_object().unwrap();
+
+        // Check fields
+        assert_eq!(data["chrom"], "chr1");
+        assert_eq!(data["ref_start"], 100);
+        assert_eq!(data["ref_end"], 400);
+        assert_eq!(data["strand"], "+");
+        assert_eq!(data["id"], "node1");
+        assert_eq!(data["ptc"], "1");
+        assert_eq!(data["ptf"], "0.0");
+
+        // Test with additional attributes
+        let additional_attrs = vec![Attribute {
+            tag: "is_head".into(),
+            attribute_type: 'Z',
+            value: "true".into(),
+        }];
+
+        let json_with_attrs = node.to_json(Some(&additional_attrs))?;
+        let data = json_with_attrs["data"].as_object().unwrap();
+        assert_eq!(data["is_head"], "true");
+
+        println!("{}", json_with_attrs);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_node_to_gtf() -> Result<()> {
+        let node = NodeData {
+            id: "node1".into(),
+            reference_id: "chr1".into(),
+            strand: Strand::Forward,
+            exons: Exons {
+                exons: vec![
+                    Interval {
+                        start: 100,
+                        end: 200,
+                    },
+                    Interval {
+                        start: 300,
+                        end: 400,
+                    },
+                ],
+            },
+            attributes: {
+                let mut map = HashMap::new();
+                map.insert(
+                    "segment_id".into(),
+                    Attribute {
+                        tag: "segment_id".into(),
+                        attribute_type: 'Z',
+                        value: "000".into(),
+                    },
+                );
+                map
+            },
+            ..Default::default()
+        };
+
+        let gtf = node.to_gtf(None)?;
+        let gtf_str = gtf.to_str().unwrap();
+        let lines: Vec<&str> = gtf_str.split('\n').collect();
+
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].starts_with("chr1\ttsg\texon\t100\t200\t.\t+\t.\texon_id \"000\""));
+        assert!(lines[0].contains("segment_id \"000\""));
+        assert!(lines[1].starts_with("chr1\ttsg\texon\t300\t400\t.\t+\t.\texon_id \"001\""));
+
+        // Test with additional attributes
+        let additional_attrs = vec![Attribute {
+            tag: "transcript_id".into(),
+            attribute_type: 'Z',
+            value: "0".into(),
+        }];
+
+        let gtf_with_attrs = node.to_gtf(Some(&additional_attrs))?;
+        let gtf_str = gtf_with_attrs.to_str().unwrap();
+        let lines: Vec<&str> = gtf_str.split('\n').collect();
+
+        assert!(lines[0].contains("transcript_id \"0\""));
+        assert!(lines[1].contains("transcript_id \"0\""));
+
+        Ok(())
     }
 }

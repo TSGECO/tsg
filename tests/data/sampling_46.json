@@ -1,0 +1,55 @@
+{
+    "data": [],
+    "directed": true,
+    "multigraph": true,
+    "elements": {
+        "nodes": [{
+                "data": {
+                    "chrom": "chr2",
+                    "ref_start": 85539167,
+                    "ref_end": 85543034,
+                    "strand": "+",
+                    "is_head": true,
+                    "node_id": 1,
+                    "exons": "[85539167-85539378,85541082-85541160,85541254-85541377,85541632-85541745,85541828-85541972, 85542154-85542373, 85542564-85542747, 85542900-85543034]",
+                    "reads": "m64135_220621_211550/1114620/ccs:SO",
+                    "ptc": 1,
+                    "ptf": 0.0,
+                    "id": "chr2_85539167_85543034_H_1",
+                    "value": "chr2_85539167_85543034_H_1",
+                    "name": "chr2_85539167_85543034_H_1"
+                }
+            },
+            {
+                "data": {
+                    "chrom": "chr8",
+                    "ref_start": 95819124,
+                    "ref_end": 95822730,
+                    "strand": "+",
+                    "is_head": false,
+                    "node_id": 2,
+                    "exons": "[95819124-95822730]",
+                    "reads": "m64135_220621_211550/1114620/ccs:SI",
+                    "ptc": 1,
+                    "ptf": 0.0,
+                    "id": "chr8_95819124_95822730_T_2",
+                    "value": "chr8_95819124_95822730_T_2",
+                    "name": "chr8_95819124_95822730_T_2"
+                }
+            }
+        ],
+        "edges": [{
+            "data": {
+                "label": "TRA_(False, NovelInsertion(CAACAATGGCCATGAGGGATTCAAGGATTATGC:0))_1",
+                "weight": 1,
+                "read_ids": [
+                    "m64135_220621_211550/1114620/ccs"
+                ],
+                "breakpoints": "chr2,chr8,85543034,95819124,TRA",
+                "source": "chr2_85539167_85543034_H_1",
+                "target": "chr8_95819124_95822730_T_2",
+                "key": 0
+            }
+        }]
+    }
+}
