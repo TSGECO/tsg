@@ -23,7 +23,7 @@ TSG is a tab-delimited text format with each line beginning with a single letter
 
 Contains metadata about the file.
 
-```
+```text
 H  <tag>  <value>
 ```
 
@@ -36,7 +36,7 @@ Fields:
 
 Represent exons or transcript segments.
 
-```
+```text
 N  <id>  <genomic_location>  <reads>  [<seq>]
 ```
 
@@ -55,7 +55,7 @@ Fields:
 
 Represent connections between nodes, including splice junctions or structural variants.
 
-```
+```text
 E  <id>  <source_id>  <sink_id>  <SV>
 ```
 
@@ -70,7 +70,7 @@ Fields:
 
 Represent unordered collections of graph elements.
 
-```
+```text
 U  <group_id>  <element_id_1> <element_id_2> ... <element_id_n>
 ```
 
@@ -83,7 +83,7 @@ Fields:
 
 Represent ordered collections of graph elements where orientation matters.
 
-```
+```text
 O  <group_id>  <oriented_element_id_1> <oriented_element_id_2> ... <oriented_element_id_n>
 ```
 
@@ -96,7 +96,7 @@ Fields:
 
 Represent explicit paths through the graph with alternating nodes and edges.
 
-```
+```text
 C  <chain_id>  <node_id_1> <edge_id_1> <node_id_2> <edge_id_2> ... <node_id_n>
 ```
 
@@ -112,7 +112,7 @@ Fields:
 
 Optional metadata attached to other elements.
 
-```
+```text
 A  <element_type>  <element_id>  <tag>  <type>  <value>
 ```
 
@@ -133,6 +133,31 @@ Nodes in TSG represent exons or transcript segments. Each node has a genomic loc
 ### Edge Semantics
 
 Edges in TSG represent connections between nodes, such as splice junctions or structural variants. The `SV` field provides details about the genomic context of the connection, including reference names, breakpoints, and the type of structural variant or splice.
+
+### Read Continuity
+
+Read continuity is a critical concept in TSG that ensures valid traversals through the graph:
+
+1. **Definition**: Read continuity requires that specific patterns of read support exist between connected nodes in a path, depending on node types.
+
+2. **Node Types and Continuity Requirements**:
+
+   - **SO (Source Node)**: Represents the start of a read. No read continuity required with previous nodes.
+   - **SI (Sink Node)**: Represents the end of a read. No read continuity required with subsequent nodes.
+   - **IN (Intermediary Node)**: Represents an internal segment of a read. Must share at least one read ID with both its previous and next nodes in the path.
+
+3. **Validation**:
+
+   - For IN nodes, implementations must verify that at least one common read ID exists between the current node and both its adjacent nodes.
+   - SO and SI nodes provide more flexible continuity, allowing for extended paths without requiring end-to-end read support.
+   - A path can be considered valid even if it doesn't have a single read spanning its entire length.
+
+4. **Constraints**:
+
+   - Each IN node in a valid path must maintain read continuity with its adjacent nodes.
+   - The specific read type (SO, SI, IN) determines the continuity requirements at each position in the path.
+
+5. **Representation**: The read IDs in each node's `reads` field implicitly define the continuity relationships in the graph, while the read types determine the continuity constraints.
 
 ### Chains vs. Paths
 
@@ -164,6 +189,7 @@ If the TSG file contains explicit node (N) and edge (E) records:
 1. Read and create the graph directly from these records
 2. Chains (C) serve as additional evidence or source information
 3. Paths (O) define traversals through the explicitly defined graph
+4. Validate read continuity by checking for shared read IDs across adjacent nodes in paths
 
 ### Case 2: Nodes and Edges Are Not Explicitly Defined
 
@@ -173,6 +199,7 @@ If the TSG file does not contain explicit node and edge records, or contains onl
 2. Build the complete graph structure from these extracted elements
 3. Chains provide both the structure and the evidence for the graph
 4. Paths (O) define traversals through the graph constructed from chains
+5. Verify read continuity for all paths by ensuring adjacent nodes share common read support
 
 ## Type Definitions for Attributes
 
@@ -185,7 +212,7 @@ If the TSG file does not contain explicit node and edge records, or contains onl
 
 ## Example
 
-```
+```text
 # Header information
 H  TSG  1.0
 H  reference  GRCh38
@@ -222,6 +249,12 @@ In this example:
 3. Two paths (transcript1 and transcript2) represent ways to traverse the graph
 4. One set (exon_set) groups related nodes
 5. Attributes provide additional information about nodes and paths
+6. Read continuity can be verified:
+   - In path transcript1: n1 has SO reads, n3 has IN reads, and n4 has SI reads
+     - n3 (IN) properly shares reads (read1, read2) with both n1 and n4
+   - In path transcript2: n2 has SO reads, n3 has IN reads, and n5 has SI reads
+     - n3 (IN) properly shares reads (read4) with both n2 and n5
+   - This demonstrates valid read continuity as required by the node types
 
 ## Implementation Considerations
 
@@ -262,6 +295,19 @@ Implementations should validate that:
 - Paths do not add new elements to the graph
 - Paths must reference existing nodes and edges
 - Paths can include orientation information (+ or -) for elements
+
+### Read Continuity Verification
+
+When processing TSG files, implementations should:
+
+- Extract read IDs from each node's `reads` field along with their types (SO, SI, IN)
+- For each path or chain traversal:
+  - For IN nodes: Ensure at least one read ID is shared with both the previous and next nodes
+  - For SO nodes: No continuity check required with previous nodes
+  - For SI nodes: No continuity check required with subsequent nodes
+- Flag paths where IN nodes lack proper read continuity as potentially unsupported by the data
+- Recognize that valid paths may be constructed even without end-to-end read support, as long as the IN node continuity requirements are satisfied
+- Provide options to filter or annotate paths based on different levels of read continuity stringency
 
 ### Biological Interpretation in Transcript Analysis
 
