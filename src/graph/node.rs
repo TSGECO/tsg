@@ -235,12 +235,12 @@ impl NodeData {
         for (idx, exon) in self.exons.exons.iter().enumerate() {
             let mut gtf = String::from("");
             gtf.push_str(self.reference_id.to_str().unwrap());
-            gtf.push_str("\tsg\texon\t");
+            gtf.push_str("\ttsg\texon\t");
             gtf.push_str(&format!("{}\t{}\t", exon.start, exon.end));
             gtf.push_str(".\t");
             gtf.push_str(self.strand.to_string().as_str());
             gtf.push_str("\t.\t");
-            gtf.push_str(format!("exon_id \"{}\"; ", idx).as_str());
+            gtf.push_str(format!("exon_id \"{:03}\"; ", idx).as_str());
             res.push(gtf);
         }
         Ok(res.join("\n").into())

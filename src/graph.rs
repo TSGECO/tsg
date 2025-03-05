@@ -754,7 +754,11 @@ impl TSGraph {
             }
 
             // (node, path, active_reads)
-            queue.push_back((start_node, TSGPath::new(), initial_reads));
+            queue.push_back((
+                start_node,
+                TSGPath::builder().graph(&self).build(),
+                initial_reads,
+            ));
 
             while let Some((current_node, mut path, active_reads)) = queue.pop_front() {
                 // Add current node to path

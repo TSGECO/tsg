@@ -82,6 +82,12 @@ fn run() -> Result<()> {
             cli::to_fa(input, reference_genome, output)?;
             Ok(())
         }
+
+        Commands::Gtf { input, output } => {
+            info!("Converting TSG file to GTF: {}", input.display());
+            cli::to_gtf(input, output)?;
+            Ok(())
+        }
     }
 }
 

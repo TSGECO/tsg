@@ -16,7 +16,7 @@ pub fn to_fa<P: AsRef<Path>, Q: AsRef<Path>>(
     let mut writer = std::io::BufWriter::new(output_file);
 
     for path in paths {
-        let seq = path.to_fa(tsg_graph)?;
+        let seq = path.to_fa()?;
         writeln!(writer, ">{}", path.get_id().unwrap())?;
         writeln!(writer, "{}", seq)?;
     }

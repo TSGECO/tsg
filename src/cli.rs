@@ -1,8 +1,10 @@
 mod dot;
 mod fa;
+mod gtf;
 
 pub use dot::*;
 pub use fa::*;
+pub use gtf::*;
 
 use clap::Subcommand;
 use std::path::PathBuf;
@@ -27,6 +29,17 @@ pub enum Commands {
         reference_genome: PathBuf,
 
         /// Output file path for the FASTA
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// convert tsg format to gtf format
+    Gtf {
+        /// Input TSG file path
+        #[arg(required = true)]
+        input: PathBuf,
+
+        /// Output file path for the GTF
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
