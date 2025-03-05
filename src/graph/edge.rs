@@ -4,7 +4,8 @@ use std::{fmt, io};
 use ahash::HashMap;
 use anyhow::Result;
 use bon::Builder;
-use bstr::{BString, ByteVec};
+use bstr::{BString, ByteSlice, ByteVec};
+use serde_json::json;
 
 use super::Attribute;
 
@@ -79,6 +80,48 @@ pub struct EdgeData {
 }
 
 impl EdgeData {
+    // {
+    //     "data": {
+    //         "label": "TRA_(False, NovelInsertion(CAACAATGGCCATGAGGGATTCAAGGATTATGC:0))_1",
+    //         "weight": 1,
+    //         "read_ids": [
+    //             "m64135_220621_211550/1114620/ccs"
+    //         ],
+    //         "breakpoints": "chr2,chr8,85543034,95819124,TRA",
+    //         "source": "chr2_85539167_85543034_H_1",
+    //         "target": "chr8_95819124_95822730_T_2",
+    //         "key": 0
+    //     }
+    // }
+    pub fn to_json(&self, attributes: Option<&[Attribute]>) -> Result<serde_json::Value> {
+        let mut data = json!(
+            {
+                "label": self.id.to_str().unwrap(),
+                "read_ids": [],
+                "breakpoints": format!("{},{},{},{},{}", self.sv.reference_name1, self.sv.reference_name2, self.sv.breakpoint1, self.sv.breakpoint2, self.sv.sv_type),
+                "source": format!("{}_{}_{}_{}", self.sv.reference_name1, self.sv.breakpoint1, self.sv.sv_type, 1),
+                "target": format!("{}_{}_{}_{}", self.sv.reference_name2, self.sv.breakpoint2, self.sv.sv_type, 2),
+                "key": 0
+            }
+        );
+
+        for attr in self.attributes.values() {
+            data[attr.tag.to_str().unwrap()] = attr.value.to_str().unwrap().into();
+        }
+
+        if let Some(attributes) = attributes.as_ref() {
+            for attr in attributes.iter() {
+                data[attr.tag.to_str().unwrap()] = attr.value.to_str().unwrap().into();
+            }
+        }
+
+        let json = json!({
+            "data": data
+        });
+
+        Ok(json)
+    }
+
     pub fn to_vcf(&self, attributes: Option<&[Attribute]>) -> Result<BString> {
         let mut vcf = BString::from("");
         // vcf.push_str(&format!("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"));
