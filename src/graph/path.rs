@@ -31,13 +31,20 @@ pub struct TSGPath<'a> {
     pub attributes: Vec<Attribute>,
 }
 
-impl<'a> fmt::Display for TSGPath<'a> {
+impl fmt::Display for TSGPath<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // O  transcript2  n2+  e3+  n3+  e4+  n5+
         // O  path_id n1+  e1+  n2+  e2+  n3+
         let mut res = vec![];
         res.push("O".to_string());
-        res.push(self.id.clone().unwrap().to_string());
+        res.push(
+            self.id
+                .clone()
+                .unwrap_or_else(|| "path_id".into())
+                .to_str()
+                .unwrap()
+                .to_string(),
+        );
         for (idx, node_idx) in self.nodes.iter().enumerate() {
             let node_data = self
                 .graph

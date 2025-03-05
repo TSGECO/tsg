@@ -5,29 +5,24 @@ mod path;
 
 use std::fmt;
 use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 use std::str::FromStr;
 
-use ahash::{HashMap, HashMapExt};
-use bstr::BStr;
-use bstr::ByteSlice;
+use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
+use anyhow::{Result, anyhow};
+use bstr::{BStr, BString, ByteSlice};
 pub use edge::*;
 pub use group::*;
 pub use node::*;
 pub use path::*;
 
-use anyhow::Result;
-use anyhow::anyhow;
-use bstr::BString;
-
-use ahash::{HashSet, HashSetExt};
-use bon::Builder;
-use bon::builder;
+use bon::{Builder, builder};
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;
+use rayon::prelude::*;
+use rayon::str::ParallelString;
 use std::collections::VecDeque;
 use tracing::debug;
 
@@ -87,10 +82,9 @@ impl TSGraph {
             // Update node data
             if let Some(attr) = self._graph.node_weight_mut(idx) {
                 *attr = node_data;
-            } else {
-                return Err(anyhow!("Node with ID {} not found in graph", id));
+                return Ok(idx);
             }
-            return Ok(idx);
+            return Err(anyhow!("Node with ID {} not found in graph", id));
         }
 
         // Add new node
@@ -119,6 +113,7 @@ impl TSGraph {
             .get(sink_id.as_bytes())
             .ok_or_else(|| anyhow!("Sink node with ID {} not found", sink_id))?;
 
+        // petgraph provide update_edge method to update edge data
         let edge_idx = self._graph.update_edge(source_idx, sink_idx, edge_data);
 
         self.edge_indices.insert(id, edge_idx);
@@ -207,7 +202,7 @@ impl TSGraph {
 
         // Check for duplicate group name
         if self.groups.contains_key(&id) {
-            return Err(anyhow!(format!("Group with ID {} already exists", id)));
+            return Err(anyhow!("Group with ID {} already exists", id));
         }
 
         // Parse oriented element IDs (space-separated)
@@ -292,7 +287,6 @@ impl TSGraph {
         match element_type {
             "N" => {
                 if let Some(&node_idx) = self.node_indices.get(&element_id) {
-                    // A  <element_type>  <element_id>  <tag>  <type>  <value>
                     if let Some(node_data) = self._graph.node_weight_mut(node_idx) {
                         node_data.attributes.insert(tag, attribute);
                     } else {
@@ -316,13 +310,9 @@ impl TSGraph {
             "U" | "O" | "C" => {
                 if let Some(group) = self.groups.get_mut(&element_id) {
                     match group {
-                        Group::Unordered { attributes, .. } => {
-                            attributes.insert(tag, attribute);
-                        }
-                        Group::Ordered { attributes, .. } => {
-                            attributes.insert(tag, attribute);
-                        }
-                        Group::Chain { attributes, .. } => {
+                        Group::Unordered { attributes, .. }
+                        | Group::Ordered { attributes, .. }
+                        | Group::Chain { attributes, .. } => {
                             attributes.insert(tag, attribute);
                         }
                     }
@@ -361,7 +351,8 @@ impl TSGraph {
                                 };
                                 self.add_node(node_data)?;
                             }
-                        } else {
+                        } else if i + 1 < elements.len() {
+                            // Prevent index out of bounds
                             // It's an edge - add it if it doesn't exist
                             if !self.edge_indices.contains_key(element_id) {
                                 // Get connecting nodes
@@ -374,11 +365,7 @@ impl TSGraph {
                                     ..Default::default()
                                 };
 
-                                if let Err(e) =
-                                    self.add_edge(source_id.as_bstr(), sink_id.as_bstr(), edge_data)
-                                {
-                                    return Err(anyhow!("Failed to add edge from chain: {}", e));
-                                }
+                                self.add_edge(source_id.as_bstr(), sink_id.as_bstr(), edge_data)?;
                             }
                         }
                     }
@@ -417,7 +404,6 @@ impl TSGraph {
                 }
             }
         }
-
         Ok(())
     }
 
@@ -477,7 +463,7 @@ impl TSGraph {
 
         match group {
             Group::Chain { elements, .. } => {
-                let mut nodes = Vec::new();
+                let mut nodes = Vec::with_capacity((elements.len() + 1) / 2);
 
                 for (i, element_id) in elements.iter().enumerate() {
                     if i % 2 == 0 {
@@ -502,7 +488,7 @@ impl TSGraph {
 
         match group {
             Group::Chain { elements, .. } => {
-                let mut edges = Vec::new();
+                let mut edges = Vec::with_capacity(elements.len() / 2);
 
                 for (i, element_id) in elements.iter().enumerate() {
                     if i % 2 == 1 {
@@ -523,9 +509,6 @@ impl TSGraph {
 
     /// Write the TSGraph to a TSG file
     pub fn write_to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        use std::fs::File;
-        use std::io::{BufWriter, Write};
-
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
 
@@ -535,8 +518,8 @@ impl TSGraph {
             writeln!(writer, "{}", header)?;
         }
 
-        let new_headr = Header::builder().tag("PG").value("tsg").build();
-        writeln!(writer, "{}", new_headr)?;
+        let new_header = Header::builder().tag("PG").value("tsg").build();
+        writeln!(writer, "{}", new_header)?;
 
         writeln!(writer, "# Nodes")?;
         // Write nodes
@@ -548,26 +531,33 @@ impl TSGraph {
 
         writeln!(writer, "# Edges")?;
         // Write edges
-        for edge_idx in self._graph.edge_indices() {
-            if let Some(edge) = self._graph.edge_weight(edge_idx) {
-                if let Some((source_idx, sink_idx)) = self._graph.edge_endpoints(edge_idx) {
-                    // E  e1  n1  n2  chr1,chr1,1700,2000,splice
-                    writeln!(
-                        writer,
-                        "E\t{}\t{}\t{}\t{}",
-                        edge.id, self._graph[source_idx].id, self._graph[sink_idx].id, edge.sv
-                    )?;
-                }
+        for edge_ref in self._graph.edge_references() {
+            let edge = edge_ref.weight();
+            let source_idx = edge_ref.source();
+            let sink_idx = edge_ref.target();
+
+            // E  e1  n1  n2  chr1,chr1,1700,2000,splice
+            if let (Some(source), Some(sink)) = (
+                self._graph.node_weight(source_idx),
+                self._graph.node_weight(sink_idx),
+            ) {
+                writeln!(
+                    writer,
+                    "E\t{}\t{}\t{}\t{}",
+                    edge.id, source.id, sink.id, edge.sv
+                )?;
             }
         }
 
         writeln!(writer, "# Groups")?;
         // Write groups
-        for (group_id, group) in &self.groups {
+        let mut seen_chain_ids = HashSet::new();
+
+        for group in self.groups.values() {
             match group {
                 Group::Unordered { id, elements, .. } => {
                     let elements_str: Vec<String> = elements
-                        .iter()
+                        .par_iter()
                         .map(|e| e.to_str().unwrap_or("").to_string())
                         .collect();
                     writeln!(
@@ -579,7 +569,7 @@ impl TSGraph {
                 }
                 Group::Ordered { id, elements, .. } => {
                     let elements_str: Vec<String> =
-                        elements.iter().map(|e| e.to_string()).collect();
+                        elements.par_iter().map(|e| e.to_string()).collect();
                     writeln!(
                         writer,
                         "O\t{}\t{}",
@@ -589,11 +579,13 @@ impl TSGraph {
                 }
                 Group::Chain { id, elements, .. } => {
                     // Skip writing chains that are duplicated with groups
-                    if group_id != id {
+                    if seen_chain_ids.contains(id) {
                         continue;
                     }
+                    seen_chain_ids.insert(id);
+
                     let elements_str: Vec<String> = elements
-                        .iter()
+                        .par_iter()
                         .map(|e| e.to_str().unwrap_or("").to_string())
                         .collect();
                     writeln!(
@@ -627,16 +619,10 @@ impl TSGraph {
 
         // Write attributes for groups
         for (id, group) in &self.groups {
-            let group_type = match group {
-                Group::Unordered { .. } => "U",
-                Group::Ordered { .. } => "O",
-                Group::Chain { .. } => "C",
-            };
-
-            let attributes = match group {
-                Group::Unordered { attributes, .. } => attributes,
-                Group::Ordered { attributes, .. } => attributes,
-                Group::Chain { attributes, .. } => attributes,
+            let (group_type, attributes) = match group {
+                Group::Unordered { attributes, .. } => ("U", attributes),
+                Group::Ordered { attributes, .. } => ("O", attributes),
+                Group::Chain { attributes, .. } => ("C", attributes),
             };
 
             for attr in attributes.values() {
@@ -655,13 +641,10 @@ impl TSGraph {
     }
 
     /// Helper method to find a node's ID by its index
-    fn find_node_id_by_idx(&self, node_idx: NodeIndex) -> Option<&BString> {
-        for (id, &idx) in &self.node_indices {
-            if idx == node_idx {
-                return Some(id);
-            }
-        }
-        None
+    pub fn find_node_id_by_idx(&self, node_idx: NodeIndex) -> Option<&BString> {
+        self.node_indices
+            .par_iter()
+            .find_map_first(|(id, &idx)| if idx == node_idx { Some(id) } else { None })
     }
 
     pub fn get_node_by_idx(&self, node_idx: NodeIndex) -> Option<&NodeData> {
@@ -707,7 +690,7 @@ impl TSGraph {
     /// 1. The node shares at least one read with previous nodes in the path
     /// 2. The node can connect to at least one subsequent node that shares a read with it
     ///
-    /// Example graph:
+    /// Example:
     /// n1 (r1) -> n3 (r1,r2) -> n4 (r1)
     /// n2 (r2) -> n3 (r1,r2) -> n5 (r2)
     ///
@@ -736,106 +719,115 @@ impl TSGraph {
         }
 
         let mut all_paths = Vec::new();
-
         let mut path_id = 0;
+
+        // Cache node read IDs to avoid repeated lookups
+        let mut node_read_ids_cache: HashMap<NodeIndex, HashSet<BString>> = HashMap::new();
+
+        // Pre-compute node read IDs
+        for node_idx in self._graph.node_indices() {
+            if let Some(node) = self._graph.node_weight(node_idx) {
+                let read_ids: HashSet<BString> =
+                    node.reads.par_iter().map(|r| r.id.clone()).collect();
+                node_read_ids_cache.insert(node_idx, read_ids);
+            }
+        }
 
         // For each source node, perform a traversal
         for &start_node in &source_nodes {
-            let start_data = self._graph.node_weight(start_node).unwrap();
-            let mut queue = VecDeque::new();
-
-            // Initialize with the start node's reads
-            let mut initial_reads = HashSet::new();
-            for read in &start_data.reads {
-                initial_reads.insert(read.id.clone());
-            }
-
-            // (node, path, active_reads)
-            queue.push_back((
-                start_node,
-                TSGPath::builder().graph(self).build(),
-                initial_reads,
-            ));
-
-            while let Some((current_node, mut path, active_reads)) = queue.pop_front() {
-                // Add current node to path
-                path.add_node(current_node);
-
-                // Get outgoing edges
-                let outgoing_edges: Vec<_> = self
-                    ._graph
-                    .edges_directed(current_node, petgraph::Direction::Outgoing)
-                    .collect();
-
-                // If this is a sink node (no outgoing edges), save the path
-                if outgoing_edges.is_empty() {
-                    path.validate()?;
-                    path.set_id(format!("{}", path_id).as_str());
-                    path_id += 1;
-                    all_paths.push(path);
+            // Skip nodes with no reads
+            if let Some(read_set) = node_read_ids_cache.get(&start_node) {
+                if read_set.is_empty() {
                     continue;
                 }
 
-                for edge_ref in outgoing_edges {
-                    let edge_idx = edge_ref.id();
-                    let target_node = edge_ref.target();
-                    let target_data = self._graph.node_weight(target_node).unwrap();
+                let mut queue = VecDeque::new();
+                // (node, path_so_far, active_reads)
+                let mut initial_path = TSGPath::builder().graph(self).build();
+                initial_path.add_node(start_node);
 
-                    // Get all read IDs from the target node
-                    let target_read_ids: HashSet<&BString> =
-                        target_data.reads.iter().map(|r| &r.id).collect();
+                queue.push_back((start_node, initial_path, read_set.clone()));
 
-                    // Check if target node has IN reads
-                    let has_in_reads = target_data
-                        .reads
-                        .iter()
-                        .any(|r| r.identity == ReadIdentity::IN);
-
-                    // Calculate reads that continue from current path to target
-                    let continuing_reads: HashSet<_> = active_reads
-                        .iter()
-                        .filter(|id| target_read_ids.contains(id))
-                        .cloned()
+                while let Some((current_node, mut path, active_reads)) = queue.pop_front() {
+                    // Get outgoing edges
+                    let outgoing_edges: Vec<_> = self
+                        ._graph
+                        .edges_directed(current_node, petgraph::Direction::Outgoing)
                         .collect();
 
-                    if continuing_reads.is_empty() {
-                        // No read continuity, skip this edge
+                    // If this is a sink node (no outgoing edges), save the path
+                    if outgoing_edges.is_empty() {
+                        path.set_id(format!("{}", path_id).as_str());
+                        path.validate()?;
+                        all_paths.push(path);
+                        path_id += 1;
                         continue;
                     }
 
-                    if has_in_reads {
-                        // For IN nodes, we need to check if there's a valid path forward
-                        let outgoing_from_target: Vec<_> = self
-                            ._graph
-                            .edges_directed(target_node, petgraph::Direction::Outgoing)
-                            .map(|e| e.target())
-                            .collect();
+                    for edge_ref in outgoing_edges {
+                        let edge_idx = edge_ref.id();
+                        let target_node = edge_ref.target();
 
-                        let mut can_continue = false;
+                        if let Some(target_read_ids) = node_read_ids_cache.get(&target_node) {
+                            // Calculate reads that continue from current path to target
+                            let continuing_reads: HashSet<_> = active_reads
+                                .par_iter()
+                                .filter(|id| target_read_ids.contains(*id))
+                                .cloned()
+                                .collect();
 
-                        for &next_node in &outgoing_from_target {
-                            if let Some(next_data) = self._graph.node_weight(next_node) {
-                                let next_read_ids: HashSet<&BString> =
-                                    next_data.reads.iter().map(|r| &r.id).collect();
+                            if continuing_reads.is_empty() {
+                                // No read continuity, skip this edge
+                                continue;
+                            }
 
-                                // Check if there's at least one read that continues through
-                                if continuing_reads.iter().any(|id| next_read_ids.contains(id)) {
-                                    can_continue = true;
-                                    break;
+                            // Check if target node has IN reads
+                            let has_in_reads =
+                                if let Some(target_data) = self._graph.node_weight(target_node) {
+                                    target_data
+                                        .reads
+                                        .par_iter()
+                                        .any(|r| r.identity == ReadIdentity::IN)
+                                } else {
+                                    false
+                                };
+
+                            if has_in_reads {
+                                // For IN nodes, check if there's a valid path forward
+                                let mut can_continue = false;
+                                let outgoing_from_target: Vec<_> = self
+                                    ._graph
+                                    .edges_directed(target_node, petgraph::Direction::Outgoing)
+                                    .map(|e| e.target())
+                                    .collect();
+
+                                for &next_node in &outgoing_from_target {
+                                    if let Some(next_read_ids) = node_read_ids_cache.get(&next_node)
+                                    {
+                                        // Check if there's at least one read that continues through
+                                        if continuing_reads
+                                            .par_iter()
+                                            .any(|id| next_read_ids.contains(id))
+                                        {
+                                            can_continue = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if !can_continue && !outgoing_from_target.is_empty() {
+                                    // Has outgoing edges but no valid continuation, skip this edge
+                                    continue;
                                 }
                             }
-                        }
 
-                        if !can_continue {
-                            // No valid continuation, skip this edge
-                            continue;
+                            // Create new path and continue traversal
+                            let mut new_path = path.clone();
+                            new_path.add_edge(edge_idx);
+                            new_path.add_node(target_node);
+                            queue.push_back((target_node, new_path, continuing_reads));
                         }
                     }
-
-                    // Create new path and continue traversal
-                    let mut new_path = path.clone();
-                    new_path.add_edge(edge_idx);
-                    queue.push_back((target_node, new_path, continuing_reads));
                 }
             }
         }
