@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+## [0.1.1](https://github.com/cauliyang/tsg/compare/v0.1.0...v0.1.1) - 2025-03-05
+
+### Added
+
+- Add completion generation feature for CLI
+- *(cli)* Add option to output pretty JSON
+
+### Other
+
+- Update CLI documentation and examples
+- Remove unnecessary import in edge module
+- Update formatting and whitespace in test data files
+- Update CLI command descriptions
+- Update metadata attributes format in README and TSG files
+- Update formatting in GTF and TSG test files and remove duplicate dependency in Cargo.toml
+- Add JSON conversion functionality for TSG files, including new command and serialization methods
+- Add to_json method for EdgeData struct and update test data formatting
+- Remove unused import from graph.rs, update write calls to use writeln! in GTF and VCF, and adjust test data formatting
+- Update GTF and VCF output formatting, add new Header struct, and modify test data
+- Update test data formatting in GTF and VCF files
+- Remove unused import of ParallelString from graph.rs
+- Refactor TSGPath display implementation and update test data formatting
+- Add changelog and configuration for git-cliff
+
 ### 🚀 Features
 
 - Add Cargo.toml and source code files
