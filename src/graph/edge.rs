@@ -4,8 +4,7 @@ use std::{fmt, io};
 use ahash::HashMap;
 use anyhow::Result;
 use bon::Builder;
-use bstr::{BString, ByteSlice, ByteVec};
-use serde_json::json;
+use bstr::{BString, ByteVec};
 
 use super::Attribute;
 
