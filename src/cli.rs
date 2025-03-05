@@ -1,10 +1,12 @@
 mod dot;
 mod fa;
 mod gtf;
+mod vcf;
 
 pub use dot::*;
 pub use fa::*;
 pub use gtf::*;
+pub use vcf::*;
 
 use clap::Subcommand;
 use std::path::PathBuf;
@@ -40,6 +42,17 @@ pub enum Commands {
         input: PathBuf,
 
         /// Output file path for the GTF
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// convert tsg format to vcf format
+    Vcf {
+        /// Input TSG file path
+        #[arg(required = true)]
+        input: PathBuf,
+
+        /// Output file path for the VCF
         #[arg(short, long)]
         output: Option<PathBuf>,
     },

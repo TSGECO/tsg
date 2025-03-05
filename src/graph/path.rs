@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 
 use super::TSGraph;
@@ -9,7 +10,6 @@ use bstr::BString;
 use bstr::ByteSlice;
 use bstr::ByteVec;
 use petgraph::graph::{EdgeIndex, NodeIndex};
-use rayon::vec;
 
 /// A path in the transcript segment graph
 ///
@@ -26,6 +26,9 @@ pub struct TSGPath<'a> {
     /// Optional identifier for the path
     id: Option<BString>,
     graph: Option<&'a TSGraph>,
+
+    #[builder(default)]
+    pub attributes: HashMap<BString, BString>,
 }
 
 impl<'a> fmt::Display for TSGPath<'a> {
@@ -130,15 +133,19 @@ impl<'a> TSGPath<'a> {
             ".\ttsg\ttranscript\t.\t.\t.\t.\t.\ttranscript_id \"{}\";",
             id
         );
+
+        // create a hashmap of attributes
+        let mut attributes = HashMap::from_iter([("transcript_id".into(), id.clone())]);
         let mut exons: Vec<BString> = vec![transcript.into()];
 
-        for node_idx in self.nodes.iter() {
+        for (idx, node_idx) in self.nodes.iter().enumerate() {
             let graph = self.graph.ok_or_else(|| anyhow!("Graph not available"))?;
             let node_data = graph
                 .get_node_by_idx(*node_idx)
                 .with_context(|| format!("Node not found for index: {}", node_idx.index()))?;
 
-            let exon = node_data.to_gtf()?;
+            attributes.insert("segment_id".into(), format!("{:03}", idx).into());
+            let exon = node_data.to_gtf(Some(&attributes))?;
             exons.push(exon);
         }
 
@@ -148,7 +155,26 @@ impl<'a> TSGPath<'a> {
     }
 
     pub fn to_vcf(&self) -> Result<BString> {
-        todo!()
+        let _id = if let Some(id) = self.id.as_ref() {
+            id
+        } else {
+            return Err(anyhow!("Path ID not found"));
+        };
+
+        let mut edges = vec![];
+
+        for (_idx, edge_idx) in self.edges.iter().enumerate() {
+            let graph = self.graph.ok_or_else(|| anyhow!("Graph not available"))?;
+            let edge_data = graph
+                .get_edge_by_idx(*edge_idx)
+                .with_context(|| format!("Edge not found for index: {}", edge_idx.index()))?;
+
+            let edge_vcf = edge_data.to_vcf(None)?;
+            edges.push(edge_vcf);
+        }
+
+        let edge_strs: Vec<&str> = edges.iter().map(|b| b.to_str().unwrap()).collect();
+        Ok(edge_strs.join("\n").into())
     }
 
     pub fn to_fa(&self) -> Result<BString> {

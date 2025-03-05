@@ -88,6 +88,12 @@ fn run() -> Result<()> {
             cli::to_gtf(input, output)?;
             Ok(())
         }
+
+        Commands::Vcf { input, output } => {
+            info!("Converting TSG file to VCF: {}", input.display());
+            cli::to_vcf(input, output)?;
+            Ok(())
+        }
     }
 }
 

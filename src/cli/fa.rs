@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::graph::TSGraph;
 use crate::io;
 use anyhow::Result;
+use tracing::info;
 
 pub fn to_fa<P: AsRef<Path>, Q: AsRef<Path>>(
     input: P,
@@ -19,6 +20,8 @@ pub fn to_fa<P: AsRef<Path>, Q: AsRef<Path>>(
             output
         }
     };
+
+    info!("Writing FASTA to: {}", output_path.display());
     io::to_fa(&mut tsg_graph, reference_genome_path.as_ref(), &output_path)?;
     Ok(())
 }

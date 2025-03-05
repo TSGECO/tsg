@@ -4,7 +4,7 @@ use std::{fmt, io};
 use ahash::HashMap;
 use anyhow::Result;
 use bon::Builder;
-use bstr::BString;
+use bstr::{BString, ByteVec};
 
 use super::Attribute;
 
@@ -76,4 +76,34 @@ pub struct EdgeData {
     pub id: BString,
     pub sv: StructuralVariant,
     pub attributes: HashMap<BString, Attribute>,
+}
+
+impl EdgeData {
+    pub fn to_vcf(&self, attributes: Option<&HashMap<BString, BString>>) -> Result<BString> {
+        let mut vcf = BString::from("");
+        // vcf.push_str(&format!("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"));
+        vcf.push_str(&format!(
+            "{}\t{}\t{}\t.\t<{}>\t.\t.\tCHR2={};SVEND={};",
+            self.sv.reference_name1,
+            self.sv.breakpoint1,
+            self.id,
+            self.sv.sv_type,
+            self.sv.reference_name2,
+            self.sv.breakpoint2
+        ));
+
+        let mut info = BString::from("");
+        for attr in self.attributes.values() {
+            info.push_str(&format!("{}={};", attr.tag, attr.value));
+        }
+
+        if let Some(attributes) = attributes {
+            for (key, value) in attributes.iter() {
+                info.push_str(&format!("{}={};", key, value));
+            }
+        }
+
+        vcf.push_str(&info);
+        Ok(vcf)
+    }
 }
