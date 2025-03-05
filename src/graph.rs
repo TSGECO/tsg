@@ -13,7 +13,6 @@ use std::str::FromStr;
 use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use anyhow::{Context, Result, anyhow};
 pub use attr::*;
-pub use attr::*;
 use bstr::{BStr, BString, ByteSlice};
 pub use edge::*;
 pub use group::*;
@@ -21,7 +20,7 @@ pub use header::*;
 pub use node::*;
 pub use path::*;
 
-use bon::{Builder, builder};
+use bon::Builder;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;

@@ -55,7 +55,7 @@ pub fn to_vcf<P: AsRef<Path>>(tsg_graph: &TSGraph, output: P) -> Result<()> {
 
     for path in paths {
         let seq = path.to_vcf()?;
-        write!(writer, "{}\n", seq)?;
+        writeln!(writer, "{}", seq)?;
     }
     Ok(())
 }
