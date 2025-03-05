@@ -96,9 +96,13 @@ fn run() -> Result<()> {
             Ok(())
         }
 
-        Commands::Json { input, output } => {
+        Commands::Json {
+            input,
+            pretty,
+            output,
+        } => {
             info!("Converting TSG file to JSON: {}", input.display());
-            cli::to_json(input, output)?;
+            cli::to_json(input, pretty, output)?;
             Ok(())
         }
     }

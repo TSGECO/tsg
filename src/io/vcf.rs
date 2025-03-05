@@ -40,6 +40,7 @@ static VCF_HEADER: &[&str] = &[
     "##ALT=<ID=IDUP,Description=\"Inverted duplication\">",
     "##ALT=<ID=INV,Description=\"Inversion\">",
     "##ALT=<ID=TRA,Description=\"Translocation\">",
+    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT",
 ];
 
 pub fn to_vcf<P: AsRef<Path>>(tsg_graph: &TSGraph, output: P) -> Result<()> {

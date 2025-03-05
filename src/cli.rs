@@ -76,6 +76,10 @@ pub enum Commands {
         #[arg(required = true)]
         input: PathBuf,
 
+        /// If output pretty json
+        #[arg(short, long, default_value = "false")]
+        pretty: bool,
+
         /// Output file path for the JSON
         #[arg(short, long)]
         output: Option<PathBuf>,

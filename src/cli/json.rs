@@ -5,7 +5,7 @@ use crate::io;
 use anyhow::Result;
 use tracing::info;
 
-pub fn to_json<P: AsRef<Path>>(input: P, output: Option<PathBuf>) -> Result<()> {
+pub fn to_json<P: AsRef<Path>>(input: P, pretty: bool, output: Option<PathBuf>) -> Result<()> {
     let tsg_graph = TSGraph::from_file(input.as_ref())?;
     let output_path = match output {
         Some(path) => path,
@@ -17,6 +17,6 @@ pub fn to_json<P: AsRef<Path>>(input: P, output: Option<PathBuf>) -> Result<()> 
     };
 
     info!("Writing Json to: {}", output_path.display());
-    io::to_json(&tsg_graph, output_path)?;
+    io::to_json(&tsg_graph, pretty, output_path)?;
     Ok(())
 }
