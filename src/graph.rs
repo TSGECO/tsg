@@ -22,7 +22,6 @@ use petgraph::dot::{Config, Dot};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;
 use rayon::prelude::*;
-use rayon::str::ParallelString;
 use std::collections::VecDeque;
 use tracing::debug;
 
