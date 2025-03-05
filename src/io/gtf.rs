@@ -15,3 +15,15 @@ pub fn to_gtf<P: AsRef<Path>>(tsg_graph: &TSGraph, output: P) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_gtf() {
+        let tsg_graph = TSGraph::from_file("tests/data/test.tsg").unwrap();
+        let output = "tests/data/test.gtf";
+        to_gtf(&tsg_graph, output).unwrap();
+    }
+}

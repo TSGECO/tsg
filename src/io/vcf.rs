@@ -59,3 +59,15 @@ pub fn to_vcf<P: AsRef<Path>>(tsg_graph: &TSGraph, output: P) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_vcf() {
+        let tsg_graph = TSGraph::from_file("tests/data/test.tsg").unwrap();
+        let output = "tests/data/test.vcf";
+        to_vcf(&tsg_graph, output).unwrap();
+    }
+}
