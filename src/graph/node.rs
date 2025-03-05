@@ -242,6 +242,10 @@ impl NodeData {
             gtf.push_str("\t.\t");
             gtf.push_str(format!("exon_id \"{:03}\"; ", idx).as_str());
 
+            for attr in self.attributes.values() {
+                gtf.push_str(format!("{} \"{}\"; ", attr.tag, attr.value).as_str());
+            }
+
             if let Some(attributes) = attributes.as_ref() {
                 for attr in attributes.iter().rev() {
                     gtf.push_str(format!("{} \"{}\"; ", attr.tag, attr.value).as_str());

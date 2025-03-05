@@ -46,6 +46,7 @@ fn run() -> Result<()> {
             );
             Ok(())
         }
+
         Commands::Dot { input, output } => {
             cli::to_dot(input, output)?;
             Ok(())
