@@ -22,7 +22,7 @@ pub enum Commands {
         input: PathBuf,
     },
 
-    /// convert tsg format to fa format
+    /// convert TSG file to fa file
     Fa {
         /// Input TSG file path
         #[arg(required = true)]
@@ -37,7 +37,7 @@ pub enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// convert tsg format to gtf format
+    /// convert TSG file to gtf file
     Gtf {
         /// Input TSG file path
         #[arg(required = true)]
@@ -48,7 +48,7 @@ pub enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// convert tsg format to vcf format
+    /// convert TSG to vcf file
     Vcf {
         /// Input TSG file path
         #[arg(required = true)]

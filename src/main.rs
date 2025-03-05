@@ -25,7 +25,7 @@ struct Cli {
     verbose: u8,
 
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 fn print_completions<G: Generator>(generator: G, cmd: &mut Command) {
@@ -42,6 +42,15 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
+    // Ensure we have a command when not generating completions
+    let command = match cli.command {
+        Some(cmd) => cmd,
+        None => {
+            Cli::command().print_help()?;
+            return Ok(());
+        }
+    };
+
     // Set verbosity level
     match cli.verbose {
         0 => tracing_subscriber::fmt()
@@ -55,7 +64,7 @@ fn run() -> Result<()> {
             .init(),
     }
 
-    match cli.command {
+    match command {
         Commands::Parse { input } => {
             info!("Parsing TSG file: {}", input.display());
             let graph = TSGraph::from_file(input)?;
