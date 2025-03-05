@@ -14,6 +14,23 @@ use clap::Subcommand;
 use clap::ValueHint;
 use std::path::PathBuf;
 
+/// Command line interface for the TSG tool
+///
+/// # Examples
+///
+/// ```no_run
+/// # Parse a TSG file
+/// tsg parse input.tsg
+///
+/// # Convert to DOT format
+/// tsg dot input.tsg -o output.dot
+///
+/// # Generate FASTA with reference genome
+/// tsg fa input.tsg -r reference.fa -o output.fa
+///
+/// # Find all paths through the graph
+/// tsg traverse input.tsg -o paths.txt
+/// ```
 #[derive(Subcommand)]
 pub enum Commands {
     /// Parse a TSG file and validate its structure
@@ -23,13 +40,13 @@ pub enum Commands {
         input: PathBuf,
     },
 
-    /// convert TSG file to fa file
+    /// Convert a TSG file to FASTA format
     Fa {
         /// Input TSG file path
         #[arg(required = true, value_hint = ValueHint::FilePath)]
         input: PathBuf,
 
-        /// Reference genome path
+        /// Path to the reference genome file
         #[arg(short, long, value_hint = ValueHint::FilePath)]
         reference_genome: PathBuf,
 
@@ -38,7 +55,7 @@ pub enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// convert TSG file to gtf file
+    /// Convert a TSG file to GTF (Gene Transfer Format)
     Gtf {
         /// Input TSG file path
         #[arg(required = true, value_hint = ValueHint::FilePath)]
@@ -49,7 +66,7 @@ pub enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// convert TSG to vcf file
+    /// Convert a TSG file to VCF (Variant Call Format)
     Vcf {
         /// Input TSG file path
         #[arg(required = true, value_hint = ValueHint::FilePath)]
@@ -60,7 +77,7 @@ pub enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// Convert a TSG file to DOT format for visualization
+    /// Convert a TSG file to DOT format for graph visualization
     Dot {
         /// Input TSG file path
         #[arg(required = true, value_hint = ValueHint::FilePath)]
@@ -77,7 +94,7 @@ pub enum Commands {
         #[arg(required = true, value_hint = ValueHint::FilePath)]
         input: PathBuf,
 
-        /// If output pretty json
+        /// Format JSON with indentation for better readability
         #[arg(short, long, default_value = "false")]
         pretty: bool,
 
@@ -86,7 +103,7 @@ pub enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// Find all valid paths through the graph
+    /// Find and enumerate all valid paths through the graph
     Traverse {
         /// Input TSG file path
         #[arg(required = true, value_hint = ValueHint::FilePath)]
