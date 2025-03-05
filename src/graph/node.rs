@@ -77,7 +77,6 @@ impl fmt::Display for Exons {
         write!(f, "{}", exons)
     }
 }
-
 impl Exons {
     pub fn introns(&self) -> Vec<Interval> {
         let mut introns = Vec::new();
@@ -230,7 +229,7 @@ impl NodeData {
     }
 
     pub fn to_gtf(&self, attributes: Option<&[Attribute]>) -> Result<BString> {
-        // chr1    scannls exon    173867960       173867991       .       -       .       exon_id "001"; mega_exon_id "0001"; ptc "1"; ptf "1.0"; transcript_id "3x1"; gene_id "3";
+        // chr1    scannls exon    173867960       173867991       .       -       .       exon_id "001"; segment_id "0001"; ptc "1"; ptf "1.0"; transcript_id "3x1"; gene_id "3";
         let mut res = vec![];
         for (idx, exon) in self.exons.exons.iter().enumerate() {
             let mut gtf = String::from("");
@@ -327,5 +326,43 @@ impl FromStr for NodeData {
             sequence,
             ..Default::default()
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_exons_introns() {
+        let exons = Exons::from_str("100-200,300-400,500-600").unwrap();
+        let introns = exons.introns();
+        assert_eq!(introns.len(), 2);
+        assert_eq!(introns[0].start, 201);
+        assert_eq!(introns[0].end, 299);
+        assert_eq!(introns[1].start, 401);
+        assert_eq!(introns[1].end, 499);
+    }
+
+    #[test]
+    fn test_exons_len() {
+        let exons = Exons::from_str("100-200,300-400,500-600").unwrap();
+        assert_eq!(exons.len(), 3);
+    }
+
+    #[test]
+    fn test_exons_span() {
+        let exons = Exons::from_str("100-200,300-400,500-600").unwrap();
+        // (200-100+1) + (400-300+1) + (600-500+1) = 101 + 101 + 101 = 303
+        assert_eq!(exons.span(), 303);
+    }
+
+    #[test]
+    fn test_exons_first_last() {
+        let exons = Exons::from_str("100-200,300-400,500-600").unwrap();
+        assert_eq!(exons.first_exon().start, 100);
+        assert_eq!(exons.first_exon().end, 200);
+        assert_eq!(exons.last_exon().start, 500);
+        assert_eq!(exons.last_exon().end, 600);
     }
 }

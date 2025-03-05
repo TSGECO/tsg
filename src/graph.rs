@@ -883,6 +883,8 @@ impl TSGraph {
 
 #[cfg(test)]
 mod tests {
+    use std::env::temp_dir;
+
     use super::*;
 
     #[test]
@@ -1013,7 +1015,7 @@ mod tests {
         assert_eq!(graph.get_nodes().len(), 5);
         assert_eq!(graph.get_edges().len(), 4);
 
-        graph.write_to_file("test_out.tsg")?;
+        graph.write_to_file("tests/data/test_write.tsg")?;
 
         Ok(())
     }
