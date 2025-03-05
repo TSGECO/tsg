@@ -229,7 +229,7 @@ impl NodeData {
         self.exons.last_exon().end
     }
 
-    pub fn to_gtf(&self, attributes: Option<&HashMap<BString, BString>>) -> Result<BString> {
+    pub fn to_gtf(&self, attributes: Option<&[Attribute]>) -> Result<BString> {
         // chr1    scannls exon    173867960       173867991       .       -       .       exon_id "001"; mega_exon_id "0001"; ptc "1"; ptf "1.0"; transcript_id "3x1"; gene_id "3";
         let mut res = vec![];
         for (idx, exon) in self.exons.exons.iter().enumerate() {
@@ -243,8 +243,8 @@ impl NodeData {
             gtf.push_str(format!("exon_id \"{:03}\"; ", idx).as_str());
 
             if let Some(attributes) = attributes.as_ref() {
-                for (key, value) in attributes.iter().rev() {
-                    gtf.push_str(format!("{} \"{}\"; ", key, value).as_str());
+                for attr in attributes.iter().rev() {
+                    gtf.push_str(format!("{} \"{}\"; ", attr.tag, attr.value).as_str());
                 }
             }
             res.push(gtf);

@@ -23,4 +23,4 @@ chr1	tsg	exon	202564442	202564547	.	+	.	exon_id "020"; segment_id "000"; transcr
 chr1	tsg	exon	202567777	202567831	.	+	.	exon_id "021"; segment_id "000"; transcript_id "0"; 
 chr1	tsg	exon	202569146	202569197	.	+	.	exon_id "022"; segment_id "000"; transcript_id "0"; 
 chr1	tsg	exon	202580473	202582804	.	+	.	exon_id "023"; segment_id "000"; transcript_id "0"; 
-chr10	tsg	exon	123054063	123055114	.	+	.	exon_id "000"; segment_id "001"; transcript_id "0"; 
+chr10	tsg	exon	123054063	123055114	.	+	.	exon_id "000"; segment_id "001"; segment_id "000"; transcript_id "0"; 

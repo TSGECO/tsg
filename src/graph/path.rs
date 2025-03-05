@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use std::fmt;
 
+use super::Attribute;
 use super::TSGraph;
 use anyhow::Context;
 use anyhow::Result;
@@ -28,7 +28,7 @@ pub struct TSGPath<'a> {
     graph: Option<&'a TSGraph>,
 
     #[builder(default)]
-    pub attributes: HashMap<BString, BString>,
+    pub attributes: Vec<Attribute>,
 }
 
 impl<'a> fmt::Display for TSGPath<'a> {
@@ -128,14 +128,19 @@ impl<'a> TSGPath<'a> {
         } else {
             return Err(anyhow!("Path ID not found"));
         };
-
         let transcript = format!(
             ".\ttsg\ttranscript\t.\t.\t.\t.\t.\ttranscript_id \"{}\";",
             id
         );
 
         // create a hashmap of attributes
-        let mut attributes = HashMap::from_iter([("transcript_id".into(), id.clone())]);
+        let mut attributes = vec![
+            Attribute::builder()
+                .tag("transcript_id")
+                .value(id.clone())
+                .build(),
+        ];
+
         let mut exons: Vec<BString> = vec![transcript.into()];
 
         for (idx, node_idx) in self.nodes.iter().enumerate() {
@@ -144,7 +149,12 @@ impl<'a> TSGPath<'a> {
                 .get_node_by_idx(*node_idx)
                 .with_context(|| format!("Node not found for index: {}", node_idx.index()))?;
 
-            attributes.insert("segment_id".into(), format!("{:03}", idx).into());
+            attributes.push(
+                Attribute::builder()
+                    .tag("segment_id")
+                    .value(format!("{:03}", idx))
+                    .build(),
+            );
             let exon = node_data.to_gtf(Some(&attributes))?;
             exons.push(exon);
         }
@@ -160,7 +170,6 @@ impl<'a> TSGPath<'a> {
         } else {
             return Err(anyhow!("Path ID not found"));
         };
-
         let mut edges = vec![];
 
         for (_idx, edge_idx) in self.edges.iter().enumerate() {

@@ -36,6 +36,7 @@ use tracing::debug;
 #[builder(on(BString, into))]
 pub struct Attribute {
     pub tag: BString,
+    #[builder(default = 'Z')]
     pub attribute_type: char,
     pub value: BString,
 }

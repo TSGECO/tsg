@@ -79,10 +79,10 @@ pub struct EdgeData {
 }
 
 impl EdgeData {
-    pub fn to_vcf(&self, attributes: Option<&HashMap<BString, BString>>) -> Result<BString> {
+    pub fn to_vcf(&self, attributes: Option<&[Attribute]>) -> Result<BString> {
         let mut vcf = BString::from("");
         // vcf.push_str(&format!("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"));
-        vcf.push_str(&format!(
+        vcf.push_str(format!(
             "{}\t{}\t{}\t.\t<{}>\t.\t.\tCHR2={};SVEND={};",
             self.sv.reference_name1,
             self.sv.breakpoint1,
@@ -94,12 +94,12 @@ impl EdgeData {
 
         let mut info = BString::from("");
         for attr in self.attributes.values() {
-            info.push_str(&format!("{}={};", attr.tag, attr.value));
+            info.push_str(format!("{}={};", attr.tag, attr.value));
         }
 
         if let Some(attributes) = attributes {
-            for (key, value) in attributes.iter() {
-                info.push_str(&format!("{}={};", key, value));
+            for attr in attributes.iter() {
+                info.push_str(format!("{}={};", attr.tag, attr.value));
             }
         }
 
