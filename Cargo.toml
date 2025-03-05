@@ -3,6 +3,7 @@ name = "tsg"
 version = "0.1.0"
 edition = "2024"
 authors = ["Yangyang Li <yangyang.li@northwestern.edu>"]
+description = "A tool to analyze and manipulate transcript segment graph (TSG)"
 homepage = "https://github.com/cauliyang/tsg"
 repository = "https://github.com/cauliyang/tsg"
 license = "Apache-2.0"
