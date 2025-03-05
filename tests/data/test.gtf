@@ -1,9 +1,9 @@
 .	tsg	transcript	.	.	.	.	.	transcript_id "0";
-chr1	tsg	exon	1000	1200	.	+	.	exon_id "000"; expression "10.5"; ptc "10"; segment_id "000"; transcript_id "0";
-chr1	tsg	exon	1500	1700	.	+	.	exon_id "001"; expression "10.5"; ptc "10"; segment_id "000"; transcript_id "0";
-chr1	tsg	exon	2500	2700	.	+	.	exon_id "000"; segment_id "001"; segment_id "000"; transcript_id "0";
-chr1	tsg	exon	2500	2700	.	-	.	exon_id "000"; segment_id "002"; segment_id "001"; segment_id "000"; transcript_id "0";
+chr1	tsg	exon	1000	1200	.	+	.	exon_id "000"; ptc "10"; expression "10.5"; segment_id "000"; transcript_id "0"; 
+chr1	tsg	exon	1500	1700	.	+	.	exon_id "001"; ptc "10"; expression "10.5"; segment_id "000"; transcript_id "0"; 
+chr1	tsg	exon	2500	2700	.	+	.	exon_id "000"; segment_id "001"; segment_id "000"; transcript_id "0"; 
+chr1	tsg	exon	2500	2700	.	-	.	exon_id "000"; segment_id "002"; segment_id "001"; segment_id "000"; transcript_id "0"; 
 .	tsg	transcript	.	.	.	.	.	transcript_id "1";
-chr1	tsg	exon	2000	2200	.	+	.	exon_id "000"; segment_id "000"; transcript_id "1";
-chr1	tsg	exon	2500	2700	.	+	.	exon_id "000"; segment_id "001"; segment_id "000"; transcript_id "1";
-chr1	tsg	exon	2500	2700	.	+	.	exon_id "000"; segment_id "002"; segment_id "001"; segment_id "000"; transcript_id "1";
+chr1	tsg	exon	2000	2200	.	+	.	exon_id "000"; segment_id "000"; transcript_id "1"; 
+chr1	tsg	exon	2500	2700	.	+	.	exon_id "000"; segment_id "001"; segment_id "000"; transcript_id "1"; 
+chr1	tsg	exon	2500	2700	.	+	.	exon_id "000"; segment_id "002"; segment_id "001"; segment_id "000"; transcript_id "1"; 
