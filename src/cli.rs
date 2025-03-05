@@ -55,7 +55,7 @@ pub enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// Convert a TSG file to GTF (Gene Transfer Format)
+    /// Convert a TSG file to GTF format
     Gtf {
         /// Input TSG file path
         #[arg(required = true, value_hint = ValueHint::FilePath)]
@@ -66,7 +66,7 @@ pub enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// Convert a TSG file to VCF (Variant Call Format)
+    /// Convert a TSG file to VCF format
     Vcf {
         /// Input TSG file path
         #[arg(required = true, value_hint = ValueHint::FilePath)]
