@@ -25,6 +25,7 @@ use petgraph::dot::{Config, Dot};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use petgraph::visit::EdgeRef;
 use rayon::prelude::*;
+use serde_json::json;
 use std::collections::VecDeque;
 use tracing::debug;
 
@@ -819,6 +820,55 @@ impl TSGraph {
         let dot = Dot::with_config(&self._graph, &config);
         Ok(format!("{:?}", dot))
     }
+    pub fn to_json(&self) -> Result<serde_json::Value> {
+        let mut nodes = Vec::new();
+        let mut edges = Vec::new();
+
+        // Process all nodes
+        for node_idx in self._graph.node_indices() {
+            if let Some(node) = self._graph.node_weight(node_idx) {
+                if let Ok(node_json) = node.to_json(None) {
+                    nodes.push(node_json);
+                }
+            }
+        }
+
+        // Process all edges
+        for edge_idx in self._graph.edge_indices() {
+            if let Some(edge) = self._graph.edge_weight(edge_idx) {
+                let edge_endpoints = self._graph.edge_endpoints(edge_idx);
+
+                if let Some((source, target)) = edge_endpoints {
+                    let source_id = self.find_node_id_by_idx(source);
+                    let target_id = self.find_node_id_by_idx(target);
+
+                    if let (Some(source_id), Some(target_id)) = (source_id, target_id) {
+                        let edge_data = json!({
+                            "data": {
+                                "id": edge.id.to_str().unwrap(),
+                                "source": source_id.to_str().unwrap(),
+                                "target": target_id.to_str().unwrap(),
+                                "breakpoints": format!("{}", edge.sv)
+                            }
+                        });
+                        edges.push(edge_data);
+                    }
+                }
+            }
+        }
+
+        // Combine nodes and edges into a Cytoscape-compatible format
+        let elements = json!({
+            "directed": true,
+            "multigraph": true,
+            "elements": {
+            "nodes": nodes,
+            "edges": edges
+            }
+        });
+
+        Ok(elements)
+    }
 
     pub fn annotate_node_with_sequence<P: AsRef<Path>>(
         &mut self,
@@ -1004,6 +1054,16 @@ mod tests {
         let dot = graph.to_dot(true, true)?;
         println!("{}", dot);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_json() -> Result<()> {
+        let file = "tests/data/test.tsg";
+        let graph = TSGraph::from_file(file)?;
+
+        let json = graph.to_json()?;
+        println!("{}", json);
         Ok(())
     }
 }

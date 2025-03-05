@@ -95,6 +95,12 @@ fn run() -> Result<()> {
             cli::to_vcf(input, output)?;
             Ok(())
         }
+
+        Commands::Json { input, output } => {
+            info!("Converting TSG file to JSON: {}", input.display());
+            cli::to_json(input, output)?;
+            Ok(())
+        }
     }
 }
 

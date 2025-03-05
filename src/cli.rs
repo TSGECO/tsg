@@ -1,11 +1,13 @@
 mod dot;
 mod fa;
 mod gtf;
+mod json;
 mod vcf;
 
 pub use dot::*;
 pub use fa::*;
 pub use gtf::*;
+pub use json::*;
 pub use vcf::*;
 
 use clap::Subcommand;
@@ -64,6 +66,17 @@ pub enum Commands {
         input: PathBuf,
 
         /// Output DOT file path
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Convert a TSG file to JSON format
+    Json {
+        /// Input TSG file path
+        #[arg(required = true)]
+        input: PathBuf,
+
+        /// Output file path for the JSON
         #[arg(short, long)]
         output: Option<PathBuf>,
     },

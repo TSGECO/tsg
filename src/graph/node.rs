@@ -9,6 +9,7 @@ use bon::Builder;
 use bon::builder;
 use bstr::BString;
 use bstr::ByteSlice;
+use rayon::prelude::*;
 use serde_json::json;
 use std::io;
 use tracing::debug;
@@ -234,24 +235,6 @@ impl NodeData {
     ///
     /// # Returns
     /// A JSON value representing the node
-    /// {
-    //                 "data": {
-    //                     "chrom": "chr2",
-    //                     "ref_start": 85539167,
-    //                     "ref_end": 85543034,
-    //                     "strand": "+",
-    //                     "is_head": true,
-    //                     "node_id": 1,
-    //                     "exons": "[85539167-85539378,85541082-85541160,85541254-85541377,85541632-85541
-    // 745,85541828-85541972,85542154-85542373,85542564-85542747,85542900-85543034]",
-    //                     "reads": "m64135_220621_211550/1114620/ccs:SO",
-    //                     "ptc": 1,
-    //                     "ptf": 0.0,
-    //                     "id": "chr2_85539167_85543034_H_1",
-    //                     "value": "chr2_85539167_85543034_H_1",
-    //                     "name": "chr2_85539167_85543034_H_1"
-    //                 }
-    //             },
     pub fn to_json(&self, attributes: Option<&[Attribute]>) -> Result<serde_json::Value> {
         let mut data = json!({
             "chrom": self.reference_id.to_str().unwrap(),
@@ -259,7 +242,7 @@ impl NodeData {
             "ref_end": self.reference_end(),
             "strand": self.strand.to_string(),
             "exons": format!("[{}]",  self.exons.to_string()),
-            "reads": self.reads.iter().map(|r| r.to_string()).collect::<Vec<_>>().join(","),
+            "reads": self.reads.par_iter().map(|r| format!("{}", r) ).collect::<Vec<_>>(),
             "id": self.id.to_str().unwrap(),
         });
 
