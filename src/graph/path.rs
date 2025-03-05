@@ -106,6 +106,7 @@ impl<'a> TSGPath<'a> {
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
+
     /// Set the ID of the path
     pub fn set_id(&mut self, id: &str) {
         self.id = Some(id.into());
@@ -128,10 +129,15 @@ impl<'a> TSGPath<'a> {
         } else {
             return Err(anyhow!("Path ID not found"));
         };
-        let transcript = format!(
+        let mut transcript = format!(
             ".\ttsg\ttranscript\t.\t.\t.\t.\t.\ttranscript_id \"{}\";",
             id
         );
+
+        for attr in &self.attributes {
+            let attr_str = format!("{} \"{}\";", attr.tag, attr.value);
+            transcript.push_str(&attr_str);
+        }
 
         // create a hashmap of attributes
         let mut attributes = vec![
@@ -172,7 +178,7 @@ impl<'a> TSGPath<'a> {
         };
         let mut edges = vec![];
 
-        for (_idx, edge_idx) in self.edges.iter().enumerate() {
+        for edge_idx in self.edges.iter() {
             let graph = self.graph.ok_or_else(|| anyhow!("Graph not available"))?;
             let edge_data = graph
                 .get_edge_by_idx(*edge_idx)
@@ -204,5 +210,20 @@ impl<'a> TSGPath<'a> {
             seq.push_str(node_seq);
         }
         Ok(seq)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_path_creation_and_accessors() {
+        let path = TSGPath::new();
+        assert!(path.is_empty());
+        assert_eq!(path.node_count(), 0);
+        assert_eq!(path.edge_count(), 0);
+        assert_eq!(path.get_id(), None);
+        assert!(path.get_graph().is_none());
     }
 }

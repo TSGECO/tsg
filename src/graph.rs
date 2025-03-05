@@ -753,7 +753,7 @@ impl TSGraph {
             // (node, path, active_reads)
             queue.push_back((
                 start_node,
-                TSGPath::builder().graph(&self).build(),
+                TSGPath::builder().graph(self).build(),
                 initial_reads,
             ));
 
@@ -883,8 +883,6 @@ impl TSGraph {
 
 #[cfg(test)]
 mod tests {
-    use std::env::temp_dir;
-
     use super::*;
 
     #[test]
@@ -909,7 +907,7 @@ mod tests {
         graph.add_node(node.clone())?;
 
         assert_eq!(graph.get_nodes().len(), 1);
-        assert_eq!(graph.get_node_by_id("node1".into()).unwrap().id, node.id);
+        assert_eq!(graph.get_node_by_id("node1").unwrap().id, node.id);
 
         Ok(())
     }
@@ -942,7 +940,7 @@ mod tests {
         graph.add_edge("node1".into(), "node2".into(), edge.clone())?;
 
         assert_eq!(graph.get_edges().len(), 1);
-        assert_eq!(graph.get_edge_by_id("edge1".into()).unwrap().id, edge.id);
+        assert_eq!(graph.get_edge_by_id("edge1").unwrap().id, edge.id);
 
         Ok(())
     }
@@ -968,7 +966,7 @@ mod tests {
 
         graph.parse_node_line(line)?;
 
-        let node = graph.get_node_by_id("node1".into()).unwrap();
+        let node = graph.get_node_by_id("node1").unwrap();
         assert_eq!(node.id, "node1");
         assert_eq!(node.exons.exons.len(), 1);
         assert_eq!(node.exons.exons[0].start, 100);

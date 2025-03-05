@@ -11,24 +11,23 @@ categories = ["bioinformatics", "algorithms"]
 
 resolver = "2"
 
-
 [dependencies]
-thiserror = "2.0"
+ahash = "0.8"
 anyhow = "1.0"
+bon = "3.3"
+bstr = "1.11.3"
+clap = { version = "4.5", features = ["derive"] }
+
+flate2 = { version = "1.1.0", features = ["zlib-ng"], default-features = false }
+noodles = { version = "0.93", features = ["fasta"] }
+petgraph = { version = "0.7.1", features = ["serde-1"] }
 rayon = { version = "1.10" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-
-flate2 = { version = "1.1.0", features = ["zlib-ng"], default-features = false }
-bstr = "1.11.3"
-ahash = "0.8"
-petgraph = { version = "0.7.1", features = ["serde-1"] }
-bon = "3.3"
+thiserror = "2.0"
 
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
-clap = { version = "4.5", features = ["derive"] }
-noodles = { version = "0.93", features = ["fasta"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

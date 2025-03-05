@@ -6,7 +6,6 @@ use std::io::Write;
 
 static VCF_HEADER: &[&str] = &[
     "##fileformat=VCFv4.3",
-    "##fileDate=20250303",
     "##source=tsg",
     "##INFO=<ID=CANONICAL,Number=0,Type=Flag,Description=\"Canonical splice site\">",
     "##INFO=<ID=NONCANONICAL,Number=0,Type=Flag,Description=\"Noncanonical splice site\">",
