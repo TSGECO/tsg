@@ -270,7 +270,7 @@ impl NodeData {
             gtf.push_str(".\t");
             gtf.push_str(self.strand.to_string().as_str());
             gtf.push_str("\t.\t");
-            gtf.push_str(format!("exon_id \"{:03}\"; ", idx).as_str());
+            gtf.push_str(format!("exon_id \"{:03}\"; ", idx + 1).as_str());
 
             for attr in self.attributes.values() {
                 gtf.push_str(format!("{} \"{}\"; ", attr.tag, attr.value).as_str());
@@ -525,7 +525,7 @@ mod tests {
                     Attribute {
                         tag: "segment_id".into(),
                         attribute_type: 'Z',
-                        value: "000".into(),
+                        value: "001".into(),
                     },
                 );
                 map
@@ -538,23 +538,23 @@ mod tests {
         let lines: Vec<&str> = gtf_str.split('\n').collect();
 
         assert_eq!(lines.len(), 2);
-        assert!(lines[0].starts_with("chr1\ttsg\texon\t100\t200\t.\t+\t.\texon_id \"000\""));
-        assert!(lines[0].contains("segment_id \"000\""));
-        assert!(lines[1].starts_with("chr1\ttsg\texon\t300\t400\t.\t+\t.\texon_id \"001\""));
+        assert!(lines[0].starts_with("chr1\ttsg\texon\t100\t200\t.\t+\t.\texon_id \"001\""));
+        assert!(lines[0].contains("segment_id \"001\""));
+        assert!(lines[1].starts_with("chr1\ttsg\texon\t300\t400\t.\t+\t.\texon_id \"002\""));
 
         // Test with additional attributes
         let additional_attrs = vec![Attribute {
             tag: "transcript_id".into(),
             attribute_type: 'Z',
-            value: "0".into(),
+            value: "1".into(),
         }];
 
         let gtf_with_attrs = node.to_gtf(Some(&additional_attrs))?;
         let gtf_str = gtf_with_attrs.to_str().unwrap();
         let lines: Vec<&str> = gtf_str.split('\n').collect();
 
-        assert!(lines[0].contains("transcript_id \"0\""));
-        assert!(lines[1].contains("transcript_id \"0\""));
+        assert!(lines[0].contains("transcript_id \"1\""));
+        assert!(lines[1].contains("transcript_id \"1\""));
 
         Ok(())
     }

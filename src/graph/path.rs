@@ -146,29 +146,26 @@ impl<'a> TSGPath<'a> {
             transcript.push_str(&attr_str);
         }
 
-        // create a hashmap of attributes
-        let mut attributes = vec![
-            Attribute::builder()
-                .tag("transcript_id")
-                .value(id.clone())
-                .build(),
-        ];
-
         let mut exons: Vec<BString> = vec![transcript.into()];
-
         for (idx, node_idx) in self.nodes.iter().enumerate() {
             let graph = self.graph.ok_or_else(|| anyhow!("Graph not available"))?;
             let node_data = graph
                 .get_node_by_idx(*node_idx)
                 .with_context(|| format!("Node not found for index: {}", node_idx.index()))?;
 
-            attributes.push(
+            // Create a new attributes vector for each node with just the transcript_id
+            let node_attributes = vec![
+                Attribute::builder()
+                    .tag("transcript_id")
+                    .value(id.clone())
+                    .build(),
                 Attribute::builder()
                     .tag("segment_id")
-                    .value(format!("{:03}", idx))
+                    .value(format!("{:03}", idx + 1))
                     .build(),
-            );
-            let exon = node_data.to_gtf(Some(&attributes))?;
+            ];
+
+            let exon = node_data.to_gtf(Some(&node_attributes))?;
             exons.push(exon);
         }
 

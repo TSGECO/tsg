@@ -1,3 +1,4 @@
+mod analysis;
 mod attr;
 mod edge;
 mod group;
@@ -692,7 +693,7 @@ impl TSGraph {
         }
 
         let mut all_paths = Vec::new();
-        let mut path_id = 0;
+        let mut path_id = 1;
 
         // Cache node read IDs to avoid repeated lookups
         let mut node_read_ids_cache: HashMap<NodeIndex, HashSet<BString>> = HashMap::new();
