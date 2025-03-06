@@ -33,7 +33,7 @@ tsg = "0.1.0"
 Install the CLI tool:
 
 ```bash
-cargo install tsg-cli
+cargo install tsg
 ```
 
 ## Library Usage
@@ -165,7 +165,7 @@ tsg-cli --help
 tsg-cli validate path/to/file.tsg
 
 # Convert a TSG file to DOT format for visualization
-tsg-cli to-dot path/to/file.tsg > graph.dot
+tsg-cli dot path/to/file.tsg > graph.dot
 
 # Extract statistics from a TSG file
 tsg-cli stats path/to/file.tsg
@@ -203,7 +203,7 @@ This distinction is important: chains define what the graph is, while paths defi
 
 ### Example
 
-```
+```text
 # Header information
 H  TSG  1.0
 H  reference  GRCh38
@@ -235,7 +235,7 @@ A  O  transcript1  tpm:f:8.2
 
 Nodes represent exons or transcript segments with the format:
 
-```
+```text
 N  <id>  <genomic_location>  <reads>  [<seq>]
 ```
 
@@ -252,7 +252,7 @@ Where:
 
 Edges represent splice junctions or structural variants:
 
-```
+```text
 E  <id>  <source_id>  <sink_id>  <SV>
 ```
 

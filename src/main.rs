@@ -24,6 +24,9 @@ struct Cli {
     #[arg(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
 
+    #[arg(long, hide = true)]
+    markdown_help: bool,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -39,6 +42,11 @@ fn run() -> Result<()> {
         let mut cmd = Cli::command();
         info!("Generating completion file for {generator:?}...");
         print_completions(generator, &mut cmd);
+        return Ok(());
+    }
+
+    if cli.markdown_help {
+        clap_markdown::print_help_markdown::<Cli>();
         return Ok(());
     }
 
