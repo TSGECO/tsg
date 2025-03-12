@@ -2,12 +2,14 @@ mod dot;
 mod fa;
 mod gtf;
 mod json;
+mod path;
 mod vcf;
 
 pub use dot::*;
 pub use fa::*;
 pub use gtf::*;
 pub use json::*;
+pub use path::*;
 pub use vcf::*;
 
 use clap::Subcommand;

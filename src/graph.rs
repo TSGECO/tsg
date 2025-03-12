@@ -405,7 +405,7 @@ impl TSGraph {
                 "N" => tsgraph.parse_node_line(&line)?,
                 "E" => tsgraph.parse_edge_line(&fields)?,
                 "U" => tsgraph.parse_unordered_group_line(&fields)?,
-                "O" => tsgraph.parse_ordered_group_line(&fields)?,
+                "P" => tsgraph.parse_ordered_group_line(&fields)?,
                 "C" => tsgraph.parse_chain_line(&fields)?,
                 "A" => tsgraph.parse_attribute_line(&fields)?,
                 _ => {
@@ -546,7 +546,7 @@ impl TSGraph {
                         elements.par_iter().map(|e| e.to_string()).collect();
                     writeln!(
                         writer,
-                        "O\t{}\t{}",
+                        "P\t{}\t{}",
                         id.to_str().unwrap_or(""),
                         elements_str.join(" ")
                     )?;

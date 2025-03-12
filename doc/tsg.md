@@ -9,7 +9,7 @@ The Transcript Segment Graph (TSG) format is designed for representing transcrip
 In the TSG model:
 
 1. **Chains (C)** are used to build the graph structure. They define the nodes and edges that make up the graph.
-2. **Paths (O)** are traversals through the constructed graph.
+2. **Paths (P)** are traversals through the constructed graph.
 3. The complete TSG is built by combining all nodes and edges from all chains.
 4. After constructing the graph from chains, paths can be defined to represent ways of traversing the graph.
 
@@ -79,12 +79,12 @@ Fields:
 - `group_id`: Unique identifier for the unordered group
 - `element_id_*`: Space-separated list of element identifiers (nodes, edges, or other groups)
 
-### Ordered Groups/Paths (O)
+### Ordered Groups/Paths (P)
 
 Represent ordered collections of graph elements where orientation matters.
 
 ```text
-O  <group_id>  <oriented_element_id_1> <oriented_element_id_2> ... <oriented_element_id_n>
+P  <group_id>  <oriented_element_id_1> <oriented_element_id_2> ... <oriented_element_id_n>
 ```
 
 Fields:
@@ -231,8 +231,8 @@ E  e4  n3  n5  chr1,chr1,1700,2500,splice
 C  chain1  n1  e1  n3  e2  n4
 C  chain2  n2  e3  n3  e4  n5
 # Paths (traversals through the constructed graph)
-O  transcript1  n1+  e1+  n3+  e2+  n4+
-O  transcript2  n2+  e3+  n3+  e4+  n5+
+P  transcript1  n1+  e1+  n3+  e2+  n4+
+P  transcript2  n2+  e3+  n3+  e4+  n5+
 # Sets (grouping elements)
 U  exon_set  n1  n2  n3
 # Attributes (metadata)
@@ -332,7 +332,7 @@ In the context of transcript analysis, the TSG format elements typically represe
 - **Assembled Transcripts**: Transcripts assembled from read data
 - These build the structure of the transcript graph
 
-#### Paths (O)
+#### Paths (P)
 
 - **Transcript Isoforms**: Alternative splicing variants
 - **Expression Patterns**: Different ways genes are expressed
