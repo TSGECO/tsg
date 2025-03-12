@@ -89,25 +89,12 @@ fn run() -> Result<()> {
             Ok(())
         }
 
-        Commands::Traverse { input, output } => {
-            info!("Finding paths in TSG file: {}", input.display());
-            let graph = TSGraph::from_file(input)?;
-            let paths = graph.traverse()?;
-
-            info!("Found {} paths", paths.len());
-
-            if let Some(output_path) = output {
-                let mut content = String::new();
-                for path in paths {
-                    content.push_str(&format!("{}\n", path));
-                }
-                std::fs::write(&output_path, content)?;
-                info!("Paths written to: {}", output_path.display());
-            } else {
-                for path in paths {
-                    println!("{}", path);
-                }
-            }
+        Commands::Traverse {
+            input,
+            write_path,
+            output,
+        } => {
+            cli::traverse(input, write_path, output)?;
             Ok(())
         }
 

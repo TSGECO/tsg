@@ -111,6 +111,10 @@ pub enum Commands {
         #[arg(required = true, value_hint = ValueHint::FilePath)]
         input: PathBuf,
 
+        // Output the text representation of the paths
+        #[arg(short, long, default_value = "false")]
+        write_path: bool,
+
         /// Output file path for the paths
         #[arg(short, long, value_hint = ValueHint::FilePath)]
         output: Option<PathBuf>,

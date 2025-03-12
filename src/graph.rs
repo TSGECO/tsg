@@ -724,7 +724,7 @@ impl TSGraph {
 
                 queue.push_back((start_node, initial_path, read_set.clone()));
 
-                while let Some((current_node, mut path, active_reads)) = queue.pop_front() {
+                while let Some((current_node, path, active_reads)) = queue.pop_front() {
                     // Get outgoing edges
                     let outgoing_edges: Vec<_> = self
                         ._graph
