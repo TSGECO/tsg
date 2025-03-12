@@ -21,8 +21,9 @@ struct Cli {
     generator: Option<Shell>,
 
     /// Sets the level of verbosity
-    #[arg(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
+    /// flatten
+    #[command(flatten)]
+    verbose: clap_verbosity_flag::Verbosity,
 
     #[arg(long, hide = true)]
     markdown_help: bool,
@@ -60,17 +61,7 @@ fn run() -> Result<()> {
     };
 
     // Set verbosity level
-    match cli.verbose {
-        0 => tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::INFO)
-            .init(),
-        1 => tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::DEBUG)
-            .init(),
-        _ => tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::TRACE)
-            .init(),
-    }
+    tracing_subscriber::fmt().with_max_level(cli.verbose).init();
 
     match command {
         Commands::Parse { input } => {

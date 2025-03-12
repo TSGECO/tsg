@@ -11,6 +11,7 @@ use bstr::BString;
 use bstr::ByteSlice;
 use bstr::ByteVec;
 use petgraph::graph::{EdgeIndex, NodeIndex};
+use tracing::debug;
 
 /// A path in the transcript segment graph
 ///
@@ -116,6 +117,7 @@ impl<'a> TSGPath<'a> {
             .collect::<Vec<&str>>()
             .join("-");
 
+        debug!("Node ID string: {}", node_id_string);
         let id = to_hash_identifier(&node_id_string, Some(16))?;
         Ok(id.into())
     }
