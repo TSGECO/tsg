@@ -5,6 +5,7 @@ mod group;
 mod header;
 mod node;
 mod path;
+mod utils;
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
@@ -20,6 +21,7 @@ pub use group::*;
 pub use header::*;
 pub use node::*;
 pub use path::*;
+pub use utils::*;
 
 use bon::Builder;
 use petgraph::dot::{Config, Dot};
@@ -731,7 +733,6 @@ impl TSGraph {
 
                     // If this is a sink node (no outgoing edges), save the path
                     if outgoing_edges.is_empty() {
-                        path.set_id(format!("{}", path_id).as_str());
                         path.validate()?;
                         all_paths.push(path);
                         path_id += 1;

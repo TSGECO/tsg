@@ -17,7 +17,7 @@ pub fn to_fa<P: AsRef<Path>, Q: AsRef<Path>>(
 
     for path in paths {
         let seq = path.to_fa()?;
-        writeln!(writer, ">{}", path.get_id().unwrap())?;
+        writeln!(writer, ">{}", path.id().unwrap())?;
         writeln!(writer, "{}", seq)?;
     }
     Ok(())

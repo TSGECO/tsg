@@ -2,6 +2,7 @@ use std::fmt;
 
 use super::Attribute;
 use super::TSGraph;
+use super::utils::to_hash_identifier;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
@@ -23,10 +24,7 @@ pub struct TSGPath<'a> {
     /// The edges connecting the nodes in the path
     #[builder(default)]
     pub edges: Vec<EdgeIndex>,
-    /// Optional identifier for the path
-    id: Option<BString>,
     graph: Option<&'a TSGraph>,
-
     #[builder(default)]
     pub attributes: Vec<Attribute>,
 }
@@ -36,15 +34,8 @@ impl fmt::Display for TSGPath<'_> {
         // O  transcript2  n2+  e3+  n3+  e4+  n5+
         // O  path_id n1+  e1+  n2+  e2+  n3+
         let mut res = vec![];
-        res.push("O".to_string());
-        res.push(
-            self.id
-                .clone()
-                .unwrap_or_else(|| "path_id".into())
-                .to_str()
-                .unwrap()
-                .to_string(),
-        );
+        res.push("P".to_string());
+        res.push(self.id().unwrap().to_str().unwrap().to_string());
         for (idx, node_idx) in self.nodes.iter().enumerate() {
             let node_data = self
                 .graph
@@ -114,13 +105,29 @@ impl<'a> TSGPath<'a> {
         self.nodes.is_empty()
     }
 
-    /// Set the ID of the path
-    pub fn set_id(&mut self, id: &str) {
-        self.id = Some(id.into());
-    }
+    pub fn id(&self) -> Result<BString> {
+        if self.nodes.len() == 0 {
+            return Err(anyhow!("No nodes in path"));
+        }
 
-    pub fn get_id(&self) -> Option<&BString> {
-        self.id.as_ref()
+        let node_id_string = self
+            .nodes
+            .iter()
+            .map(|node_idx| {
+                let node_data = self
+                    .graph
+                    .ok_or_else(|| anyhow!("Graph not available"))
+                    .unwrap()
+                    .get_node_by_idx(*node_idx)
+                    .context(format!("Node not found for index: {}", node_idx.index()))
+                    .unwrap();
+                node_data.id.to_str().unwrap()
+            })
+            .collect::<Vec<&str>>()
+            .join("-");
+
+        let id = to_hash_identifier(&node_id_string, Some(16))?;
+        Ok(id.into())
     }
 
     pub fn validate(&self) -> Result<()> {
@@ -131,11 +138,7 @@ impl<'a> TSGPath<'a> {
     }
 
     pub fn to_gtf(&self) -> Result<BString> {
-        let id = if let Some(id) = self.id.as_ref() {
-            id
-        } else {
-            return Err(anyhow!("Path ID not found"));
-        };
+        let id = self.id()?;
         let mut transcript = format!(
             ".\ttsg\ttranscript\t.\t.\t.\t.\t.\ttranscript_id \"{}\";",
             id
@@ -175,11 +178,7 @@ impl<'a> TSGPath<'a> {
     }
 
     pub fn to_vcf(&self) -> Result<BString> {
-        let _id = if let Some(id) = self.id.as_ref() {
-            id
-        } else {
-            return Err(anyhow!("Path ID not found"));
-        };
+        let _id = self.id()?;
         let mut edges = vec![];
 
         for edge_idx in self.edges.iter() {
@@ -227,7 +226,6 @@ mod tests {
         assert!(path.is_empty());
         assert_eq!(path.node_count(), 0);
         assert_eq!(path.edge_count(), 0);
-        assert_eq!(path.get_id(), None);
         assert!(path.get_graph().is_none());
     }
 }
