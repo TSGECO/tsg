@@ -25,7 +25,7 @@ pub fn to_hash_identifier(input_string: &str, length: Option<usize>) -> Result<S
     // Validate input
     let length = match length {
         Some(len) => {
-            if len <= 0 {
+            if len == 0 {
                 return Err(anyhow!("Length must be positive"));
             }
             len

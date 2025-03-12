@@ -72,11 +72,11 @@ impl<'a> TSGPath<'a> {
     }
 
     /// Set the graph for the path
-    pub fn set_graph(&mut self, graph: &'a TSGraph) {
-        self.graph = Some(graph);
+    pub fn graph_mut(&mut self) -> &mut Option<&'a TSGraph> {
+        &mut self.graph
     }
 
-    pub fn get_graph(&self) -> Option<&TSGraph> {
+    pub fn graph(&self) -> Option<&TSGraph> {
         self.graph
     }
 
@@ -90,23 +90,13 @@ impl<'a> TSGPath<'a> {
         self.edges.push(edge);
     }
 
-    /// Get the number of nodes in the path
-    pub fn node_count(&self) -> usize {
-        self.nodes.len()
-    }
-
-    /// Get the number of edges in the path
-    pub fn edge_count(&self) -> usize {
-        self.edges.len()
-    }
-
     /// Check if the path is empty
     pub fn is_empty(&self) -> bool {
         self.nodes.is_empty()
     }
 
     pub fn id(&self) -> Result<BString> {
-        if self.nodes.len() == 0 {
+        if self.nodes.is_empty() {
             return Err(anyhow!("No nodes in path"));
         }
 
@@ -224,8 +214,8 @@ mod tests {
     fn test_path_creation_and_accessors() {
         let path = TSGPath::new();
         assert!(path.is_empty());
-        assert_eq!(path.node_count(), 0);
-        assert_eq!(path.edge_count(), 0);
-        assert!(path.get_graph().is_none());
+        assert_eq!(path.nodes.len(), 0);
+        assert_eq!(path.edges.len(), 0);
+        assert!(path.graph().is_none());
     }
 }

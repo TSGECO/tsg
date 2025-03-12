@@ -21,7 +21,6 @@ pub use group::*;
 pub use header::*;
 pub use node::*;
 pub use path::*;
-pub use utils::*;
 
 use bon::Builder;
 use petgraph::dot::{Config, Dot};
@@ -695,8 +694,6 @@ impl TSGraph {
         }
 
         let mut all_paths = Vec::new();
-        let mut path_id = 1;
-
         // Cache node read IDs to avoid repeated lookups
         let mut node_read_ids_cache: HashMap<NodeIndex, HashSet<BString>> = HashMap::new();
 
@@ -735,7 +732,6 @@ impl TSGraph {
                     if outgoing_edges.is_empty() {
                         path.validate()?;
                         all_paths.push(path);
-                        path_id += 1;
                         continue;
                     }
 
@@ -844,12 +840,34 @@ impl TSGraph {
                     let source_id = self.find_node_id_by_idx(source);
                     let target_id = self.find_node_id_by_idx(target);
 
+                    // get reads from source node and target node
+                    // the weight will be the intersection of reads
+                    let source_data = self.get_node_by_idx(source).unwrap();
+                    let target_data = self.get_node_by_idx(target).unwrap();
+
+                    // get the intersection of reads
+                    let source_reads = source_data
+                        .reads
+                        .iter()
+                        .map(|r| r.id.clone())
+                        .collect::<HashSet<_>>();
+                    let target_reads = target_data
+                        .reads
+                        .iter()
+                        .map(|r| r.id.clone())
+                        .collect::<HashSet<_>>();
+                    let edge_weight = source_reads
+                        .intersection(&target_reads)
+                        .collect::<HashSet<_>>()
+                        .len();
+
                     if let (Some(source_id), Some(target_id)) = (source_id, target_id) {
                         let edge_data = json!({
                             "data": {
                                 "id": edge.id.to_str().unwrap(),
                                 "source": source_id.to_str().unwrap(),
                                 "target": target_id.to_str().unwrap(),
+                                "weight": edge_weight,
                                 "breakpoints": format!("{}", edge.sv)
                             }
                         });

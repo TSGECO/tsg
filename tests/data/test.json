@@ -7,7 +7,8 @@
           "breakpoints": "chr1,chr1,1700,2000,INV",
           "id": "e1",
           "source": "n1",
-          "target": "n3"
+          "target": "n3",
+          "weight": 2
         }
       },
       {
@@ -15,7 +16,8 @@
           "breakpoints": "chr1,chr1,1700,2000,DUP",
           "id": "e2",
           "source": "n3",
-          "target": "n4"
+          "target": "n4",
+          "weight": 2
         }
       },
       {
@@ -23,7 +25,8 @@
           "breakpoints": "chr1,chr1,2200,2500,TDUP",
           "id": "e3",
           "source": "n2",
-          "target": "n3"
+          "target": "n3",
+          "weight": 1
         }
       },
       {
@@ -31,7 +34,8 @@
           "breakpoints": "chr1,chr1,1700,2500,DUP",
           "id": "e4",
           "source": "n3",
-          "target": "n5"
+          "target": "n5",
+          "weight": 2
         }
       }
     ],
@@ -40,9 +44,9 @@
         "data": {
           "chrom": "chr1",
           "exons": "[1000-1200,1500-1700]",
-          "expression": "10.5",
+          "expression": 10.5,
           "id": "n1",
-          "ptc": "10",
+          "ptc": 10,
           "reads": [
             "read1:SO",
             "read2:SO"

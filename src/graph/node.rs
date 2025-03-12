@@ -247,12 +247,20 @@ impl NodeData {
         });
 
         for attr in self.attributes.values() {
-            data[attr.tag.to_str().unwrap()] = attr.value.to_str().unwrap().into();
+            data[attr.tag.to_str().unwrap()] = match attr.attribute_type {
+                'f' => attr.as_float()?.into(),
+                'i' => attr.as_int()?.into(),
+                _ => attr.value.to_str().unwrap().into(),
+            };
         }
 
         if let Some(attributes) = attributes.as_ref() {
             for attr in attributes.iter() {
-                data[attr.tag.to_str().unwrap()] = attr.value.to_str().unwrap().into();
+                data[attr.tag.to_str().unwrap()] = match attr.attribute_type {
+                    'f' => attr.as_float()?.into(),
+                    'i' => attr.as_int()?.into(),
+                    _ => attr.value.to_str().unwrap().into(),
+                };
             }
         }
         let json = json!({"data": data});
