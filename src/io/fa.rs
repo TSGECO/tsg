@@ -9,9 +9,7 @@ pub fn to_fa<P: AsRef<Path>, Q: AsRef<Path>>(
     reference_genome_path: P,
     output: Q,
 ) -> Result<()> {
-    tsg_graph.annotate_node_with_sequence(reference_genome_path)?;
-    let paths = tsg_graph.traverse()?;
-
+    let paths = tsg_graph.traverse_all_graphs()?;
     let output_file = std::fs::File::create(output)?;
     let mut writer = std::io::BufWriter::new(output_file);
 

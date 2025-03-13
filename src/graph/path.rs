@@ -1,7 +1,7 @@
 use std::fmt;
 
 use super::Attribute;
-use super::TSGraph;
+use super::GraphSection;
 use super::utils::to_hash_identifier;
 use anyhow::Context;
 use anyhow::Result;
@@ -25,7 +25,7 @@ pub struct TSGPath<'a> {
     /// The edges connecting the nodes in the path
     #[builder(default)]
     pub edges: Vec<EdgeIndex>,
-    graph: Option<&'a TSGraph>,
+    graph: Option<&'a GraphSection>,
     #[builder(default)]
     pub attributes: Vec<Attribute>,
 }
@@ -73,11 +73,11 @@ impl<'a> TSGPath<'a> {
     }
 
     /// Set the graph for the path
-    pub fn graph_mut(&mut self) -> &mut Option<&'a TSGraph> {
+    pub fn graph_mut(&mut self) -> &mut Option<&'a GraphSection> {
         &mut self.graph
     }
 
-    pub fn graph(&self) -> Option<&TSGraph> {
+    pub fn graph(&self) -> Option<&GraphSection> {
         self.graph
     }
 
