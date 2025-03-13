@@ -4,6 +4,18 @@ use std::str::FromStr;
 use anyhow::{Result, anyhow};
 use bon::Builder;
 use bstr::{BStr, BString, ByteSlice};
+use serde::de;
+use tracing::subscriber::SetGlobalDefaultError;
+
+#[derive(Debug, Clone)]
+pub enum AttributeValue {
+    Int(isize),
+    Float(f32),
+    String(BString),
+    Json(serde_json::Value),
+    Hex(BString),
+    Bytes(Vec<u8>),
+}
 
 /// Represents an optional attribute
 #[derive(Debug, Clone, Builder, Default)]
@@ -47,8 +59,32 @@ impl FromStr for Attribute {
 }
 
 impl Attribute {
+    /// Get the attribute value as the appropriate type based on the attribute type
+    pub fn typed_value(&self) -> Result<AttributeValue> {
+        match self.attribute_type {
+            'i' => Ok(AttributeValue::Int(self.as_int()?)),
+            'f' => Ok(AttributeValue::Float(self.as_float()?)),
+            'Z' => Ok(AttributeValue::String(self.value.clone())),
+            'J' => Ok(AttributeValue::Json(self.as_json()?)),
+            'H' => {
+                // Parse hex string
+                let hex_str = self.value.to_str()?;
+                Ok(AttributeValue::Hex(self.value.clone()))
+            }
+            'B' => {
+                // Parse byte array
+                let bytes = self.value.to_vec();
+                Ok(AttributeValue::Bytes(bytes))
+            }
+            _ => Err(anyhow!(
+                "Unsupported attribute type: {}",
+                self.attribute_type
+            )),
+        }
+    }
+
     /// Get the integer value if the attribute type is 'i'
-    pub fn as_int(&self) -> Result<i32> {
+    pub fn as_int(&self) -> Result<isize> {
         if self.attribute_type != 'i' {
             return Err(anyhow!("Attribute is not an integer type"));
         }
