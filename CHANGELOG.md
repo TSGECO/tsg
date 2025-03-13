@@ -4,6 +4,39 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+## [0.1.2](https://github.com/cauliyang/tsg/compare/v0.1.1...v0.1.2) - 2025-03-13
+
+### Added
+
+- Add support for multiple graphs within a single file
+- *(tests)* update test data formats and improve graph path methods
+- *(cli)* update command options to use Option<PathBuf> for output paths and rename write_path to text_path
+- *(cli)* simplify to_fa function signature and enhance command structure
+- *(cli)* Add merge, query, and split subcommands
+- update TSG and test data formats, enhance graph traversal methods, and add new test cases
+- *(graph)* enhance attribute handling with new value types and improve typed value retrieval
+- add clap-verbosity-flag for improved verbosity handling and update test data formatting
+- *(graph)* enhance edge representation with weight and improve attribute handling
+- *(cli)* add option to write path information to file
+- Update dependencies and add utility functions for hash-based identifiers
+- Add clap-markdown support and tsg-cli changes
+- Add logo to README and refine TSG logo
+
+### Fixed
+
+- *(tests)* update test graph and write data formats for consistency
+- *(tests)* standardize formatting in test data files for consistency
+- Update exon_id values in NodeData to start from 1
+
+### Other
+
+- Update dependencies and improve test data formatting
+- update tsg format
+- Update paths abbreviation in TSG document
+- Update README.md
+- Update file format descriptions in CLI module
+- Update TSG file format documentation
+
 ## [0.1.1](https://github.com/cauliyang/tsg/compare/v0.1.0...v0.1.1) - 2025-03-05
 
 ### Added
