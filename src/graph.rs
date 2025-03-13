@@ -992,7 +992,7 @@ impl TSGraph {
     }
 
     /// Write the TSGraph to a TSG file
-    pub fn write_to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+    pub fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
 
@@ -1008,7 +1008,7 @@ impl TSGraph {
         // Write each graph section
         for (graph_id, graph) in &self.graphs {
             // Skip writing the default graph header if it's empty
-            if graph_id == "default" && graph.node_indices.is_empty() {
+            if graph_id == &BString::from(DEFAULT_GRAPH_ID) && graph.node_indices.is_empty() {
                 continue;
             }
 
@@ -1496,7 +1496,7 @@ mod tests {
         assert_eq!(graph.get_nodes(&DEFAULT_GRAPH_ID).len(), 5);
         assert_eq!(graph.get_edges(&DEFAULT_GRAPH_ID).len(), 4);
 
-        graph.write_to_file("tests/data/test_write.tsg")?;
+        graph.to_file("tests/data/test_write.tsg")?;
 
         Ok(())
     }
