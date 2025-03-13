@@ -8,6 +8,7 @@ TSG is a Rust library and command-line tool for creating, manipulating, and anal
 
 - Parse and write TSG format files
 - Build and manipulate transcript segment graphs
+- Support for multiple graphs within a single file
 - Analyze paths and connectivity between transcript segments
 - Support for various element types: nodes, edges, groups, and chains
 - Export graphs to DOT format for visualization
@@ -16,6 +17,7 @@ TSG is a Rust library and command-line tool for creating, manipulating, and anal
 - Build graphs from chains and validate path traversals
 - Support for genomic coordinates with strand information
 - Support for read evidence with types
+- Inter-graph links for fusion events and other cross-graph relationships
 
 ## Installation
 
@@ -49,6 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph = TSGraph::from_file("path/to/file.tsg")?;
 
     // Access graph elements
+    println!("Number of graphs: {}", graph.get_graphs().len());
     println!("Number of nodes: {}", graph.get_nodes().len());
     println!("Number of edges: {}", graph.get_edges().len());
 
@@ -63,68 +66,75 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Creating a Graph Programmatically
+### Working with Multiple Graphs
 
 ```rust
-use tsg::graph::{TSGraph, NodeData, EdgeData, StructuralVariant};
+use tsg::graph::{TSGraph, NodeData, EdgeData};
 use bstr::BString;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut graph = TSGraph::new();
 
-    // Add nodes
+    // Define multiple graphs
+    graph.add_graph("gene_a", Some("BRCA1 transcripts"))?;
+    graph.add_graph("gene_b", Some("BRCA2 transcripts"))?;
+
+    // Add nodes to different graphs
     let node1 = NodeData {
-        id: "node1".into(),
-        reference_id: "chr1".into(),
+        id: "gene_a:n1".into(),
+        reference_id: "chr17".into(),
         ..Default::default()
     };
 
     let node2 = NodeData {
-        id: "node2".into(),
-        reference_id: "chr1".into(),
+        id: "gene_b:n1".into(),
+        reference_id: "chr13".into(),
         ..Default::default()
     };
 
     graph.add_node(node1)?;
     graph.add_node(node2)?;
 
-    // Add an edge between nodes
-    let edge = EdgeData {
-        id: "edge1".into(),
+    // Add edges within each graph
+    let edge1 = EdgeData {
+        id: "gene_a:e1".into(),
         ..Default::default()
     };
 
-    graph.add_edge("node1".into(), "node2".into(), edge)?;
+    graph.add_edge("gene_a:n1".into(), "gene_a:n2".into(), edge1)?;
+
+    // Add inter-graph link (e.g., for fusion transcript)
+    graph.add_link("fusion1", "gene_a:n3", "gene_b:n1", "fusion", None)?;
 
     // Write to file
-    graph.write_to_file("new_graph.tsg")?;
+    graph.write_to_file("multi_graph.tsg")?;
 
     Ok(())
 }
 ```
 
-### Building a Graph from Chains
+### Building Graphs from Chains
 
 ```rust
 use tsg::graph::{TSGraph, Group};
 use std::collections::HashMap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create chains
+    // Create chains for different graphs
     let chains = vec![
         Group::Chain {
-            id: "chain1".into(),
-            elements: vec!["n1".into(), "e1".into(), "n2".into()],
+            id: "gene_a:chain1".into(),
+            elements: vec!["gene_a:n1".into(), "gene_a:e1".into(), "gene_a:n2".into()],
             attributes: HashMap::new(),
         },
         Group::Chain {
-            id: "chain2".into(),
-            elements: vec!["n2".into(), "e2".into(), "n3".into()],
+            id: "gene_b:chain1".into(),
+            elements: vec!["gene_b:n1".into(), "gene_b:e1".into(), "gene_b:n2".into()],
             attributes: HashMap::new(),
         },
     ];
 
-    // Build graph from chains
+    // Build graphs from chains
     let graph = TSGraph::from_chains(chains)?;
 
     // Write to file
@@ -134,7 +144,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Finding Valid Paths Through the Graph
+### Finding Valid Paths Through Specific Graphs
 
 ```rust
 use tsg::graph::TSGraph;
@@ -142,8 +152,8 @@ use tsg::graph::TSGraph;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let graph = TSGraph::from_file("transcript.tsg")?;
 
-    // Find all valid paths through the graph
-    let paths = graph.traverse()?;
+    // Find all valid paths through a specific graph
+    let paths = graph.traverse_graph("gene_a")?;
 
     for (i, path) in paths.iter().enumerate() {
         println!("Path {}: {}", i+1, path);
@@ -159,106 +169,113 @@ The TSG command-line tool provides a convenient interface for common operations:
 
 ```bash
 # Display help
-tsg-cli --help
+tsg --help
 
 # Parse and validate a TSG file
-tsg-cli validate path/to/file.tsg
+tsg validate path/to/file.tsg
 
-# Convert a TSG file to DOT format for visualization
-tsg-cli dot path/to/file.tsg > graph.dot
+# List all graphs in a TSG file
+tsg list-graphs path/to/file.tsg
+
+# Convert a specific graph to DOT format for visualization
+tsg dot --graph=gene_a path/to/file.tsg > gene_a.dot
 
 # Extract statistics from a TSG file
-tsg-cli stats path/to/file.tsg
+tsg stats path/to/file.tsg
 
-# Find all paths through the graph
-tsg-cli paths path/to/file.tsg
+# Find all paths through a specific graph
+tsg paths --graph=gene_a path/to/file.tsg
+
+# Find all inter-graph links
+tsg links path/to/file.tsg
 ```
 
 ## TSG File Format
 
-The TSG format is a tab-delimited text format representing transcript assemblies as graphs.
+The TSG format is a tab-delimited text format representing transcript assemblies as graphs. It supports multiple independent graphs within a single file.
+
+### Multi-Graph Support
+
+TSG supports multiple graphs within a single file using a graph namespace approach. Each element in the file can be associated with a specific graph using a graph ID prefix:
+
+```
+graph_id:element_id
+```
+
+For example, `gene_a:n1` refers to node n1 in the graph identified as "gene_a".
 
 ### Record Types
 
 Each line in a TSG file starts with a letter denoting the record type:
 
-- `H` - Header information
+- `H` - Header information (including graph definitions)
 - `N` - Node definition (exon or transcript segment)
 - `E` - Edge definition (splice junction or structural variant)
 - `U` - Unordered group (set of elements)
-- `O` - Ordered group (path through the graph)
+- `P` - Path (ordered traversal through the graph)
 - `C` - Chain (alternating nodes and edges)
 - `A` - Attribute for any element (metadata)
+- `L` - Inter-graph link (connections between different graphs)
 
 ### Conceptual Model
 
 In the TSG model:
 
-1. **Chains (C)** are used to build the graph structure. They define the nodes and edges that make up the graph.
-2. **Paths (O)** are traversals through the constructed graph.
-3. The complete TSG is built by combining all nodes and edges from all chains.
-4. After constructing the graph from chains, paths can be defined to represent ways of traversing the graph.
+1. **Graphs (G)** represent independent transcript graphs, each with its own set of nodes and edges.
+2. **Chains (C)** are used to build each graph's structure.
+3. **Paths (P)** are traversals through the constructed graphs.
+4. **Links (L)** establish relationships between elements in different graphs.
 
-This distinction is important: chains define what the graph is, while paths define ways to traverse the graph.
+This distinction is important: chains define what each graph is, paths define ways to traverse each graph, and links define relationships between graphs.
 
-### Example
+### Example with Multiple Graphs
 
 ```text
-# Header information
+# File header
 H  TSG  1.0
 H  reference  GRCh38
 
-# Nodes (exons)
-N  n1  chr1:+:1000-1200,1500-1700  read1:SO,read2:SO  ACGTACGT
-N  n2  chr1:+:2000-2200  read4:SO,read5:SO  TGCATGCA
-N  n3  chr1:+:2500-2700  read1:IN,read2:IN,read3:IN,read4:IN  CTGACTGA
+# Graph definitions
+H  graph  gene_a  BRCA1 transcripts
+H  graph  gene_b  BRCA2 transcripts
 
-# Edges (splice junctions)
-E  e1  n1  n2  chr1,chr1,1700,2000,splice
-E  e2  n2  n3  chr1,chr1,2200,2500,splice
+# Nodes for gene_a
+N  gene_a:n1  chr17:+:41196312-41196402  read1:SO,read2:SO  ACGTACGT
+N  gene_a:n2  chr17:+:41199660-41199720  read2:IN,read3:IN  TGCATGCA
+N  gene_a:n3  chr17:+:41203080-41203134  read1:SI,read2:SI  CTGACTGA
 
-# Chains (building the graph)
-C  chain1  n1 e1 n2 e2 n3
+# Nodes for gene_b
+N  gene_b:n1  chr13:+:32315480-32315652  read4:SO,read5:SO  GATTACA
+N  gene_b:n2  chr13:+:32316528-32316800  read4:IN,read5:IN  TACGATCG
+N  gene_b:n3  chr13:+:32319077-32319325  read4:SI,read5:SI  CGTACGTA
 
-# Paths (traversals)
-O  transcript1  n1+ e1+ n2+ e2+ n3+
+# Edges for gene_a
+E  gene_a:e1  gene_a:n1  gene_a:n2  chr17,chr17,41196402,41199660,splice
+E  gene_a:e2  gene_a:n2  gene_a:n3  chr17,chr17,41199720,41203080,splice
 
-# Sets (grouping elements)
-U  exon_set  n1 n2 n3
+# Edges for gene_b
+E  gene_b:e1  gene_b:n1  gene_b:n2  chr13,chr13,32315652,32316528,splice
+E  gene_b:e2  gene_b:n2  gene_b:n3  chr13,chr13,32316800,32319077,splice
 
-# Attributes (metadata)
-A  N  n1  expression:f:10.5
-A  O  transcript1  tpm:f:8.2
+# Chains for gene_a
+C  gene_a:chain1  gene_a:n1  gene_a:e1  gene_a:n2  gene_a:e2  gene_a:n3
+
+# Chains for gene_b
+C  gene_b:chain1  gene_b:n1  gene_b:e1  gene_b:n2  gene_b:e2  gene_b:n3
+
+# Paths for gene_a
+P  gene_a:transcript1  gene_a:n1+  gene_a:e1+  gene_a:n2+  gene_a:e2+  gene_a:n3+
+
+# Paths for gene_b
+P  gene_b:transcript1  gene_b:n1+  gene_b:e1+  gene_b:n2+  gene_b:e2+  gene_b:n3+
+
+# Inter-graph link (e.g., for a fusion transcript)
+L  fusion1  gene_a:n3  gene_b:n1  fusion  type:Z:chromosomal
+
+# Attributes
+A  N  gene_a:n1  expression:f:10.5
+A  P  gene_a:transcript1  tpm:f:8.2
 ```
-
-### Node Format
-
-Nodes represent exons or transcript segments with the format:
-
-```text
-N  <id>  <genomic_location>  <reads>  [<seq>]
-```
-
-Where:
-
-- `genomic_location` is in format `chromosome:strand:coordinates` (e.g., `chr1:+:1000-1200,1500-1700`)
-- `reads` is a comma-separated list of read IDs with types (e.g., `read1:SO,read2:IN`)
-- Read types include:
-  - `SO`: Source Node
-  - `IN`: Intermediary Node
-  - `SI`: Sink Node
-
-### Edge Format
-
-Edges represent splice junctions or structural variants:
-
-```text
-E  <id>  <source_id>  <sink_id>  <SV>
-```
-
-Where:
-
-- `SV` is in format `reference_name1,reference_name2,breakpoint1,breakpoint2,sv_type`
 
 ## Contributing
 
