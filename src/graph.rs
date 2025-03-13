@@ -178,21 +178,21 @@ impl GraphSection {
     }
 
     // Additional GraphSection methods...
-    pub fn get_node_by_idx(&self, node_idx: NodeIndex) -> Option<&NodeData> {
+    pub fn node_by_idx(&self, node_idx: NodeIndex) -> Option<&NodeData> {
         self._graph.node_weight(node_idx)
     }
 
-    pub fn get_node_by_id(&self, id: &str) -> Option<&NodeData> {
+    pub fn node_by_id(&self, id: &str) -> Option<&NodeData> {
         let node_idx = self.node_indices.get(&BString::from(id))?;
         self._graph.node_weight(*node_idx)
     }
 
-    pub fn get_edge_by_id(&self, id: &str) -> Option<&EdgeData> {
+    pub fn edge_by_id(&self, id: &str) -> Option<&EdgeData> {
         let edge_idx = self.edge_indices.get(&BString::from(id))?;
         self._graph.edge_weight(*edge_idx)
     }
 
-    pub fn get_edge_by_idx(&self, edge_idx: EdgeIndex) -> Option<&EdgeData> {
+    pub fn edge_by_idx(&self, edge_idx: EdgeIndex) -> Option<&EdgeData> {
         self._graph.edge_weight(edge_idx)
     }
 
@@ -404,8 +404,8 @@ impl GraphSection {
 
                     // get reads from source node and target node
                     // the weight will be the intersection of reads
-                    let source_data = self.get_node_by_idx(source).unwrap();
-                    let target_data = self.get_node_by_idx(target).unwrap();
+                    let source_data = self.node_by_idx(source).unwrap();
+                    let target_data = self.node_by_idx(target).unwrap();
 
                     // get the intersection of reads
                     let source_reads = source_data
@@ -1189,19 +1189,19 @@ impl TSGraph {
     }
 
     /// Get a node by its ID and graph ID
-    pub fn get_node(&self, graph_id: &str, node_id: &str) -> Option<&NodeData> {
+    pub fn node(&self, graph_id: &str, node_id: &str) -> Option<&NodeData> {
         let graph = self.graphs.get(&BString::from(graph_id))?;
-        graph.get_node_by_id(node_id)
+        graph.node_by_id(node_id)
     }
 
     /// Get an edge by its ID and graph ID
-    pub fn get_edge(&self, graph_id: &str, edge_id: &str) -> Option<&EdgeData> {
+    pub fn edge(&self, graph_id: &str, edge_id: &str) -> Option<&EdgeData> {
         let graph = self.graphs.get(&BString::from(graph_id))?;
-        graph.get_edge_by_id(edge_id)
+        graph.edge_by_id(edge_id)
     }
 
     /// Get the nodes in a chain in order
-    pub fn get_chain_nodes(&self, graph_id: &str, chain_id: &BStr) -> Option<Vec<NodeIndex>> {
+    pub fn chain_nodes(&self, graph_id: &str, chain_id: &BStr) -> Option<Vec<NodeIndex>> {
         let graph = self.graphs.get(&BString::from(graph_id))?;
         let group = graph.chains.get(chain_id)?;
 
@@ -1227,7 +1227,7 @@ impl TSGraph {
     }
 
     /// Get the edges in a chain in order
-    pub fn get_chain_edges(&self, graph_id: &str, chain_id: &BStr) -> Option<Vec<EdgeIndex>> {
+    pub fn chain_edges(&self, graph_id: &str, chain_id: &BStr) -> Option<Vec<EdgeIndex>> {
         let graph = self.graphs.get(&BString::from(graph_id))?;
         let group = graph.chains.get(chain_id)?;
 
@@ -1261,18 +1261,18 @@ impl TSGraph {
             .find_map_first(|(id, &idx)| if idx == node_idx { Some(id) } else { None })
     }
 
-    pub fn get_node_by_idx(&self, graph_id: &str, node_idx: NodeIndex) -> Option<&NodeData> {
+    pub fn node_by_idx(&self, graph_id: &str, node_idx: NodeIndex) -> Option<&NodeData> {
         let graph = self.graphs.get(&BString::from(graph_id))?;
-        graph.get_node_by_idx(node_idx)
+        graph.node_by_idx(node_idx)
     }
 
-    pub fn get_edge_by_idx(&self, graph_id: &str, edge_idx: EdgeIndex) -> Option<&EdgeData> {
+    pub fn edge_by_idx(&self, graph_id: &str, edge_idx: EdgeIndex) -> Option<&EdgeData> {
         let graph = self.graphs.get(&BString::from(graph_id))?;
-        graph.get_edge_by_idx(edge_idx)
+        graph.edge_by_idx(edge_idx)
     }
 
     /// Get all nodes in the graph
-    pub fn get_nodes(&self, graph_id: &str) -> Vec<&NodeData> {
+    pub fn nodes(&self, graph_id: &str) -> Vec<&NodeData> {
         let graph = self.graphs.get(&BString::from(graph_id)).unwrap();
         graph
             .node_indices
@@ -1282,7 +1282,7 @@ impl TSGraph {
     }
 
     /// Get all edges in the graph
-    pub fn get_edges(&self, graph_id: &str) -> Vec<&EdgeData> {
+    pub fn edges(&self, graph_id: &str) -> Vec<&EdgeData> {
         let graph = self.graphs.get(&BString::from(graph_id)).unwrap();
         graph
             .edge_indices
@@ -1292,23 +1292,6 @@ impl TSGraph {
     }
 
     /// Traverse the graph and return all valid paths from source nodes to sink nodes.
-    ///
-    /// A valid path must respect read continuity, especially for nodes with Intermediary (IN) reads.
-    /// For nodes with IN reads, we ensure that:
-    /// 1. The node shares at least one read with previous nodes in the path
-    /// 2. The node can connect to at least one subsequent node that shares a read with it
-    ///
-    /// Example:
-    /// n1 (r1) -> n3 (r1,r2) -> n4 (r1)
-    /// n2 (r2) -> n3 (r1,r2) -> n5 (r2)
-    ///
-    /// If n3 has IN reads, then only these paths are valid:
-    /// - n1 -> n3 -> n4 (valid because they all share read r1)
-    /// - n2 -> n3 -> n5 (valid because they all share read r2)
-    ///
-    /// These paths would be invalid:
-    /// - n1 -> n3 -> n5 (invalid because n1 and n5 don't share a common read)
-    /// - n2 -> n3 -> n4 (invalid because n2 and n4 don't share a common read)
     pub fn traverse_by_id(&self, graph_id: &str) -> Result<Vec<TSGPath>> {
         let graph = self.graphs.get(&BString::from(graph_id)).unwrap();
         graph.traverse()
@@ -1341,15 +1324,6 @@ impl TSGraph {
         let graph = self.graphs.get(&BString::from(graph_id)).unwrap();
         graph.to_json()
     }
-
-    pub fn annotate_node_with_sequence_by_id<P: AsRef<Path>>(
-        &mut self,
-        graph_id: &str,
-        reference_genome_path: P,
-    ) -> Result<()> {
-        let graph = self.graphs.get_mut(&BString::from(graph_id)).unwrap();
-        graph.annotate_node_with_sequence(reference_genome_path)
-    }
 }
 
 #[cfg(test)]
@@ -1361,7 +1335,7 @@ mod tests {
         let graph = TSGraph::new();
         assert_eq!(graph.headers.len(), 0);
         assert_eq!(graph.default_graph().unwrap().nodes().len(), 0);
-        assert_eq!(graph.get_edges(DEFAULT_GRAPH_ID).len(), 0);
+        assert_eq!(graph.edges(DEFAULT_GRAPH_ID).len(), 0);
         assert_eq!(graph.graphs.len(), 1);
         assert_eq!(graph.links.len(), 0);
     }
@@ -1376,12 +1350,8 @@ mod tests {
         };
 
         graph.default_graph_mut().unwrap().add_node(node.clone())?;
-        assert_eq!(graph.get_nodes(DEFAULT_GRAPH_ID).len(), 1);
-        assert_eq!(
-            graph.get_node(DEFAULT_GRAPH_ID, "node1").unwrap().id,
-            node.id
-        );
-
+        assert_eq!(graph.nodes(DEFAULT_GRAPH_ID).len(), 1);
+        assert_eq!(graph.node(DEFAULT_GRAPH_ID, "node1").unwrap().id, node.id);
         Ok(())
     }
 
@@ -1416,11 +1386,8 @@ mod tests {
             edge.clone(),
         )?;
 
-        assert_eq!(graph.get_edges(&DEFAULT_GRAPH_ID).len(), 1);
-        assert_eq!(
-            graph.get_edge(&DEFAULT_GRAPH_ID, "edge1").unwrap().id,
-            edge.id
-        );
+        assert_eq!(graph.edges(&DEFAULT_GRAPH_ID).len(), 1);
+        assert_eq!(graph.edge(&DEFAULT_GRAPH_ID, "edge1").unwrap().id, edge.id);
 
         Ok(())
     }
@@ -1447,11 +1414,7 @@ mod tests {
         graph.parse_node_line(line)?;
 
         // let node = graph.get_node("defaul, "node1").unwrap();
-        let node = graph
-            .default_graph()
-            .unwrap()
-            .get_node_by_id("node1")
-            .unwrap();
+        let node = graph.default_graph().unwrap().node_by_id("node1").unwrap();
 
         assert_eq!(node.id, "node1");
         assert_eq!(node.exons.exons.len(), 1);
@@ -1497,8 +1460,8 @@ mod tests {
         let graph = TSGraph::from_file(file)?;
 
         assert_eq!(graph.headers.len(), 2);
-        assert_eq!(graph.get_nodes(&DEFAULT_GRAPH_ID).len(), 5);
-        assert_eq!(graph.get_edges(&DEFAULT_GRAPH_ID).len(), 4);
+        assert_eq!(graph.nodes(&DEFAULT_GRAPH_ID).len(), 5);
+        assert_eq!(graph.edges(&DEFAULT_GRAPH_ID).len(), 4);
 
         graph.to_file("tests/data/test_write.tsg")?;
 
