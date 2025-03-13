@@ -38,10 +38,6 @@ pub enum Commands {
         #[arg(required = true, value_hint = ValueHint::FilePath)]
         input: PathBuf,
 
-        /// Path to the reference genome file
-        #[arg(short, long, value_hint = ValueHint::FilePath)]
-        reference_genome: PathBuf,
-
         /// Output file path for the FASTA
         #[arg(short, long, value_hint = ValueHint::FilePath)]
         output: Option<PathBuf>,
@@ -106,6 +102,47 @@ pub enum Commands {
         write_path: bool,
 
         /// Output file path for the paths
+        #[arg(short, long, value_hint = ValueHint::FilePath)]
+        output: Option<PathBuf>,
+    },
+
+    /// Merge multiple TSG files into a single TSG file
+    Merge {
+        /// Input TSG file paths
+        #[arg(required = true, action=clap::ArgAction::Append, value_hint = ValueHint::FilePath)]
+        inputs: Vec<PathBuf>,
+
+        /// Output file path for the merged TSG
+        #[arg(short, long, value_hint = ValueHint::FilePath)]
+        output: PathBuf,
+    },
+
+    /// Split a TSG file into multiple TSG files
+    Split {
+        /// Input TSG file path
+        #[arg(required = true, value_hint = ValueHint::FilePath)]
+        input: PathBuf,
+
+        /// Output directory for the split TSG files
+        #[arg(short, long, value_hint = ValueHint::DirPath)]
+        output: PathBuf,
+    },
+
+    /// Query specific graphs from a TSG file
+    Query {
+        /// Input TSG file path
+        #[arg(required = true, value_hint = ValueHint::FilePath)]
+        input: PathBuf,
+
+        /// Graph IDs to query, can be separated by commas
+        #[arg(short, long)]
+        ids: String,
+
+        /// File containing graph IDs to query (one per line)
+        #[arg(short, long, value_hint = ValueHint::FilePath)]
+        ids_file: Option<PathBuf>,
+
+        /// Output file path for the queried graphs
         #[arg(short, long, value_hint = ValueHint::FilePath)]
         output: Option<PathBuf>,
     },
