@@ -20,19 +20,18 @@ TSG is a tab-delimited text format with each line beginning with a single letter
 
 ## Multi-Graph Support
 
-TSG supports multiple graphs within a single file using a graph namespace approach. Each element in the file can be associated with a specific graph using a graph ID prefix:
+TSG supports multiple graphs within a single file using:
 
-```text
-graph_id:element_id
-```
+1. **Graph separators (G)** to define the start of each graph section
+2. **Graph ID namespace** to qualify element IDs with their respective graph
 
-For example, `gene_a:n1` refers to node n1 in the graph identified as "gene_a".
+All elements in a graph section belong to that graph until a new graph section is encountered.
 
 ## Record Types
 
-### Header (H)
+### Global Header (H)
 
-Contains metadata about the file.
+Contains metadata about the entire file. These appear at the beginning of the file before any graph sections.
 
 ```text
 H  <tag>  <value>
@@ -43,29 +42,36 @@ Fields:
 - `tag`: Identifier for the header entry
 - `value`: Header value
 
-For defining graphs:
+### Graph Separator (G)
+
+Indicates the start of a new graph section and provides graph metadata.
 
 ```text
-H  graph  <graph_id>  [<description>]
+G  <graph_id>  [<tag>:<type>:<value> ...]
 ```
 
 Fields:
 
-- `graph`: Fixed tag indicating a graph definition
 - `graph_id`: Unique identifier for the graph
-- `description` (optional): Description of the graph
+- Optional list of attribute tags in `tag:type:value` format
+
+Example:
+
+```text
+G  gene_a  name:Z:BRCA1  source:Z:RefSeq  version:Z:GRCh38
+```
 
 ### Nodes (N)
 
 Represent exons or transcript segments.
 
 ```text
-N  <graph_id:id>  <genomic_location>  <reads>  [<seq>]
+N  <id>  <genomic_location>  <reads>  [<seq>]
 ```
 
 Fields:
 
-- `graph_id:id`: Graph-qualified unique identifier for the node
+- `id`: Unique identifier for the node (within the current graph section)
 - `genomic_location`: Format `chromosome:strand:coordinates` where:
   - `chromosome`: Chromosome name (e.g., "chr1")
   - `strand`: "+" for forward strand, "-" for reverse strand
@@ -79,14 +85,14 @@ Fields:
 Represent connections between nodes, including splice junctions or structural variants.
 
 ```text
-E  <graph_id:id>  <graph_id:source_id>  <graph_id:sink_id>  <SV>
+E  <id>  <source_id>  <sink_id>  <SV>
 ```
 
 Fields:
 
-- `graph_id:id`: Graph-qualified unique identifier for the edge
-- `graph_id:source_id`: Graph-qualified ID of the source node
-- `graph_id:sink_id`: Graph-qualified ID of the target node
+- `id`: Unique identifier for the edge (within the current graph section)
+- `source_id`: ID of the source node
+- `sink_id`: ID of the target node
 - `SV`: Structural variant information in format "reference_name1,reference_name2,breakpoint1,breakpoint2,sv_type"
 
 ### Unordered Groups/Sets (U)
@@ -94,39 +100,39 @@ Fields:
 Represent unordered collections of graph elements.
 
 ```text
-U  <graph_id:group_id>  <graph_id:element_id_1> <graph_id:element_id_2> ... <graph_id:element_id_n>
+U  <group_id>  <element_id_1> <element_id_2> ... <element_id_n>
 ```
 
 Fields:
 
-- `graph_id:group_id`: Graph-qualified unique identifier for the unordered group
-- `graph_id:element_id_*`: Space-separated list of graph-qualified element identifiers (nodes, edges, or other groups)
+- `group_id`: Unique identifier for the unordered group (within the current graph section)
+- `element_id_*`: Space-separated list of element identifiers (nodes, edges, or other groups)
 
 ### Ordered Groups/Paths (P)
 
 Represent ordered collections of graph elements where orientation matters.
 
 ```text
-P  <graph_id:group_id>  <graph_id:oriented_element_id_1> <graph_id:oriented_element_id_2> ... <graph_id:oriented_element_id_n>
+P  <path_id>  <oriented_element_id_1> <oriented_element_id_2> ... <oriented_element_id_n>
 ```
 
 Fields:
 
-- `graph_id:group_id`: Graph-qualified unique identifier for the ordered group
-- `graph_id:oriented_element_id_*`: Space-separated list of graph-qualified element identifiers with orientation (+ or -)
+- `path_id`: Unique identifier for the ordered group (within the current graph section)
+- `oriented_element_id_*`: Space-separated list of element identifiers with orientation (+ or -)
 
 ### Chains (C)
 
 Represent explicit paths through the graph with alternating nodes and edges.
 
 ```text
-C  <graph_id:chain_id>  <graph_id:node_id_1> <graph_id:edge_id_1> <graph_id:node_id_2> <graph_id:edge_id_2> ... <graph_id:node_id_n>
+C  <chain_id>  <node_id_1> <edge_id_1> <node_id_2> <edge_id_2> ... <node_id_n>
 ```
 
 Fields:
 
-- `graph_id:chain_id`: Graph-qualified unique identifier for the chain
-- Elements: Space-separated list of graph-qualified alternating node and edge identifiers
+- `chain_id`: Unique identifier for the chain (within the current graph section)
+- Elements: Space-separated list of alternating node and edge identifiers
   - Must start and end with node identifiers
   - Must have an odd number of elements
   - Adjacent elements must be connected in the graph
@@ -136,13 +142,13 @@ Fields:
 Optional metadata attached to other elements.
 
 ```text
-A  <element_type>  <graph_id:element_id>  <tag>:<type>:<value>
+A  <element_type>  <element_id>  <tag>:<type>:<value>
 ```
 
 Fields:
 
 - `element_type`: Type of element (N, E, U, P, or C)
-- `graph_id:element_id`: Graph-qualified identifier of the element to attach the attribute to
+- `element_id`: Identifier of the element to attach the attribute to
 - `tag`: Name of the attribute
 - `type`: Single letter code for the attribute data type
 - `value`: Value of the attribute
@@ -152,7 +158,7 @@ Fields:
 Represents connections between elements in different graphs.
 
 ```text
-L  <id>  <graph_id1:element_id1>  <graph_id2:element_id2>  <link_type>  [<attributes>]
+L  <id>  <graph_id1>:<element_id1>  <graph_id2>:<element_id2>  <link_type>  [<tag>:<type>:<value> ...]
 ```
 
 Fields:
@@ -161,9 +167,18 @@ Fields:
 - `graph_id1:element_id1`: Graph-qualified identifier for the first element
 - `graph_id2:element_id2`: Graph-qualified identifier for the second element
 - `link_type`: Type of link (e.g., "fusion", "reference", "containment")
-- `attributes` (optional): Comma-separated list of attributes in key:value format
+- Optional list of attribute tags in `tag:type:value` format
 
 ## Semantics
+
+### Graph Sections
+
+Each graph section in a TSG file defines an independent transcript segment graph:
+
+1. **Section Boundaries**: A graph section begins with a G record and continues until the next G record or the end of the file.
+2. **Element Scope**: All elements (N, E, C, P, U, A) defined within a graph section belong to that graph.
+3. **Element Reference**: Elements can only reference other elements within the same graph section, except through inter-graph links (L).
+4. **Element IDs**: Element IDs must be unique within their graph section but can be reused in different graph sections.
 
 ### Node Semantics
 
@@ -197,13 +212,6 @@ Read continuity is a critical concept in TSG that ensures valid traversals throu
    - The specific read type (SO, SI, IN) determines the continuity requirements at each position in the path.
 
 5. **Representation**: The read IDs in each node's `reads` field implicitly define the continuity relationships in the graph, while the read types determine the continuity constraints.
-
-### Graph Namespace
-
-1. **Independent Graphs**: Each graph defined with the graph header (H graph graph_id) represents an independent transcript segment graph.
-2. **Element Qualification**: Each element ID is qualified with its graph ID using the format `graph_id:element_id`.
-3. **Scope**: Elements from one graph can only connect to other elements within the same graph, except through explicit inter-graph links.
-4. **Unique Identification**: The graph_id prefix ensures that element IDs are unique across the entire file, even if the same local ID appears in multiple graphs.
 
 ### Chains vs. Paths
 
@@ -249,24 +257,27 @@ The typical processing flow for a TSG file depends on whether the graph structur
 
 If the TSG file contains explicit node (N) and edge (E) records:
 
-1. Identify the graphs defined in the file
-2. For each graph, read and create the graph structure directly from its records
-3. Chains (C) serve as additional evidence or source information
-4. Paths (P) define traversals through the explicitly defined graph
-5. Process inter-graph links to establish connections between graphs
-6. Validate read continuity by checking for shared read IDs across adjacent nodes in paths
+1. Process the global headers at the beginning of the file
+2. For each graph section (started by a G record):
+   - Create a new graph with the given ID and attributes
+   - Read and create the graph structure directly from the records in the section
+   - Process chains (C) as additional evidence or source information
+   - Process paths (P) as traversals through the explicitly defined graph
+3. Process inter-graph links (L) to establish connections between graphs
+4. Validate read continuity by checking for shared read IDs across adjacent nodes in paths
 
 ### Case 2: Nodes and Edges Are Not Explicitly Defined
 
 If the TSG file does not contain explicit node and edge records, or contains only partial definitions:
 
-1. Identify the graphs defined in the file
-2. For each graph, extract and construct all nodes and edges from chains (C)
-3. Build the complete graph structure from these extracted elements
-4. Chains provide both the structure and the evidence for the graph
-5. Paths (P) define traversals through the graph constructed from chains
-6. Process inter-graph links to establish connections between graphs
-7. Verify read continuity for all paths by ensuring adjacent nodes share common read support
+1. Process the global headers at the beginning of the file
+2. For each graph section (started by a G record):
+   - Create a new graph with the given ID and attributes
+   - Extract and construct all nodes and edges from chains (C) in the section
+   - Build the complete graph structure from these extracted elements
+   - Process paths (P) as traversals through the graph constructed from chains
+3. Process inter-graph links (L) to establish connections between graphs
+4. Verify read continuity for all paths by ensuring adjacent nodes share common read support
 
 ## Type Definitions for Attributes
 
@@ -280,78 +291,92 @@ If the TSG file does not contain explicit node and edge records, or contains onl
 ## Example
 
 ```text
-# File header
+# Global headers
 H  TSG  1.0
 H  reference  GRCh38
 
-# Graph definitions
-H  graph  gene_a  BRCA1 transcripts
-H  graph  gene_b  BRCA2 transcripts
+# First graph
+G  gene_a  name:Z:BRCA1  locus:Z:chr17q21.31
 
 # Nodes for gene_a
-N  gene_a:n1  chr17:+:41196312-41196402  read1:SO,read2:SO  ACGTACGT
-N  gene_a:n2  chr17:+:41199660-41199720  read2:IN,read3:IN  TGCATGCA
-N  gene_a:n3  chr17:+:41203080-41203134  read1:SI,read2:SI  CTGACTGA
-
-# Nodes for gene_b
-N  gene_b:n1  chr13:+:32315480-32315652  read4:SO,read5:SO  GATTACA
-N  gene_b:n2  chr13:+:32316528-32316800  read4:IN,read5:IN  TACGATCG
-N  gene_b:n3  chr13:+:32319077-32319325  read4:SI,read5:SI  CGTACGTA
+N  n1  chr17:+:41196312-41196402  read1:SO,read2:SO  ACGTACGT
+N  n2  chr17:+:41199660-41199720  read2:IN,read3:IN  TGCATGCA
+N  n3  chr17:+:41203080-41203134  read1:SI,read2:SI  CTGACTGA
 
 # Edges for gene_a
-E  gene_a:e1  gene_a:n1  gene_a:n2  chr17,chr17,41196402,41199660,splice
-E  gene_a:e2  gene_a:n2  gene_a:n3  chr17,chr17,41199720,41203080,splice
-
-# Edges for gene_b
-E  gene_b:e1  gene_b:n1  gene_b:n2  chr13,chr13,32315652,32316528,splice
-E  gene_b:e2  gene_b:n2  gene_b:n3  chr13,chr13,32316800,32319077,splice
+E  e1  n1  n2  chr17,chr17,41196402,41199660,splice
+E  e2  n2  n3  chr17,chr17,41199720,41203080,splice
 
 # Chains for gene_a
-C  gene_a:chain1  gene_a:n1  gene_a:e1  gene_a:n2  gene_a:e2  gene_a:n3
-
-# Chains for gene_b
-C  gene_b:chain1  gene_b:n1  gene_b:e1  gene_b:n2  gene_b:e2  gene_b:n3
+C  chain1  n1  e1  n2  e2  n3
 
 # Paths for gene_a
-P  gene_a:transcript1  gene_a:n1+  gene_a:e1+  gene_a:n2+  gene_a:e2+  gene_a:n3+
-
-# Paths for gene_b
-P  gene_b:transcript1  gene_b:n1+  gene_b:e1+  gene_b:n2+  gene_b:e2+  gene_b:n3+
+P  transcript1  n1+  e1+  n2+  e2+  n3+
 
 # Sets for gene_a
-U  gene_a:exon_set  gene_a:n1  gene_a:n2  gene_a:n3
+U  exon_set  n1  n2  n3
+
+# Attributes for gene_a elements
+A  N  n1  expression:f:10.5
+A  N  n1  ptc:i:10
+A  P  transcript1  tpm:f:8.2
+
+# Second graph
+G  gene_b  name:Z:BRCA2  locus:Z:chr13q13.1
+
+# Nodes for gene_b
+N  n1  chr13:+:32315480-32315652  read4:SO,read5:SO  GATTACA
+N  n2  chr13:+:32316528-32316800  read4:IN,read5:IN  TACGATCG
+N  n3  chr13:+:32319077-32319325  read4:SI,read5:SI  CGTACGTA
+
+# Edges for gene_b
+E  e1  n1  n2  chr13,chr13,32315652,32316528,splice
+E  e2  n2  n3  chr13,chr13,32316800,32319077,splice
+
+# Chains for gene_b
+C  chain1  n1  e1  n2  e2  n3
+
+# Paths for gene_b
+P  transcript1  n1+  e1+  n2+  e2+  n3+
 
 # Sets for gene_b
-U  gene_b:exon_set  gene_b:n1  gene_b:n2  gene_b:n3
+U  exon_set  n1  n2  n3
 
-# Inter-graph link (e.g., for a fusion transcript)
+# Attributes for gene_b elements
+A  P  transcript1  tpm:f:3.7
+
+# Inter-graph links (appears after all graph sections)
 L  fusion1  gene_a:n3  gene_b:n1  fusion  type:Z:chromosomal
-
-# Attributes
-A  N  gene_a:n1  expression:f:10.5
-A  N  gene_a:n1  ptc:i:10
-A  P  gene_a:transcript1  tpm:f:8.2
-A  P  gene_b:transcript1  tpm:f:3.7
 ```
 
 In this example:
 
-1. Two graphs (gene_a and gene_b) are defined, each with their own nodes, edges, chains, and paths
-2. Each element is qualified with its graph ID (e.g., gene_a:n1)
-3. An inter-graph link represents a fusion between the last exon of gene_a and the first exon of gene_b
-4. Attributes provide additional information about elements in each graph
-5. Read continuity can be verified within each graph independently
+1. The file begins with global headers that apply to the entire file
+2. Two graph sections are defined (gene_a and gene_b), each started by a G record
+3. Each graph has its own nodes, edges, chains, paths, and attributes
+4. Element IDs (n1, e1, etc.) are local to each graph section
+5. An inter-graph link represents a fusion between elements from different graphs
+6. To reference elements across graphs (in the L record), graph-qualified IDs are used (graph_id:element_id)
 
 ## Implementation Considerations
 
-### Graph Namespace Handling
+### Graph Section Handling
 
 Implementations should:
 
-- Parse the graph ID prefix from each element ID
+- Initialize a new graph context whenever a G record is encountered
+- Associate all subsequent elements with the current graph until the next G record
 - Maintain separate data structures for each graph
 - Enforce that connections (edges, chains, paths) only exist between elements in the same graph
 - Process inter-graph links separately from within-graph connections
+
+### Element ID Resolution
+
+When processing elements:
+
+- Within a graph section, element IDs are resolved in the context of that graph
+- In inter-graph links, element IDs must be qualified with their graph ID (graph_id:element_id)
+- Implementations should maintain a mapping of (graph_id, element_id) pairs to resolve references
 
 ### Genomic Location Parsing
 
@@ -374,24 +399,25 @@ Read evidence is recorded with both read identifiers and types. Implementations 
 
 Implementations should validate that:
 
-- All elements are properly qualified with a graph ID
+- Each graph section has a unique graph ID
+- Element IDs are unique within their graph section
 - Chains have an odd number of elements (starting and ending with nodes)
 - Adjacent elements in chains are correctly connected in the graph
-- Group identifiers are unique across U, P, and C types within each graph
-- Paths (P-lines) only reference elements that exist in the same graph
+- Group identifiers are unique across U, P, and C types within each graph section
+- Paths (P-lines) only reference elements that exist in the same graph section
 - Inter-graph links only reference elements that exist in their respective graphs
 
 ### Chain Processing
 
-- Process chains within each graph independently
-- When encountering a chain, extract all nodes and edges and add them to the appropriate graph
+- Process chains within each graph section independently
+- When encountering a chain, extract all nodes and edges and add them to the current graph
 - The same node or edge can appear in multiple chains within the same graph
 - The structural integrity of each graph is defined by its chains
 
 ### Path Processing
 
 - Paths do not add new elements to the graph
-- Paths must reference existing nodes and edges within the same graph
+- Paths must reference existing nodes and edges within the same graph section
 - Paths can include orientation information (+ or -) for elements
 
 ### Read Continuity Verification
@@ -443,7 +469,7 @@ In the context of transcript analysis, the TSG format elements typically represe
 - **Predicted Transcripts**: Computationally predicted transcript models
 - These are ways to traverse the established transcript graph
 
-#### Inter-Graph Links (L) (maybe support)
+#### Inter-Graph Links (L)
 
 - **Fusion Transcripts**: Transcripts spanning multiple genes
 - **Reference Relationships**: Cross-references between different transcript annotations
