@@ -67,11 +67,15 @@ fn run() -> Result<()> {
         Commands::Parse { input } => {
             info!("Parsing TSG file: {}", input.display());
             let graph = TSGraph::from_file(input)?;
-            info!(
-                "Successfully parsed TSG file with {} nodes and {} edges",
-                graph.get_nodes().len(),
-                graph.get_edges().len()
-            );
+
+            for (id, graph) in graph.graphs.iter() {
+                info!(
+                    "Successfully parsed graph {} with {} nodes and {} edges",
+                    id,
+                    graph.nodes().len(),
+                    graph.edges().len()
+                );
+            }
             Ok(())
         }
 

@@ -23,5 +23,5 @@ U	exon_set	n1	n2	n3
 # Attributes (metadata)
 A	N	n1	expression:f:10.5
 A	N	n1	ptc:i:10
-A	O	transcript1	tpm:f:8.2
-A	O	transcript2	tpm:f:3.7
+A	P	transcript1	tpm:f:8.2
+A	P	transcript2	tpm:f:3.7

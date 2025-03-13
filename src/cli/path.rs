@@ -21,7 +21,7 @@ pub fn traverse<P: AsRef<Path>>(input: P, write_path: bool, output: Option<PathB
         }
     };
 
-    let paths = tsg_graph.traverse()?;
+    let paths = tsg_graph.traverse_all_graphs()?;
     let file = std::fs::File::create(&output_path)?;
     let mut writer = std::io::BufWriter::new(file);
 

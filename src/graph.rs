@@ -7,10 +7,13 @@ mod node;
 mod path;
 mod utils;
 
+use noodles::fasta;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
 use std::str::FromStr;
+use tracing::debug;
+use tracing::warn;
 
 use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use anyhow::{Context, Result, anyhow};
@@ -29,23 +32,31 @@ use petgraph::visit::EdgeRef;
 use rayon::prelude::*;
 use serde_json::json;
 use std::collections::VecDeque;
-use tracing::debug;
 
-/// The complete transcript segment graph
+pub const DEFAULT_GRAPH_ID: &str = "default";
+/// Represents a graph section within the TSG file
 #[derive(Debug, Clone, Default, Builder)]
-pub struct TSGraph {
-    pub headers: Vec<Header>,
+pub struct GraphSection {
+    pub id: BString,
+    pub attributes: HashMap<BString, Attribute>,
     _graph: DiGraph<NodeData, EdgeData>,
     pub node_indices: HashMap<BString, NodeIndex>,
     pub edge_indices: HashMap<BString, EdgeIndex>,
     pub groups: HashMap<BString, Group>,
-    pub chains: HashMap<BString, Group>, // We store chains separately but they're also in groups
+    pub chains: HashMap<BString, Group>,
 }
 
-impl TSGraph {
-    /// Create a new empty TSGraph
-    pub fn new() -> Self {
-        Self::default()
+impl GraphSection {
+    /// Create a new empty GraphSection
+    pub fn new(id: BString) -> Self {
+        Self {
+            id,
+            ..Default::default()
+        }
+    }
+
+    pub fn default_graph() -> Self {
+        Self::new(DEFAULT_GRAPH_ID.into())
     }
 
     /// Add a node to the graph
@@ -64,6 +75,14 @@ impl TSGraph {
 
         // Add new node
         let node_idx = self._graph.add_node(node_data);
+
+        debug!(
+            "graph {} add node {} ;len of node_indices: {}",
+            self.id,
+            id,
+            self.node_indices.len() + 1
+        );
+
         self.node_indices.insert(id, node_idx);
         Ok(node_idx)
     }
@@ -95,215 +114,9 @@ impl TSGraph {
         Ok(edge_idx)
     }
 
-    /// Parse a header line
-    fn parse_header_line(&mut self, fields: &[&str]) -> Result<()> {
-        if fields.len() < 3 {
-            return Err(anyhow!("Invalid header line format"));
-        }
+    // Methods from old TSGraph that should now belong to GraphSection
 
-        self.headers.push(Header {
-            tag: fields[1].into(),
-            value: fields[2].into(),
-        });
-
-        Ok(())
-    }
-
-    /// Parse a node line
-    fn parse_node_line(&mut self, fields: &str) -> Result<()> {
-        let node_data = NodeData::from_str(fields)?;
-        self.add_node(node_data)?;
-        Ok(())
-    }
-
-    /// Parse an edge line
-    fn parse_edge_line(&mut self, fields: &[&str]) -> Result<()> {
-        if fields.len() < 5 {
-            return Err(anyhow!("Invalid edge line format"));
-        }
-
-        let id: BString = fields[1].into();
-        let source_id: BString = fields[2].into();
-        let sink_id: BString = fields[3].into();
-        let sv = fields[4].parse::<StructuralVariant>()?;
-
-        let edge_data = EdgeData {
-            id,
-            sv,
-            attributes: HashMap::new(),
-        };
-
-        self.add_edge(source_id.as_bstr(), sink_id.as_bstr(), edge_data)?;
-        Ok(())
-    }
-
-    /// Parse an unordered group line
-    fn parse_unordered_group_line(&mut self, fields: &[&str]) -> Result<()> {
-        if fields.len() < 3 {
-            return Err(anyhow!("Invalid unordered group line format"));
-        }
-
-        let id: BString = fields[1].into();
-
-        // Check for duplicate group name
-        if self.groups.contains_key(&id) {
-            return Err(anyhow!("Group with ID {} already exists", id));
-        }
-
-        // Parse element IDs (space-separated)
-        let elements_str = fields[2..].join(" ");
-        let elements = elements_str
-            .split_whitespace()
-            .map(|s| s.into())
-            .collect::<Vec<_>>();
-
-        let group = Group::Unordered {
-            id: id.clone(),
-            elements,
-            attributes: HashMap::new(),
-        };
-
-        self.groups.insert(id, group);
-        Ok(())
-    }
-
-    /// Parse an ordered group line
-    fn parse_ordered_group_line(&mut self, fields: &[&str]) -> Result<()> {
-        if fields.len() < 3 {
-            return Err(anyhow!("Invalid ordered group line format"));
-        }
-
-        let id: BString = fields[1].into();
-
-        // Check for duplicate group name
-        if self.groups.contains_key(&id) {
-            return Err(anyhow!("Group with ID {} already exists", id));
-        }
-
-        // Parse oriented element IDs (space-separated)
-        let elements_str = fields[2..].join(" ");
-        let elements = elements_str
-            .split_whitespace()
-            .map(|s| s.parse::<OrientedElement>())
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let group = Group::Ordered {
-            id: id.clone(),
-            elements,
-            attributes: HashMap::new(),
-        };
-
-        self.groups.insert(id, group);
-        Ok(())
-    }
-
-    /// Parse a chain line
-    fn parse_chain_line(&mut self, fields: &[&str]) -> Result<()> {
-        if fields.len() < 3 {
-            return Err(anyhow!("Invalid chain line format"));
-        }
-
-        let id: BString = fields[1].into();
-
-        // Check for duplicate group name
-        if self.groups.contains_key(&id) {
-            return Err(anyhow!("Group with ID {} already exists", id));
-        }
-
-        // Parse element IDs (space-separated)
-        let elements_str = fields[2..].join(" ");
-        let elements: Vec<BString> = elements_str.split_whitespace().map(|s| s.into()).collect();
-
-        // Validate chain structure: must start and end with nodes, and have alternating nodes/edges
-        if elements.is_empty() {
-            return Err(anyhow!("Chain must contain at least one element"));
-        }
-
-        if elements.len() % 2 == 0 {
-            return Err(anyhow!(
-                "Chain must have an odd number of elements (starting and ending with nodes)"
-            ));
-        }
-
-        // Create the chain group
-        let group = Group::Chain {
-            id: id.clone(),
-            elements,
-            attributes: HashMap::new(),
-        };
-
-        // Store the chain in both maps
-        self.chains.insert(id.clone(), group.clone());
-        self.groups.insert(id, group);
-        Ok(())
-    }
-
-    /// Parse an attribute line
-    fn parse_attribute_line(&mut self, fields: &[&str]) -> Result<()> {
-        let element_type = fields[1];
-        let element_id: BString = fields[2].into();
-
-        let attrs: Vec<Attribute> = fields
-            .iter()
-            .skip(3)
-            .map(|s| s.parse())
-            .collect::<Result<Vec<_>>>()
-            .context("invalidate attribute line")?;
-
-        match element_type {
-            "N" => {
-                if let Some(&node_idx) = self.node_indices.get(&element_id) {
-                    if let Some(node_data) = self._graph.node_weight_mut(node_idx) {
-                        for attr in attrs {
-                            let tag = attr.tag.clone();
-                            node_data.attributes.insert(tag, attr);
-                        }
-                    } else {
-                        return Err(anyhow!("Node with ID {} not found in graph", element_id));
-                    }
-                } else {
-                    return Err(anyhow!("Node with ID {} not found", element_id));
-                }
-            }
-            "E" => {
-                if let Some(&edge_idx) = self.edge_indices.get(&element_id) {
-                    if let Some(edge_data) = self._graph.edge_weight_mut(edge_idx) {
-                        for attr in attrs {
-                            let tag = attr.tag.clone();
-                            edge_data.attributes.insert(tag, attr);
-                        }
-                    } else {
-                        return Err(anyhow!("Edge with ID {} not found in graph", element_id));
-                    }
-                } else {
-                    return Err(anyhow!("Edge with ID {} not found", element_id));
-                }
-            }
-            "U" | "O" | "C" => {
-                if let Some(group) = self.groups.get_mut(&element_id) {
-                    match group {
-                        Group::Unordered { attributes, .. }
-                        | Group::Ordered { attributes, .. }
-                        | Group::Chain { attributes, .. } => {
-                            for attr in attrs {
-                                let tag = attr.tag.clone();
-                                attributes.insert(tag, attr);
-                            }
-                        }
-                    }
-                } else {
-                    return Err(anyhow!("Group with ID {} not found", element_id));
-                }
-            }
-            _ => {
-                return Err(anyhow!("Unknown element type: {}", element_type));
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Build graph based on the current TSG state
+    /// Build graph based on the current state
     fn ensure_graph_is_built(&mut self) -> Result<()> {
         // If we already have nodes and edges, assume the graph is properly constructed
         if !self.node_indices.is_empty() && !self.edge_indices.is_empty() {
@@ -349,290 +162,31 @@ impl TSGraph {
             return Ok(());
         }
 
-        // If we have neither explicit nodes/edges nor chains, that's an error
+        if self.id == DEFAULT_GRAPH_ID {
+            // ignore default graph
+            return Ok(());
+        }
+
         if self.node_indices.is_empty() || self.edge_indices.is_empty() {
-            return Err(anyhow!(
-                "Cannot build graph: no nodes/edges defined and no chains available"
-            ));
+            warn!(
+                "Graph {} has no nodes/edges defined and no chains available",
+                self.id
+            );
         }
 
         Ok(())
     }
 
-    /// Validate paths against the graph
-    fn validate_paths(&self) -> Result<()> {
-        for (id, group) in &self.groups {
-            if let Group::Ordered { elements, .. } = group {
-                // Validate that all elements in the path exist in the graph
-                for element in elements {
-                    let element_exists = self.node_indices.contains_key(&element.id)
-                        || self.edge_indices.contains_key(&element.id)
-                        || self.groups.contains_key(&element.id);
-
-                    if !element_exists {
-                        return Err(anyhow!(
-                            "Path {} references non-existent element {}",
-                            id,
-                            element.id
-                        ));
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// Parse a TSG file and construct a TSGraph
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-
-        let mut tsgraph = TSGraph::new();
-
-        // First pass: Parse all record types
-        for line in reader.lines() {
-            let line = line?;
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-
-            let fields: Vec<&str> = line.split('\t').collect();
-            if fields.is_empty() {
-                continue;
-            }
-
-            match fields[0] {
-                "H" => tsgraph.parse_header_line(&fields)?,
-                "N" => tsgraph.parse_node_line(&line)?,
-                "E" => tsgraph.parse_edge_line(&fields)?,
-                "U" => tsgraph.parse_unordered_group_line(&fields)?,
-                "P" => tsgraph.parse_ordered_group_line(&fields)?,
-                "C" => tsgraph.parse_chain_line(&fields)?,
-                "A" => tsgraph.parse_attribute_line(&fields)?,
-                _ => {
-                    // ignore unknown record types
-                    debug!("Ignoring unknown record type: {}", fields[0]);
-                }
-            }
-        }
-
-        // Populate chains hash map from groups if needed
-        for (id, group) in &tsgraph.groups {
-            if let Group::Chain { .. } = group {
-                if !tsgraph.chains.contains_key(id) {
-                    tsgraph.chains.insert(id.clone(), group.clone());
-                }
-            }
-        }
-
-        // Second pass: Ensure the graph is built (if needed) and validate paths
-        tsgraph.ensure_graph_is_built()?;
-        tsgraph.validate_paths()?;
-
-        Ok(tsgraph)
-    }
-
-    /// Get the nodes in a chain in order
-    pub fn get_chain_nodes(&self, chain_id: &BStr) -> Option<Vec<NodeIndex>> {
-        let group = self.chains.get(chain_id)?;
-
-        match group {
-            Group::Chain { elements, .. } => {
-                let mut nodes = Vec::with_capacity((elements.len() + 1) / 2);
-
-                for (i, element_id) in elements.iter().enumerate() {
-                    if i % 2 == 0 {
-                        // Nodes are at even positions (0, 2, 4...)
-                        if let Some(&node_idx) = self.node_indices.get(element_id) {
-                            nodes.push(node_idx);
-                        } else {
-                            return None; // Invalid chain structure
-                        }
-                    }
-                }
-
-                Some(nodes)
-            }
-            _ => None, // Not a chain
-        }
-    }
-
-    /// Get the edges in a chain in order
-    pub fn get_chain_edges(&self, chain_id: &BStr) -> Option<Vec<EdgeIndex>> {
-        let group = self.chains.get(chain_id)?;
-
-        match group {
-            Group::Chain { elements, .. } => {
-                let mut edges = Vec::with_capacity(elements.len() / 2);
-
-                for (i, element_id) in elements.iter().enumerate() {
-                    if i % 2 == 1 {
-                        // Edges are at odd positions (1, 3, 5...)
-                        if let Some(&edge_idx) = self.edge_indices.get(element_id) {
-                            edges.push(edge_idx);
-                        } else {
-                            return None; // Invalid chain structure
-                        }
-                    }
-                }
-
-                Some(edges)
-            }
-            _ => None, // Not a chain
-        }
-    }
-
-    /// Write the TSGraph to a TSG file
-    pub fn write_to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        let file = File::create(path)?;
-        let mut writer = BufWriter::new(file);
-
-        writeln!(writer, "# Header")?;
-        // Write headers
-        for header in &self.headers {
-            writeln!(writer, "{}", header)?;
-        }
-
-        let new_header = Header::builder().tag("PG").value("tsg").build();
-        writeln!(writer, "{}", new_header)?;
-
-        writeln!(writer, "# Nodes")?;
-        // Write nodes
-        for node_idx in self._graph.node_indices() {
-            if let Some(node_data) = self._graph.node_weight(node_idx) {
-                writeln!(writer, "{}", node_data)?;
-            }
-        }
-
-        writeln!(writer, "# Edges")?;
-        // Write edges
-        for edge_ref in self._graph.edge_references() {
-            let edge = edge_ref.weight();
-            let source_idx = edge_ref.source();
-            let sink_idx = edge_ref.target();
-
-            // E  e1  n1  n2  chr1,chr1,1700,2000,splice
-            if let (Some(source), Some(sink)) = (
-                self._graph.node_weight(source_idx),
-                self._graph.node_weight(sink_idx),
-            ) {
-                writeln!(
-                    writer,
-                    "E\t{}\t{}\t{}\t{}",
-                    edge.id, source.id, sink.id, edge.sv
-                )?;
-            }
-        }
-
-        writeln!(writer, "# Groups")?;
-        // Write groups
-        let mut seen_chain_ids = HashSet::new();
-
-        for group in self.groups.values() {
-            match group {
-                Group::Unordered { id, elements, .. } => {
-                    let elements_str: Vec<String> = elements
-                        .par_iter()
-                        .map(|e| e.to_str().unwrap_or("").to_string())
-                        .collect();
-                    writeln!(
-                        writer,
-                        "U\t{}\t{}",
-                        id.to_str().unwrap_or(""),
-                        elements_str.join(" ")
-                    )?;
-                }
-                Group::Ordered { id, elements, .. } => {
-                    let elements_str: Vec<String> =
-                        elements.par_iter().map(|e| e.to_string()).collect();
-                    writeln!(
-                        writer,
-                        "P\t{}\t{}",
-                        id.to_str().unwrap_or(""),
-                        elements_str.join(" ")
-                    )?;
-                }
-                Group::Chain { id, elements, .. } => {
-                    // Skip writing chains that are duplicated with groups
-                    if seen_chain_ids.contains(id) {
-                        continue;
-                    }
-                    seen_chain_ids.insert(id);
-
-                    let elements_str: Vec<String> = elements
-                        .par_iter()
-                        .map(|e| e.to_str().unwrap_or("").to_string())
-                        .collect();
-                    writeln!(
-                        writer,
-                        "C\t{}\t{}",
-                        id.to_str().unwrap_or(""),
-                        elements_str.join(" ")
-                    )?;
-                }
-            }
-        }
-
-        writeln!(writer, "# Attributes")?;
-        // Write attributes for nodes
-        for node_idx in self._graph.node_indices() {
-            if let Some(node) = self._graph.node_weight(node_idx) {
-                for attr in node.attributes.values() {
-                    writeln!(writer, "A\tN\t{}\t{}", node.id, attr)?;
-                }
-            }
-        }
-
-        // Write attributes for edges
-        for edge_idx in self._graph.edge_indices() {
-            if let Some(edge) = self._graph.edge_weight(edge_idx) {
-                for attr in edge.attributes.values() {
-                    writeln!(writer, "A\tE\t{}\t{}", edge.id, attr)?;
-                }
-            }
-        }
-
-        // Write attributes for groups
-        for (id, group) in &self.groups {
-            let (group_type, attributes) = match group {
-                Group::Unordered { attributes, .. } => ("U", attributes),
-                Group::Ordered { attributes, .. } => ("O", attributes),
-                Group::Chain { attributes, .. } => ("C", attributes),
-            };
-
-            for attr in attributes.values() {
-                writeln!(
-                    writer,
-                    "A\t{}\t{}\t{}",
-                    group_type,
-                    id.to_str().unwrap_or(""),
-                    attr
-                )?;
-            }
-        }
-
-        writer.flush()?;
-        Ok(())
-    }
-
-    /// Helper method to find a node's ID by its index
-    pub fn find_node_id_by_idx(&self, node_idx: NodeIndex) -> Option<&BString> {
-        self.node_indices
-            .par_iter()
-            .find_map_first(|(id, &idx)| if idx == node_idx { Some(id) } else { None })
-    }
-
+    // Additional GraphSection methods...
     pub fn get_node_by_idx(&self, node_idx: NodeIndex) -> Option<&NodeData> {
         self._graph.node_weight(node_idx)
     }
 
-    /// Get a node by its ID
     pub fn get_node_by_id(&self, id: &str) -> Option<&NodeData> {
         let node_idx = self.node_indices.get(&BString::from(id))?;
         self._graph.node_weight(*node_idx)
     }
 
-    /// Get an edge by its ID
     pub fn get_edge_by_id(&self, id: &str) -> Option<&EdgeData> {
         let edge_idx = self.edge_indices.get(&BString::from(id))?;
         self._graph.edge_weight(*edge_idx)
@@ -642,21 +196,28 @@ impl TSGraph {
         self._graph.edge_weight(edge_idx)
     }
 
-    /// Get all nodes in the graph
-    pub fn get_nodes(&self) -> Vec<&NodeData> {
+    pub fn nodes(&self) -> Vec<&NodeData> {
         self.node_indices
             .values()
-            .filter_map(|&idx| self._graph.node_weight(idx))
+            .map(|&idx| self._graph.node_weight(idx).unwrap())
             .collect()
     }
 
-    /// Get all edges in the graph
-    pub fn get_edges(&self) -> Vec<&EdgeData> {
+    pub fn edges(&self) -> Vec<&EdgeData> {
         self.edge_indices
             .values()
-            .filter_map(|&idx| self._graph.edge_weight(idx))
+            .map(|&idx| self._graph.edge_weight(idx).unwrap())
             .collect()
     }
+
+    /// Helper method to find a node's ID by its index
+    pub fn find_node_id_by_idx(&self, node_idx: NodeIndex) -> Option<&BString> {
+        self.node_indices
+            .par_iter()
+            .find_map_first(|(id, &idx)| if idx == node_idx { Some(id) } else { None })
+    }
+
+    // Other methods from TSGraph that make sense at the graph section level
 
     /// Traverse the graph and return all valid paths from source nodes to sink nodes.
     ///
@@ -818,6 +379,7 @@ impl TSGraph {
         let dot = Dot::with_config(&self._graph, &config);
         Ok(format!("{:?}", dot))
     }
+
     pub fn to_json(&self) -> Result<serde_json::Value> {
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
@@ -894,7 +456,6 @@ impl TSGraph {
         &mut self,
         reference_genome_path: P,
     ) -> Result<()> {
-        use noodles::fasta;
         let mut reader = fasta::io::indexed_reader::Builder::default()
             .build_from_path(reference_genome_path.as_ref())?;
 
@@ -915,6 +476,878 @@ impl TSGraph {
     }
 }
 
+/// Represents a link between elements in different graphs
+#[derive(Debug, Clone, Default, Builder)]
+pub struct InterGraphLink {
+    pub id: BString,
+    pub source_graph: BString,
+    pub source_element: BString,
+    pub target_graph: BString,
+    pub target_element: BString,
+    pub link_type: BString,
+    pub attributes: HashMap<BString, Attribute>,
+}
+
+/// The complete transcript segment graph containing multiple graph sections
+#[derive(Debug, Clone, Default, Builder)]
+pub struct TSGraph {
+    pub headers: Vec<Header>,
+    pub graphs: HashMap<BString, GraphSection>,
+    pub links: Vec<InterGraphLink>,
+    current_graph_id: Option<BString>, // Tracks which graph is currently active during parsing
+}
+
+impl TSGraph {
+    /// Create a new empty TSGraph
+    pub fn new() -> Self {
+        let graph = GraphSection::default_graph();
+        let mut graphs = HashMap::new();
+        graphs.insert(graph.id.clone(), graph);
+        Self {
+            graphs,
+            current_graph_id: Some(DEFAULT_GRAPH_ID.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Parse a header line
+    fn parse_header_line(&mut self, fields: &[&str]) -> Result<()> {
+        if fields.len() < 3 {
+            return Err(anyhow!("Invalid header line format"));
+        }
+
+        self.headers.push(Header {
+            tag: fields[1].into(),
+            value: fields[2].into(),
+        });
+
+        Ok(())
+    }
+
+    /// Parse a graph section line
+    fn parse_graph_line(&mut self, fields: &[&str]) -> Result<()> {
+        if fields.len() < 2 {
+            return Err(anyhow!("Invalid graph line format"));
+        }
+
+        let graph_id: BString = fields[1].into();
+
+        // Check if graph with this ID already exists
+        if self.graphs.contains_key(&graph_id) {
+            return Err(anyhow!(
+                "Graph with ID {} already exists",
+                graph_id.to_str().unwrap_or("")
+            ));
+        }
+
+        // Create new graph section
+        let mut graph_section = GraphSection::new(graph_id.clone());
+
+        // Parse optional attributes
+        if fields.len() > 2 {
+            for attr_str in &fields[2..] {
+                let attr = attr_str.parse::<Attribute>()?;
+                graph_section.attributes.insert(attr.tag.clone(), attr);
+            }
+        }
+
+        // Update current graph ID and add to graphs map
+        self.current_graph_id = Some(graph_id.clone());
+        self.graphs.insert(graph_id, graph_section);
+
+        Ok(())
+    }
+
+    /// Get the current graph section (or error if none is active)
+    fn current_graph_mut(&mut self) -> Result<&mut GraphSection> {
+        if let Some(graph_id) = &self.current_graph_id {
+            if let Some(graph) = self.graphs.get_mut(graph_id) {
+                return Ok(graph);
+            }
+        }
+        Err(anyhow!("No active graph section"))
+    }
+
+    /// Parse an inter-graph link line
+    fn parse_link_line(&mut self, fields: &[&str]) -> Result<()> {
+        if fields.len() < 5 {
+            return Err(anyhow!("Invalid link line format"));
+        }
+
+        let id: BString = fields[1].into();
+
+        // Parse source and target references (format: graph_id:element_id)
+        let source_ref: Vec<&str> = fields[2].splitn(2, ':').collect();
+        let target_ref: Vec<&str> = fields[3].splitn(2, ':').collect();
+
+        if source_ref.len() != 2 || target_ref.len() != 2 {
+            return Err(anyhow!("Invalid element reference format in link line"));
+        }
+
+        let source_graph: BString = source_ref[0].into();
+        let source_element: BString = source_ref[1].into();
+        let target_graph: BString = target_ref[0].into();
+        let target_element: BString = target_ref[1].into();
+
+        // Verify the referenced graphs exist
+        if !self.graphs.contains_key(&source_graph) {
+            return Err(anyhow!(
+                "Source graph {} not found",
+                source_graph.to_str().unwrap_or("")
+            ));
+        }
+        if !self.graphs.contains_key(&target_graph) {
+            return Err(anyhow!(
+                "Target graph {} not found",
+                target_graph.to_str().unwrap_or("")
+            ));
+        }
+
+        let link_type: BString = fields[4].into();
+
+        let mut link = InterGraphLink {
+            id,
+            source_graph,
+            source_element,
+            target_graph,
+            target_element,
+            link_type,
+            attributes: HashMap::new(),
+        };
+
+        // Parse optional attributes
+        if fields.len() > 5 {
+            for attr_str in &fields[5..] {
+                let attr = attr_str.parse::<Attribute>()?;
+                link.attributes.insert(attr.tag.clone(), attr);
+            }
+        }
+
+        self.links.push(link);
+        Ok(())
+    }
+
+    /// Parse a node line
+    fn parse_node_line(&mut self, fields: &str) -> Result<()> {
+        let node_data = NodeData::from_str(fields)?;
+        let graph = self.current_graph_mut()?;
+        graph.add_node(node_data)?;
+        Ok(())
+    }
+
+    /// Parse an edge line
+    fn parse_edge_line(&mut self, fields: &[&str]) -> Result<()> {
+        if fields.len() < 5 {
+            return Err(anyhow!("Invalid edge line format"));
+        }
+
+        let id: BString = fields[1].into();
+        let source_id: BString = fields[2].into();
+        let sink_id: BString = fields[3].into();
+        let sv = fields[4].parse::<StructuralVariant>()?;
+
+        let edge_data = EdgeData {
+            id,
+            sv,
+            attributes: HashMap::new(),
+        };
+
+        let graph = self.current_graph_mut()?;
+        graph.add_edge(source_id.as_bstr(), sink_id.as_bstr(), edge_data)?;
+        Ok(())
+    }
+
+    /// Parse an unordered group line
+    fn parse_unordered_group_line(&mut self, fields: &[&str]) -> Result<()> {
+        if fields.len() < 3 {
+            return Err(anyhow!("Invalid unordered group line format"));
+        }
+
+        let id: BString = fields[1].into();
+        let graph = self.current_graph_mut()?;
+
+        // Check for duplicate group name
+        if graph.groups.contains_key(&id) {
+            return Err(anyhow!("Group with ID {} already exists", id));
+        }
+
+        // Parse element IDs (space-separated)
+        let elements_str = fields[2..].join(" ");
+        let elements = elements_str
+            .split_whitespace()
+            .map(|s| s.into())
+            .collect::<Vec<_>>();
+
+        let group = Group::Unordered {
+            id: id.clone(),
+            elements,
+            attributes: HashMap::new(),
+        };
+
+        graph.groups.insert(id, group);
+        Ok(())
+    }
+
+    /// Parse a path line
+    fn parse_path_line(&mut self, fields: &[&str]) -> Result<()> {
+        if fields.len() < 3 {
+            return Err(anyhow!("Invalid path line format"));
+        }
+
+        let id: BString = fields[1].into();
+        let graph = self.current_graph_mut()?;
+
+        // Check for duplicate group name
+        if graph.groups.contains_key(&id) {
+            return Err(anyhow!("Group with ID {} already exists", id));
+        }
+
+        // Parse oriented element IDs (space-separated)
+        let elements_str = fields[2..].join(" ");
+        let elements = elements_str
+            .split_whitespace()
+            .map(|s| s.parse::<OrientedElement>())
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let group = Group::Ordered {
+            id: id.clone(),
+            elements,
+            attributes: HashMap::new(),
+        };
+
+        graph.groups.insert(id, group);
+        Ok(())
+    }
+
+    /// Parse a chain line
+    fn parse_chain_line(&mut self, fields: &[&str]) -> Result<()> {
+        if fields.len() < 3 {
+            return Err(anyhow!("Invalid chain line format"));
+        }
+
+        let id: BString = fields[1].into();
+        let graph = self.current_graph_mut()?;
+
+        // Check for duplicate group name
+        if graph.groups.contains_key(&id) {
+            return Err(anyhow!("Group with ID {} already exists", id));
+        }
+
+        // Parse element IDs (space-separated)
+        let elements_str = fields[2..].join(" ");
+        let elements: Vec<BString> = elements_str.split_whitespace().map(|s| s.into()).collect();
+
+        // Validate chain structure: must start and end with nodes, and have alternating nodes/edges
+        if elements.is_empty() {
+            return Err(anyhow!("Chain must contain at least one element"));
+        }
+
+        if elements.len() % 2 == 0 {
+            return Err(anyhow!(
+                "Chain must have an odd number of elements (starting and ending with nodes)"
+            ));
+        }
+
+        // Create the chain group
+        let group = Group::Chain {
+            id: id.clone(),
+            elements,
+            attributes: HashMap::new(),
+        };
+
+        // Store the chain in both maps
+        graph.chains.insert(id.clone(), group.clone());
+        graph.groups.insert(id, group);
+        Ok(())
+    }
+
+    /// Parse an attribute line
+    fn parse_attribute_line(&mut self, fields: &[&str]) -> Result<()> {
+        if fields.len() < 4 {
+            return Err(anyhow!("Invalid attribute line format"));
+        }
+
+        let element_type = fields[1];
+        let element_id: BString = fields[2].into();
+        let graph = self.current_graph_mut()?;
+
+        let attrs: Vec<Attribute> = fields
+            .iter()
+            .skip(3)
+            .map(|s| s.parse())
+            .collect::<Result<Vec<_>>>()
+            .context("invalidate attribute line")?;
+
+        match element_type {
+            "N" => {
+                if let Some(&node_idx) = graph.node_indices.get(&element_id) {
+                    if let Some(node_data) = graph._graph.node_weight_mut(node_idx) {
+                        for attr in attrs {
+                            let tag = attr.tag.clone();
+                            node_data.attributes.insert(tag, attr);
+                        }
+                    } else {
+                        return Err(anyhow!("Node with ID {} not found in graph", element_id));
+                    }
+                } else {
+                    return Err(anyhow!("Node with ID {} not found", element_id));
+                }
+            }
+            "E" => {
+                if let Some(&edge_idx) = graph.edge_indices.get(&element_id) {
+                    if let Some(edge_data) = graph._graph.edge_weight_mut(edge_idx) {
+                        for attr in attrs {
+                            let tag = attr.tag.clone();
+                            edge_data.attributes.insert(tag, attr);
+                        }
+                    } else {
+                        return Err(anyhow!("Edge with ID {} not found in graph", element_id));
+                    }
+                } else {
+                    return Err(anyhow!("Edge with ID {} not found", element_id));
+                }
+            }
+            "U" | "P" | "C" => {
+                if let Some(group) = graph.groups.get_mut(&element_id) {
+                    match group {
+                        Group::Unordered { attributes, .. }
+                        | Group::Ordered { attributes, .. }
+                        | Group::Chain { attributes, .. } => {
+                            for attr in attrs {
+                                let tag = attr.tag.clone();
+                                attributes.insert(tag, attr);
+                            }
+                        }
+                    }
+                } else {
+                    return Err(anyhow!("Group with ID {} not found", element_id));
+                }
+            }
+            "G" => {
+                // Handle graph attributes
+                if let Some(graph_section) = self.graphs.get_mut(&element_id) {
+                    for attr in attrs {
+                        let tag = attr.tag.clone();
+                        graph_section.attributes.insert(tag, attr);
+                    }
+                } else {
+                    return Err(anyhow!("Graph with ID {} not found", element_id));
+                }
+            }
+            _ => {
+                return Err(anyhow!("Unknown element type: {}", element_type));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Validate all graphs and their paths
+    fn validate(&self) -> Result<()> {
+        // Validate each graph section
+        for (graph_id, graph) in &self.graphs {
+            // Validate paths against the graph
+            for (id, group) in &graph.groups {
+                if let Group::Ordered { elements, .. } = group {
+                    // Validate that all elements in the path exist in the graph
+                    for element in elements {
+                        let element_exists = graph.node_indices.contains_key(&element.id)
+                            || graph.edge_indices.contains_key(&element.id)
+                            || graph.groups.contains_key(&element.id);
+
+                        if !element_exists {
+                            return Err(anyhow!(
+                                "Path {} in graph {} references non-existent element {}",
+                                id,
+                                graph_id,
+                                element.id
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Validate all inter-graph links
+        for link in &self.links {
+            // Check source element exists
+            let source_graph = self.graphs.get(&link.source_graph).ok_or_else(|| {
+                anyhow!(
+                    "Link {} references non-existent graph {}",
+                    link.id,
+                    link.source_graph
+                )
+            })?;
+
+            let source_exists = source_graph.node_indices.contains_key(&link.source_element)
+                || source_graph.edge_indices.contains_key(&link.source_element)
+                || source_graph.groups.contains_key(&link.source_element);
+
+            if !source_exists {
+                return Err(anyhow!(
+                    "Link {} references non-existent element {}:{}",
+                    link.id,
+                    link.source_graph,
+                    link.source_element
+                ));
+            }
+
+            // Check target element exists
+            let target_graph = self.graphs.get(&link.target_graph).ok_or_else(|| {
+                anyhow!(
+                    "Link {} references non-existent graph {}",
+                    link.id,
+                    link.target_graph
+                )
+            })?;
+
+            let target_exists = target_graph.node_indices.contains_key(&link.target_element)
+                || target_graph.edge_indices.contains_key(&link.target_element)
+                || target_graph.groups.contains_key(&link.target_element);
+
+            if !target_exists {
+                return Err(anyhow!(
+                    "Link {} references non-existent element {}:{}",
+                    link.id,
+                    link.target_graph,
+                    link.target_element
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Parse a TSG file and construct a TSGraph
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+
+        let mut tsgraph = TSGraph::new();
+
+        // Create a default graph if needed for backward compatibility
+
+        let default_graph_id: BString = DEFAULT_GRAPH_ID.into();
+        let default_graph = GraphSection::new(default_graph_id.clone());
+        tsgraph
+            .graphs
+            .insert(default_graph_id.clone(), default_graph);
+
+        tsgraph.current_graph_id = Some(default_graph_id);
+
+        // First pass: Parse all record types
+        for line in reader.lines() {
+            let line = line?;
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let fields: Vec<&str> = line.split_whitespace().collect();
+            if fields.is_empty() {
+                continue;
+            }
+
+            match fields[0] {
+                "H" => tsgraph.parse_header_line(&fields)?,
+                "G" => tsgraph.parse_graph_line(&fields)?,
+                "N" => tsgraph.parse_node_line(&line)?,
+                "E" => tsgraph.parse_edge_line(&fields)?,
+                "U" => tsgraph.parse_unordered_group_line(&fields)?,
+                "P" => tsgraph.parse_path_line(&fields)?,
+                "C" => tsgraph.parse_chain_line(&fields)?,
+                "A" => tsgraph.parse_attribute_line(&fields)?,
+                "L" => tsgraph.parse_link_line(&fields)?,
+                _ => {
+                    // ignore unknown record types
+                    debug!("Ignoring unknown record type: {}", fields[0]);
+                }
+            }
+        }
+
+        // Second pass: Ensure all graphs are built and validate
+        for graph_section in tsgraph.graphs.values_mut() {
+            // Populate chains hash map from groups if needed
+            for (id, group) in &graph_section.groups {
+                if let Group::Chain { .. } = group {
+                    if !graph_section.chains.contains_key(id) {
+                        graph_section.chains.insert(id.clone(), group.clone());
+                    }
+                }
+            }
+
+            // Ensure graph is built
+            graph_section.ensure_graph_is_built()?;
+        }
+
+        // Validate all graphs and links
+        tsgraph.validate()?;
+
+        // pop the default graph if it's empty
+        if let Some(default_graph) = tsgraph.graph(DEFAULT_GRAPH_ID) {
+            if default_graph.node_indices.is_empty() {
+                tsgraph.graphs.remove(&BString::from(DEFAULT_GRAPH_ID));
+            }
+        }
+
+        Ok(tsgraph)
+    }
+
+    /// Write the TSGraph to a TSG file
+    pub fn write_to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let file = File::create(path)?;
+        let mut writer = BufWriter::new(file);
+
+        // Write global headers
+        writeln!(writer, "# Global header")?;
+        for header in &self.headers {
+            writeln!(writer, "{}", header)?;
+        }
+
+        let new_header = Header::builder().tag("PG").value("tsg").build();
+        writeln!(writer, "{}", new_header)?;
+
+        // Write each graph section
+        for (graph_id, graph) in &self.graphs {
+            // Skip writing the default graph header if it's empty
+            if graph_id == "default" && graph.node_indices.is_empty() {
+                continue;
+            }
+
+            writeln!(writer, "\n# Graph: {}", graph_id)?;
+
+            // Write graph section header
+            write!(writer, "G\t{}", graph_id)?;
+            for attr in graph.attributes.values() {
+                write!(writer, "\t{}", attr)?;
+            }
+            writeln!(writer)?;
+
+            // Write nodes
+            writeln!(writer, "# Nodes")?;
+            for node_idx in graph._graph.node_indices() {
+                if let Some(node_data) = graph._graph.node_weight(node_idx) {
+                    writeln!(writer, "{}", node_data)?;
+                }
+            }
+
+            // Write edges
+            writeln!(writer, "# Edges")?;
+            for edge_ref in graph._graph.edge_references() {
+                let edge = edge_ref.weight();
+                let source_idx = edge_ref.source();
+                let sink_idx = edge_ref.target();
+
+                if let (Some(source), Some(sink)) = (
+                    graph._graph.node_weight(source_idx),
+                    graph._graph.node_weight(sink_idx),
+                ) {
+                    writeln!(
+                        writer,
+                        "E\t{}\t{}\t{}\t{}",
+                        edge.id, source.id, sink.id, edge.sv
+                    )?;
+                }
+            }
+
+            // Write groups
+            writeln!(writer, "# Groups")?;
+            let mut seen_chain_ids = HashSet::new();
+
+            for group in graph.groups.values() {
+                match group {
+                    Group::Unordered { id, elements, .. } => {
+                        let elements_str: Vec<String> = elements
+                            .par_iter()
+                            .map(|e| e.to_str().unwrap_or("").to_string())
+                            .collect();
+                        writeln!(
+                            writer,
+                            "U\t{}\t{}",
+                            id.to_str().unwrap_or(""),
+                            elements_str.join(" ")
+                        )?;
+                    }
+                    Group::Ordered { id, elements, .. } => {
+                        let elements_str: Vec<String> =
+                            elements.par_iter().map(|e| e.to_string()).collect();
+                        writeln!(
+                            writer,
+                            "P\t{}\t{}",
+                            id.to_str().unwrap_or(""),
+                            elements_str.join(" ")
+                        )?;
+                    }
+                    Group::Chain { id, elements, .. } => {
+                        // Skip writing chains that are duplicated with groups
+                        if seen_chain_ids.contains(id) {
+                            continue;
+                        }
+                        seen_chain_ids.insert(id);
+
+                        let elements_str: Vec<String> = elements
+                            .par_iter()
+                            .map(|e| e.to_str().unwrap_or("").to_string())
+                            .collect();
+                        writeln!(
+                            writer,
+                            "C\t{}\t{}",
+                            id.to_str().unwrap_or(""),
+                            elements_str.join(" ")
+                        )?;
+                    }
+                }
+            }
+
+            // Write attributes for this graph section
+            writeln!(writer, "# Attributes")?;
+
+            // Write attributes for nodes
+            for node_idx in graph._graph.node_indices() {
+                if let Some(node) = graph._graph.node_weight(node_idx) {
+                    for attr in node.attributes.values() {
+                        writeln!(writer, "A\tN\t{}\t{}", node.id, attr)?;
+                    }
+                }
+            }
+
+            // Write attributes for edges
+            for edge_idx in graph._graph.edge_indices() {
+                if let Some(edge) = graph._graph.edge_weight(edge_idx) {
+                    for attr in edge.attributes.values() {
+                        writeln!(writer, "A\tE\t{}\t{}", edge.id, attr)?;
+                    }
+                }
+            }
+
+            // Write attributes for groups
+            for (id, group) in &graph.groups {
+                let (group_type, attributes) = match group {
+                    Group::Unordered { attributes, .. } => ("U", attributes),
+                    Group::Ordered { attributes, .. } => ("P", attributes),
+                    Group::Chain { attributes, .. } => ("C", attributes),
+                };
+
+                for attr in attributes.values() {
+                    writeln!(
+                        writer,
+                        "A\t{}\t{}\t{}",
+                        group_type,
+                        id.to_str().unwrap_or(""),
+                        attr
+                    )?;
+                }
+            }
+        }
+
+        // Write inter-graph links
+        if !self.links.is_empty() {
+            writeln!(writer, "\n# Inter-graph links")?;
+            for link in &self.links {
+                write!(
+                    writer,
+                    "L\t{}\t{}:{}\t{}:{}\t{}",
+                    link.id,
+                    link.source_graph,
+                    link.source_element,
+                    link.target_graph,
+                    link.target_element,
+                    link.link_type
+                )?;
+
+                for attr in link.attributes.values() {
+                    write!(writer, "\t{}", attr)?;
+                }
+                writeln!(writer)?;
+            }
+        }
+
+        writer.flush()?;
+        Ok(())
+    }
+
+    // Helper methods for accessing graph elements
+
+    /// Get a graph section by its ID
+    pub fn graph(&self, id: &str) -> Option<&GraphSection> {
+        self.graphs.get(&BString::from(id))
+    }
+
+    pub fn graph_mut(&mut self, id: &str) -> Option<&mut GraphSection> {
+        self.graphs.get_mut(&BString::from(id))
+    }
+
+    /// get default graph
+    pub fn default_graph(&self) -> Option<&GraphSection> {
+        self.graphs.get(&BString::from(DEFAULT_GRAPH_ID))
+    }
+
+    pub fn default_graph_mut(&mut self) -> Option<&mut GraphSection> {
+        self.graphs.get_mut(&BString::from(DEFAULT_GRAPH_ID))
+    }
+
+    /// Get a node by its ID and graph ID
+    pub fn get_node(&self, graph_id: &str, node_id: &str) -> Option<&NodeData> {
+        let graph = self.graphs.get(&BString::from(graph_id))?;
+        graph.get_node_by_id(node_id)
+    }
+
+    /// Get an edge by its ID and graph ID
+    pub fn get_edge(&self, graph_id: &str, edge_id: &str) -> Option<&EdgeData> {
+        let graph = self.graphs.get(&BString::from(graph_id))?;
+        graph.get_edge_by_id(edge_id)
+    }
+
+    /// Get the nodes in a chain in order
+    pub fn get_chain_nodes(&self, graph_id: &str, chain_id: &BStr) -> Option<Vec<NodeIndex>> {
+        let graph = self.graphs.get(&BString::from(graph_id))?;
+        let group = graph.chains.get(chain_id)?;
+
+        match group {
+            Group::Chain { elements, .. } => {
+                let mut nodes = Vec::with_capacity((elements.len() + 1) / 2);
+
+                for (i, element_id) in elements.iter().enumerate() {
+                    if i % 2 == 0 {
+                        // Nodes are at even positions (0, 2, 4...)
+                        if let Some(&node_idx) = graph.node_indices.get(element_id) {
+                            nodes.push(node_idx);
+                        } else {
+                            return None; // Invalid chain structure
+                        }
+                    }
+                }
+
+                Some(nodes)
+            }
+            _ => None, // Not a chain
+        }
+    }
+
+    /// Get the edges in a chain in order
+    pub fn get_chain_edges(&self, graph_id: &str, chain_id: &BStr) -> Option<Vec<EdgeIndex>> {
+        let graph = self.graphs.get(&BString::from(graph_id))?;
+        let group = graph.chains.get(chain_id)?;
+
+        match group {
+            Group::Chain { elements, .. } => {
+                let mut edges = Vec::with_capacity(elements.len() / 2);
+
+                for (i, element_id) in elements.iter().enumerate() {
+                    if i % 2 == 1 {
+                        // Edges are at odd positions (1, 3, 5...)
+                        if let Some(&edge_idx) = graph.edge_indices.get(element_id) {
+                            edges.push(edge_idx);
+                        } else {
+                            return None; // Invalid chain structure
+                        }
+                    }
+                }
+
+                Some(edges)
+            }
+            _ => None, // Not a chain
+        }
+    }
+
+    /// Helper method to find a node's ID by its index
+    pub fn find_node_id_by_idx(&self, graph_id: &str, node_idx: NodeIndex) -> Option<&BString> {
+        let graph = self.graphs.get(&BString::from(graph_id))?;
+        graph
+            .node_indices
+            .par_iter()
+            .find_map_first(|(id, &idx)| if idx == node_idx { Some(id) } else { None })
+    }
+
+    pub fn get_node_by_idx(&self, graph_id: &str, node_idx: NodeIndex) -> Option<&NodeData> {
+        let graph = self.graphs.get(&BString::from(graph_id))?;
+        graph.get_node_by_idx(node_idx)
+    }
+
+    pub fn get_edge_by_idx(&self, graph_id: &str, edge_idx: EdgeIndex) -> Option<&EdgeData> {
+        let graph = self.graphs.get(&BString::from(graph_id))?;
+        graph.get_edge_by_idx(edge_idx)
+    }
+
+    /// Get all nodes in the graph
+    pub fn get_nodes(&self, graph_id: &str) -> Vec<&NodeData> {
+        let graph = self.graphs.get(&BString::from(graph_id)).unwrap();
+        graph
+            .node_indices
+            .values()
+            .filter_map(|&idx| graph._graph.node_weight(idx))
+            .collect()
+    }
+
+    /// Get all edges in the graph
+    pub fn get_edges(&self, graph_id: &str) -> Vec<&EdgeData> {
+        let graph = self.graphs.get(&BString::from(graph_id)).unwrap();
+        graph
+            .edge_indices
+            .values()
+            .filter_map(|&idx| graph._graph.edge_weight(idx))
+            .collect()
+    }
+
+    /// Traverse the graph and return all valid paths from source nodes to sink nodes.
+    ///
+    /// A valid path must respect read continuity, especially for nodes with Intermediary (IN) reads.
+    /// For nodes with IN reads, we ensure that:
+    /// 1. The node shares at least one read with previous nodes in the path
+    /// 2. The node can connect to at least one subsequent node that shares a read with it
+    ///
+    /// Example:
+    /// n1 (r1) -> n3 (r1,r2) -> n4 (r1)
+    /// n2 (r2) -> n3 (r1,r2) -> n5 (r2)
+    ///
+    /// If n3 has IN reads, then only these paths are valid:
+    /// - n1 -> n3 -> n4 (valid because they all share read r1)
+    /// - n2 -> n3 -> n5 (valid because they all share read r2)
+    ///
+    /// These paths would be invalid:
+    /// - n1 -> n3 -> n5 (invalid because n1 and n5 don't share a common read)
+    /// - n2 -> n3 -> n4 (invalid because n2 and n4 don't share a common read)
+    pub fn traverse_by_id(&self, graph_id: &str) -> Result<Vec<TSGPath>> {
+        let graph = self.graphs.get(&BString::from(graph_id)).unwrap();
+        graph.traverse()
+    }
+
+    /// traverse all graphs
+    pub fn traverse_all_graphs(&self) -> Result<Vec<TSGPath>> {
+        let all_paths = self
+            .graphs
+            .values()
+            .try_fold(Vec::new(), |mut all_paths, graph| {
+                let paths = graph.traverse()?;
+                all_paths.extend(paths);
+                Ok(all_paths)
+            });
+        all_paths
+    }
+
+    pub fn to_dot_by_id(
+        &self,
+        graph_id: &str,
+        node_label: bool,
+        edge_label: bool,
+    ) -> Result<String> {
+        let graph = self.graphs.get(&BString::from(graph_id)).unwrap();
+        graph.to_dot(node_label, edge_label)
+    }
+
+    pub fn to_json_by_id(&self, graph_id: &str) -> Result<serde_json::Value> {
+        let graph = self.graphs.get(&BString::from(graph_id)).unwrap();
+        graph.to_json()
+    }
+
+    pub fn annotate_node_with_sequence_by_id<P: AsRef<Path>>(
+        &mut self,
+        graph_id: &str,
+        reference_genome_path: P,
+    ) -> Result<()> {
+        let graph = self.graphs.get_mut(&BString::from(graph_id)).unwrap();
+        graph.annotate_node_with_sequence(reference_genome_path)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -923,10 +1356,10 @@ mod tests {
     fn test_create_empty_graph() {
         let graph = TSGraph::new();
         assert_eq!(graph.headers.len(), 0);
-        assert_eq!(graph.get_nodes().len(), 0);
-        assert_eq!(graph.get_edges().len(), 0);
-        assert_eq!(graph.groups.len(), 0);
-        assert_eq!(graph.chains.len(), 0);
+        assert_eq!(graph.default_graph().unwrap().nodes().len(), 0);
+        assert_eq!(graph.get_edges(DEFAULT_GRAPH_ID).len(), 0);
+        assert_eq!(graph.graphs.len(), 1);
+        assert_eq!(graph.links.len(), 0);
     }
 
     #[test]
@@ -938,10 +1371,12 @@ mod tests {
             ..Default::default()
         };
 
-        graph.add_node(node.clone())?;
-
-        assert_eq!(graph.get_nodes().len(), 1);
-        assert_eq!(graph.get_node_by_id("node1").unwrap().id, node.id);
+        graph.default_graph_mut().unwrap().add_node(node.clone())?;
+        assert_eq!(graph.get_nodes(DEFAULT_GRAPH_ID).len(), 1);
+        assert_eq!(
+            graph.get_node(DEFAULT_GRAPH_ID, "node1").unwrap().id,
+            node.id
+        );
 
         Ok(())
     }
@@ -962,8 +1397,8 @@ mod tests {
             ..Default::default()
         };
 
-        graph.add_node(node1)?;
-        graph.add_node(node2)?;
+        graph.graph_mut(DEFAULT_GRAPH_ID).unwrap().add_node(node1)?;
+        graph.graph_mut(DEFAULT_GRAPH_ID).unwrap().add_node(node2)?;
 
         // Add edge
         let edge = EdgeData {
@@ -971,10 +1406,17 @@ mod tests {
             ..Default::default()
         };
 
-        graph.add_edge("node1".into(), "node2".into(), edge.clone())?;
+        graph.graph_mut(&DEFAULT_GRAPH_ID).unwrap().add_edge(
+            "node1".into(),
+            "node2".into(),
+            edge.clone(),
+        )?;
 
-        assert_eq!(graph.get_edges().len(), 1);
-        assert_eq!(graph.get_edge_by_id("edge1").unwrap().id, edge.id);
+        assert_eq!(graph.get_edges(&DEFAULT_GRAPH_ID).len(), 1);
+        assert_eq!(
+            graph.get_edge(&DEFAULT_GRAPH_ID, "edge1").unwrap().id,
+            edge.id
+        );
 
         Ok(())
     }
@@ -1000,7 +1442,13 @@ mod tests {
 
         graph.parse_node_line(line)?;
 
-        let node = graph.get_node_by_id("node1").unwrap();
+        // let node = graph.get_node("defaul, "node1").unwrap();
+        let node = graph
+            .default_graph()
+            .unwrap()
+            .get_node_by_id("node1")
+            .unwrap();
+
         assert_eq!(node.id, "node1");
         assert_eq!(node.exons.exons.len(), 1);
         assert_eq!(node.exons.exons[0].start, 100);
@@ -1024,8 +1472,9 @@ mod tests {
 
         graph.parse_unordered_group_line(&fields)?;
 
-        assert_eq!(graph.groups.len(), 1);
-        if let Group::Unordered { id, elements, .. } = &graph.groups["group1".as_bytes()] {
+        let graph_section = graph.default_graph().unwrap();
+        assert_eq!(graph_section.groups.len(), 1);
+        if let Group::Unordered { id, elements, .. } = &graph_section.groups["group1".as_bytes()] {
             assert_eq!(id, "group1");
             assert_eq!(elements.len(), 3);
             assert_eq!(elements[0], "node1");
@@ -1044,8 +1493,8 @@ mod tests {
         let graph = TSGraph::from_file(file)?;
 
         assert_eq!(graph.headers.len(), 2);
-        assert_eq!(graph.get_nodes().len(), 5);
-        assert_eq!(graph.get_edges().len(), 4);
+        assert_eq!(graph.get_nodes(&DEFAULT_GRAPH_ID).len(), 5);
+        assert_eq!(graph.get_edges(&DEFAULT_GRAPH_ID).len(), 4);
 
         graph.write_to_file("tests/data/test_write.tsg")?;
 
@@ -1057,7 +1506,7 @@ mod tests {
         let file = "tests/data/test.tsg";
         let graph = TSGraph::from_file(file)?;
 
-        let paths = graph.traverse()?;
+        let paths = graph.traverse_by_id(&DEFAULT_GRAPH_ID)?;
         // assert_eq!(paths.len(), 2);
 
         for path in paths {
@@ -1071,7 +1520,7 @@ mod tests {
         let file = "tests/data/test.tsg";
         let graph = TSGraph::from_file(file)?;
 
-        let dot = graph.to_dot(true, true)?;
+        let dot = graph.to_dot_by_id(&DEFAULT_GRAPH_ID, true, true)?;
         println!("{}", dot);
 
         Ok(())
@@ -1082,7 +1531,7 @@ mod tests {
         let file = "tests/data/test.tsg";
         let graph = TSGraph::from_file(file)?;
 
-        let json = graph.to_json()?;
+        let json = graph.to_json_by_id(&DEFAULT_GRAPH_ID)?;
         println!("{}", json);
         Ok(())
     }

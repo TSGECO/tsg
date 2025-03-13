@@ -13,6 +13,7 @@ use rayon::prelude::*;
 use serde_json::json;
 use std::io;
 use tracing::debug;
+
 // Define the interval struct
 // []
 #[derive(Debug, Builder, Clone)]
@@ -319,7 +320,7 @@ impl FromStr for NodeData {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // N  <rid>:<id>  <chrom>:<strand>:<exons>  <reads>  [<seq>]
 
-        let fields: Vec<&str> = s.split('\t').collect();
+        let fields: Vec<&str> = s.split_whitespace().collect();
         if fields.len() < 4 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,

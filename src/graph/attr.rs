@@ -4,8 +4,6 @@ use std::str::FromStr;
 use anyhow::{Result, anyhow};
 use bon::Builder;
 use bstr::{BStr, BString, ByteSlice};
-use serde::de;
-use tracing::subscriber::SetGlobalDefaultError;
 
 #[derive(Debug, Clone)]
 pub enum AttributeValue {
@@ -68,7 +66,6 @@ impl Attribute {
             'J' => Ok(AttributeValue::Json(self.as_json()?)),
             'H' => {
                 // Parse hex string
-                let hex_str = self.value.to_str()?;
                 Ok(AttributeValue::Hex(self.value.clone()))
             }
             'B' => {

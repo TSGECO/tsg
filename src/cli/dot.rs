@@ -5,14 +5,16 @@ use anyhow::Result;
 
 pub fn to_dot<P: AsRef<Path>>(input: P, output: Option<P>) -> Result<()> {
     let graph = TSGraph::from_file(input)?;
-    let dot = graph.to_dot(true, true)?;
 
-    if let Some(output_path) = output {
-        std::fs::write(&output_path, dot)?;
-    } else {
-        // write to stdout
-        let stdout = std::io::stdout();
-        let mut writer = std::io::BufWriter::new(stdout.lock());
+    for (id, graph) in graph.graphs.iter() {
+        let graph_output_file = output
+            .as_ref()
+            .unwrap()
+            .as_ref()
+            .with_extension(format!("_{}", id));
+        let output_file = std::fs::File::create(graph_output_file)?;
+        let mut writer = std::io::BufWriter::new(output_file);
+        let dot = graph.to_dot(true, true)?;
         writer.write_all(dot.as_bytes())?;
     }
     Ok(())

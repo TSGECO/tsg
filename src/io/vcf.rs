@@ -44,7 +44,8 @@ static VCF_HEADER: &[&str] = &[
 ];
 
 pub fn to_vcf<P: AsRef<Path>>(tsg_graph: &TSGraph, output: P) -> Result<()> {
-    let paths = tsg_graph.traverse()?;
+    let paths = tsg_graph.traverse_all_graphs()?;
+
     let output_file = std::fs::File::create(output)?;
     let mut writer = std::io::BufWriter::new(output_file);
 
