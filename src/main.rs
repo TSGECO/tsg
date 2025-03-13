@@ -93,13 +93,9 @@ fn run() -> Result<()> {
             Ok(())
         }
 
-        Commands::Fa {
-            input,
-            reference_genome,
-            output,
-        } => {
+        Commands::Fa { input, output } => {
             info!("Converting TSG file to FASTA: {}", input.display());
-            cli::to_fa(input, reference_genome, output)?;
+            cli::to_fa(input, output)?;
             Ok(())
         }
 
@@ -122,6 +118,29 @@ fn run() -> Result<()> {
         } => {
             info!("Converting TSG file to JSON: {}", input.display());
             cli::to_json(input, pretty, output)?;
+            Ok(())
+        }
+
+        Commands::Merge { inputs, output } => {
+            info!("Merging TSG files: {:?}", inputs);
+            cli::merge(inputs, output)?;
+            Ok(())
+        }
+
+        Commands::Split { input, output } => {
+            info!("Splitting TSG file: {}", input.display());
+            cli::split(input, output)?;
+            Ok(())
+        }
+
+        Commands::Query {
+            input,
+            ids,
+            ids_file,
+            output,
+        } => {
+            info!("Querying TSG file: {}", input.display());
+            cli::query(input, ids, ids_file, output)?;
             Ok(())
         }
     }

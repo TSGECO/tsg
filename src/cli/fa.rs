@@ -5,11 +5,7 @@ use crate::io;
 use anyhow::Result;
 use tracing::info;
 
-pub fn to_fa<P: AsRef<Path>, Q: AsRef<Path>>(
-    input: P,
-    reference_genome_path: Q,
-    output: Option<PathBuf>,
-) -> Result<()> {
+pub fn to_fa<P: AsRef<Path>>(input: P, output: Option<PathBuf>) -> Result<()> {
     let mut tsg_graph = TSGraph::from_file(input.as_ref())?;
 
     let output_path = match output {
@@ -22,6 +18,6 @@ pub fn to_fa<P: AsRef<Path>, Q: AsRef<Path>>(
     };
 
     info!("Writing FASTA to: {}", output_path.display());
-    io::to_fa(&mut tsg_graph, reference_genome_path.as_ref(), &output_path)?;
+    io::to_fa(&mut tsg_graph, &output_path)?;
     Ok(())
 }

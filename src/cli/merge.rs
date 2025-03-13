@@ -14,7 +14,6 @@ pub fn merge<P: AsRef<Path>>(inputs: Vec<P>, output: PathBuf) -> Result<()> {
     if inputs.is_empty() {
         return Err(anyhow!("No input files provided"));
     }
-
     info!("Merging {} TSG files", inputs.len());
 
     // Create a new empty TSG to hold the merged result
@@ -65,6 +64,7 @@ pub fn merge<P: AsRef<Path>>(inputs: Vec<P>, output: PathBuf) -> Result<()> {
 
     // Write the merged TSG to the output file
     info!("Writing merged TSG to: {}", output.display());
+
     merged_tsg.to_file(&output)?;
 
     info!("Merge completed successfully");

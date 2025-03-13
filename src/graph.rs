@@ -9,7 +9,7 @@ mod utils;
 
 use noodles::fasta;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::{BufRead, BufReader, BufWriter};
 use std::path::Path;
 use std::str::FromStr;
 use tracing::debug;
@@ -991,11 +991,8 @@ impl TSGraph {
         Ok(tsgraph)
     }
 
-    /// Write the TSGraph to a TSG file
-    pub fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        let file = File::create(path)?;
-        let mut writer = BufWriter::new(file);
-
+    /// Write the TSGraph to writer
+    pub fn to_writer<W: std::io::Write>(&self, writer: &mut W) -> Result<()> {
         // Write global headers
         writeln!(writer, "# Global header")?;
         for header in &self.headers {
@@ -1162,6 +1159,13 @@ impl TSGraph {
 
         writer.flush()?;
         Ok(())
+    }
+
+    /// Write the TSGraph to a TSG file
+    pub fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        let file = File::create(path)?;
+        let mut writer = BufWriter::new(file);
+        self.to_writer(&mut writer)
     }
 
     // Helper methods for accessing graph elements
