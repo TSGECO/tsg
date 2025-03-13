@@ -86,10 +86,10 @@ fn run() -> Result<()> {
 
         Commands::Traverse {
             input,
-            write_path,
+            text_path,
             output,
         } => {
-            cli::traverse(input, write_path, output)?;
+            cli::traverse(input, text_path, output)?;
             Ok(())
         }
 

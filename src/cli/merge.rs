@@ -1,4 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::io::Write;
+use std::path::Path;
 
 use crate::graph::TSGraph;
 use anyhow::{Result, anyhow};
@@ -10,7 +11,7 @@ use tracing::info;
 /// This function takes multiple TSG files and merges them into a single TSG file.
 /// The merged TSG will contain all graphs from all input files, with unique graph IDs.
 /// If there are duplicate graph IDs, they will be renamed with a suffix.
-pub fn merge<P: AsRef<Path>>(inputs: Vec<P>, output: PathBuf) -> Result<()> {
+pub fn merge<P: AsRef<Path>>(inputs: Vec<P>, output: Option<P>) -> Result<()> {
     if inputs.is_empty() {
         return Err(anyhow!("No input files provided"));
     }
@@ -63,10 +64,19 @@ pub fn merge<P: AsRef<Path>>(inputs: Vec<P>, output: PathBuf) -> Result<()> {
     }
 
     // Write the merged TSG to the output file
-    info!("Writing merged TSG to: {}", output.display());
 
-    merged_tsg.to_file(&output)?;
+    let mut writer: Box<dyn Write> = match output {
+        Some(path) => {
+            info!("Writing paths to file: {}", path.as_ref().display());
+            Box::new(std::io::BufWriter::new(std::fs::File::create(path)?))
+        }
+        None => {
+            info!("Writing paths to stdout");
+            Box::new(std::io::BufWriter::new(std::io::stdout().lock()))
+        }
+    };
 
+    merged_tsg.to_writer(&mut writer)?;
     info!("Merge completed successfully");
     Ok(())
 }
