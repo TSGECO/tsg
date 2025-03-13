@@ -42,7 +42,7 @@ impl fmt::Display for TSGPath<'_> {
                 .graph
                 .ok_or_else(|| anyhow!("Graph not available"))
                 .unwrap()
-                .get_node_by_idx(*node_idx)
+                .node_by_idx(*node_idx)
                 .context(format!("Node not found for index: {}", node_idx.index()))
                 .unwrap();
 
@@ -53,7 +53,7 @@ impl fmt::Display for TSGPath<'_> {
                     .graph
                     .ok_or_else(|| anyhow!("Graph not available"))
                     .unwrap()
-                    .get_edge_by_idx(self.edges[idx])
+                    .edge_by_idx(self.edges[idx])
                     .context(format!(
                         "Edge not found for index: {}",
                         self.edges[idx].index()
@@ -109,7 +109,7 @@ impl<'a> TSGPath<'a> {
                     .graph
                     .ok_or_else(|| anyhow!("Graph not available"))
                     .unwrap()
-                    .get_node_by_idx(*node_idx)
+                    .node_by_idx(*node_idx)
                     .context(format!("Node not found for index: {}", node_idx.index()))
                     .unwrap();
                 node_data.id.to_str().unwrap()
@@ -145,7 +145,7 @@ impl<'a> TSGPath<'a> {
         for (idx, node_idx) in self.nodes.iter().enumerate() {
             let graph = self.graph.ok_or_else(|| anyhow!("Graph not available"))?;
             let node_data = graph
-                .get_node_by_idx(*node_idx)
+                .node_by_idx(*node_idx)
                 .with_context(|| format!("Node not found for index: {}", node_idx.index()))?;
 
             // Create a new attributes vector for each node with just the transcript_id
@@ -176,7 +176,7 @@ impl<'a> TSGPath<'a> {
         for edge_idx in self.edges.iter() {
             let graph = self.graph.ok_or_else(|| anyhow!("Graph not available"))?;
             let edge_data = graph
-                .get_edge_by_idx(*edge_idx)
+                .edge_by_idx(*edge_idx)
                 .with_context(|| format!("Edge not found for index: {}", edge_idx.index()))?;
 
             let edge_vcf = edge_data.to_vcf(None)?;
@@ -194,7 +194,7 @@ impl<'a> TSGPath<'a> {
                 .graph
                 .ok_or_else(|| anyhow!("Graph not available"))
                 .unwrap()
-                .get_node_by_idx(*node_idx)
+                .node_by_idx(*node_idx)
                 .context(format!("Node not found for index: {}", node_idx.index()))
                 .unwrap();
 

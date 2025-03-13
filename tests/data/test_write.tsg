@@ -3,8 +3,8 @@ H	TSG	1.0
 H	reference	GRCh38
 H	PG	tsg
 
-# Graph: default
-G	default
+# Graph: graph
+G	graph
 # Nodes
 N	n1	chr1:1000-1200,1500-1700	read1:SO,read2:SO	ACGTACGT
 N	n2	chr1:2000-2200	read4:SO,read5:SO	TGCATGCA
@@ -17,13 +17,13 @@ E	e2	n3	n4	chr1,chr1,1700,2000,DUP
 E	e3	n2	n3	chr1,chr1,2200,2500,TDUP
 E	e4	n3	n5	chr1,chr1,1700,2500,DUP
 # Groups
+P	transcript2	n2+ e3+ n3+ e4+ n5+
 C	chain1	n1 e1 n3 e2 n4
 C	chain2	n2 e3 n3 e4 n5
-P	transcript2	n2+ e3+ n3+ e4+ n5+
-P	transcript1	n1+ e1+ n3+ e2+ n4+
 U	exon_set	n1 n2 n3
+P	transcript1	n1+ e1+ n3+ e2+ n4+
 # Attributes
-A	N	n1	expression:f:10.5
 A	N	n1	ptc:i:10
+A	N	n1	expression:f:10.5
 A	P	transcript2	tpm:f:3.7
 A	P	transcript1	tpm:f:8.2
