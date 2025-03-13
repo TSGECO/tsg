@@ -99,9 +99,9 @@ pub enum Commands {
 
         // Output the text representation of the paths
         #[arg(short, long, default_value = "false")]
-        write_path: bool,
+        text_path: bool,
 
-        /// Output file path for the paths
+        /// Output file path for the paths, default is stdout
         #[arg(short, long, value_hint = ValueHint::FilePath)]
         output: Option<PathBuf>,
     },
@@ -114,7 +114,7 @@ pub enum Commands {
 
         /// Output file path for the merged TSG
         #[arg(short, long, value_hint = ValueHint::FilePath)]
-        output: PathBuf,
+        output: Option<PathBuf>,
     },
 
     /// Split a TSG file into multiple TSG files
