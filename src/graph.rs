@@ -1380,14 +1380,14 @@ mod tests {
             ..Default::default()
         };
 
-        graph.graph_mut(&DEFAULT_GRAPH_ID).unwrap().add_edge(
+        graph.graph_mut(DEFAULT_GRAPH_ID).unwrap().add_edge(
             "node1".into(),
             "node2".into(),
             edge.clone(),
         )?;
 
-        assert_eq!(graph.edges(&DEFAULT_GRAPH_ID).len(), 1);
-        assert_eq!(graph.edge(&DEFAULT_GRAPH_ID, "edge1").unwrap().id, edge.id);
+        assert_eq!(graph.edges(DEFAULT_GRAPH_ID).len(), 1);
+        assert_eq!(graph.edge(DEFAULT_GRAPH_ID, "edge1").unwrap().id, edge.id);
 
         Ok(())
     }
@@ -1460,8 +1460,8 @@ mod tests {
         let graph = TSGraph::from_file(file)?;
 
         assert_eq!(graph.headers.len(), 2);
-        assert_eq!(graph.nodes(&DEFAULT_GRAPH_ID).len(), 5);
-        assert_eq!(graph.edges(&DEFAULT_GRAPH_ID).len(), 4);
+        assert_eq!(graph.nodes(DEFAULT_GRAPH_ID).len(), 5);
+        assert_eq!(graph.edges(DEFAULT_GRAPH_ID).len(), 4);
 
         graph.to_file("tests/data/test_write.tsg")?;
 
@@ -1473,7 +1473,7 @@ mod tests {
         let file = "tests/data/test.tsg";
         let graph = TSGraph::from_file(file)?;
 
-        let paths = graph.traverse_by_id(&DEFAULT_GRAPH_ID)?;
+        let paths = graph.traverse_by_id(DEFAULT_GRAPH_ID)?;
         // assert_eq!(paths.len(), 2);
 
         for path in paths {
@@ -1487,7 +1487,7 @@ mod tests {
         let file = "tests/data/test.tsg";
         let graph = TSGraph::from_file(file)?;
 
-        let dot = graph.to_dot_by_id(&DEFAULT_GRAPH_ID, true, true)?;
+        let dot = graph.to_dot_by_id(DEFAULT_GRAPH_ID, true, true)?;
         println!("{}", dot);
 
         Ok(())
@@ -1498,7 +1498,7 @@ mod tests {
         let file = "tests/data/test.tsg";
         let graph = TSGraph::from_file(file)?;
 
-        let json = graph.to_json_by_id(&DEFAULT_GRAPH_ID)?;
+        let json = graph.to_json_by_id(DEFAULT_GRAPH_ID)?;
         println!("{}", json);
         Ok(())
     }
