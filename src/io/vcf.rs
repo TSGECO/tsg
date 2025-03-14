@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::graph::TSGraph;
 use anyhow::Result;
 use std::io::Write;

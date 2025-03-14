@@ -2,9 +2,16 @@ use std::{io::Write, path::Path};
 
 use crate::graph::TSGraph;
 use anyhow::Result;
+use tracing::info;
 
 pub fn to_dot<P: AsRef<Path>>(input: P, output: Option<P>) -> Result<()> {
-    let graph = TSGraph::from_file(input.as_ref())?;
+    let tsg_graph = TSGraph::from_file(input.as_ref())?;
+
+    info!(
+        "parsing {} TSG graph from file: {:?}",
+        tsg_graph.graphs.len(),
+        input.as_ref()
+    );
     let output_path = match output {
         Some(path) => path.as_ref().to_path_buf(),
         None => {
@@ -22,7 +29,7 @@ pub fn to_dot<P: AsRef<Path>>(input: P, output: Option<P>) -> Result<()> {
     if !output_path.exists() {
         std::fs::create_dir_all(&output_path)?;
     }
-    for (id, graph) in graph.graphs.iter() {
+    for (id, graph) in tsg_graph.graphs.iter() {
         // create a dot file for each graph under the output directory
         let graph_output_file = output_path.join(format!("{}.dot", id));
         let output_file = std::fs::File::create(graph_output_file)?;
