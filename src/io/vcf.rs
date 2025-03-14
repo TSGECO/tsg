@@ -43,14 +43,10 @@ static VCF_HEADER: &[&str] = &[
     "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT",
 ];
 
-pub fn to_vcf<P: AsRef<Path>>(tsg_graph: &TSGraph, output: P) -> Result<()> {
+pub fn to_vcf<W: Write>(tsg_graph: &TSGraph, writer: &mut W) -> Result<()> {
     let paths = tsg_graph.traverse_all_graphs()?;
 
-    let output_file = std::fs::File::create(output)?;
-    let mut writer = std::io::BufWriter::new(output_file);
-
     let header = VCF_HEADER;
-
     for line in header {
         writeln!(writer, "{}", line)?;
     }
@@ -70,6 +66,8 @@ mod tests {
     fn test_to_vcf() {
         let tsg_graph = TSGraph::from_file("tests/data/test.tsg").unwrap();
         let output = "tests/data/test.vcf";
-        to_vcf(&tsg_graph, output).unwrap();
+        let file = std::fs::File::create(output).unwrap();
+        let mut writer = std::io::BufWriter::new(file);
+        to_vcf(&tsg_graph, &mut writer).unwrap();
     }
 }
