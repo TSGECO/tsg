@@ -9,10 +9,24 @@ use tracing::info;
 /// This function takes a TSG file with multiple graphs and splits it into multiple TSG files,
 /// where each output file contains a single graph from the original file.
 /// The output files will be named based on the graph IDs.
-pub fn split<P: AsRef<Path>>(input: P, output_dir: PathBuf) -> Result<()> {
+pub fn split<P: AsRef<Path>>(input: P, output_dir: Option<PathBuf>) -> Result<()> {
     // Load the input TSG file
     info!("Loading TSG file: {}", input.as_ref().display());
     let tsg = TSGraph::from_file(input.as_ref())?;
+
+    // if output_dir is None, create a default output directory
+    let output_dir = match output_dir {
+        Some(dir) => dir,
+        None => {
+            let input_path = input.as_ref().to_path_buf();
+            let parent = input_path.parent().unwrap_or(Path::new("."));
+            let stem = input_path
+                .file_stem()
+                .unwrap_or_else(|| std::ffi::OsStr::new("output"));
+            let output_dir = format!("{}_split", stem.to_string_lossy());
+            parent.join(output_dir)
+        }
+    };
 
     // Check if the output directory exists, create it if it doesn't
     if !output_dir.exists() {

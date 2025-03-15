@@ -10,6 +10,7 @@ use cli::Commands;
 use graph::TSGraph;
 
 use clap_complete::aot::{Generator, Shell, generate};
+use colored::Colorize;
 use std::io::stdout;
 
 #[derive(Parser)]
@@ -69,9 +70,9 @@ fn run() -> Result<()> {
             let graph = TSGraph::from_file(input)?;
 
             for (id, graph) in graph.graphs.iter() {
-                info!(
+                println!(
                     "Successfully parsed graph {} with {} nodes and {} edges",
-                    id,
+                    id.to_string().green(),
                     graph.nodes().len(),
                     graph.edges().len()
                 );

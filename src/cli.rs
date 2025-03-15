@@ -125,7 +125,7 @@ pub enum Commands {
 
         /// Output directory for the split TSG files
         #[arg(short, long, value_hint = ValueHint::DirPath)]
-        output: PathBuf,
+        output: Option<PathBuf>,
     },
 
     /// Query specific graphs from a TSG file
