@@ -139,7 +139,7 @@ pub enum Commands {
         ids: String,
 
         /// File containing graph IDs to query (one per line)
-        #[arg(short, long, value_hint = ValueHint::FilePath)]
+        #[arg(long, value_hint = ValueHint::FilePath)]
         ids_file: Option<PathBuf>,
 
         /// Output file path for the queried graphs
