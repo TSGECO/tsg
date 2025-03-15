@@ -1,10 +1,10 @@
 use std::io::Write;
 use std::path::Path;
 
-use crate::graph::TSGraph;
 use anyhow::{Result, anyhow};
 use bstr::ByteSlice;
 use tracing::info;
+use tsg::graph::TSGraph;
 
 /// Merge multiple TSG files into a single TSG file
 ///

@@ -90,6 +90,9 @@ impl Exons {
         }
         introns
     }
+    pub fn is_empty(&self) -> bool {
+        self.exons.is_empty()
+    }
 
     pub fn len(&self) -> usize {
         self.exons.len()

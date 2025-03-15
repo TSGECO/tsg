@@ -6,7 +6,7 @@ use anyhow::{Result, anyhow};
 use bstr::BString;
 use tracing::info;
 
-use crate::graph::TSGraph;
+use tsg::graph::TSGraph;
 
 /// Query specific graphs from a TSG file
 ///

@@ -39,16 +39,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Decompression completed successfully");
 
     // Using BTSG with TSGraph
-    println!("\nLoading graph directly from BTSG file...");
-    let graph = tsg::graph::TSGraph::from_btsg(btsg_file)?;
+    // println!("\nLoading graph directly from BTSG file...");
+    // let graph = tsg::graph::TSGraph::from_btsg(btsg_file)?;
 
     // Display graph information
-    println!(
-        "Loaded {} graphs with {} nodes and {} edges",
-        graph.get_graphs().len(),
-        graph.get_nodes().len(),
-        graph.get_edges().len()
-    );
+    // println!(
+    //     "Loaded {} graphs with {} nodes and {} edges",
+    //     graph.get_graphs().len(),
+    //     graph.get_nodes().len(),
+    //     graph.get_edges().len()
+    // );
 
     Ok(())
 }

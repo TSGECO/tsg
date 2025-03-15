@@ -1,9 +1,9 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use crate::graph::TSGraph;
 use anyhow::Result;
 use tracing::info;
+use tsg::graph::TSGraph;
 
 // traverse the graph and output the path to the output file
 // the output file is plain text file

@@ -1,12 +1,11 @@
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use crate::graph::TSGraph;
-use crate::io;
 use anyhow::Result;
-use std::io::Write;
 use tracing::info;
+use tsg::graph::TSGraph;
 
-pub fn to_vcf<P: AsRef<Path>>(input: P, output: Option<PathBuf>) -> Result<()> {
+pub fn to_gtf<P: AsRef<Path>>(input: P, output: Option<PathBuf>) -> Result<()> {
     let tsg_graph = TSGraph::from_file(input.as_ref())?;
     let mut writer: Box<dyn Write> = match output {
         Some(path) => {
@@ -18,6 +17,6 @@ pub fn to_vcf<P: AsRef<Path>>(input: P, output: Option<PathBuf>) -> Result<()> {
             Box::new(std::io::BufWriter::new(std::io::stdout().lock()))
         }
     };
-    io::to_vcf(&tsg_graph, &mut writer)?;
+    tsg::io::to_gtf(&tsg_graph, &mut writer)?;
     Ok(())
 }

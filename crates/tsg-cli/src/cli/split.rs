@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use crate::graph::TSGraph;
 use anyhow::{Result, anyhow};
 use tracing::info;
+use tsg::graph::TSGraph;
 
 /// Split a TSG file containing multiple graphs into multiple TSG files, each containing a single graph
 ///

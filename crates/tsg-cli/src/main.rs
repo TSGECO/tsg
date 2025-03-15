@@ -1,14 +1,11 @@
-mod btsg;
 mod cli;
-mod graph;
-mod io;
 
 use tracing::info;
 
 use anyhow::Result;
 use clap::{Command, CommandFactory, Parser};
 use cli::Commands;
-use graph::TSGraph;
+use tsg::graph::TSGraph;
 
 use clap_complete::aot::{Generator, Shell, generate};
 use colored::Colorize;

@@ -1,10 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use crate::graph::TSGraph;
-use crate::io;
 use anyhow::Result;
 use std::io::Write;
 use tracing::info;
+use tsg::graph::TSGraph;
 
 pub fn to_fa<P: AsRef<Path>>(input: P, output: Option<PathBuf>) -> Result<()> {
     let mut tsg_graph = TSGraph::from_file(input.as_ref())?;
@@ -18,6 +17,6 @@ pub fn to_fa<P: AsRef<Path>>(input: P, output: Option<PathBuf>) -> Result<()> {
             Box::new(std::io::BufWriter::new(std::io::stdout().lock()))
         }
     };
-    io::to_fa(&mut tsg_graph, &mut writer)?;
+    tsg::io::to_fa(&mut tsg_graph, &mut writer)?;
     Ok(())
 }
