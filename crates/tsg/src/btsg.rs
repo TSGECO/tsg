@@ -5,6 +5,7 @@ use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::Path;
 
 use crate::graph::TSGraph;
+use anyhow::Result;
 use bstr::{BStr, BString, ByteSlice};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
@@ -42,8 +43,6 @@ pub enum BTSGError {
     Dictionary(String),
 }
 
-pub type Result<T> = std::result::Result<T, BTSGError>;
-
 /// Dictionary for string compression
 #[derive(Default)]
 struct StringDictionary {
@@ -57,11 +56,7 @@ struct StringDictionary {
 
 impl StringDictionary {
     fn new() -> Self {
-        Self {
-            str_to_id: HashMap::new(),
-            id_to_str: HashMap::new(),
-            next_id: 0,
-        }
+        Self::default()
     }
 
     fn add(&mut self, s: &BStr) -> u32 {
@@ -168,6 +163,7 @@ impl Block {
 }
 
 /// TSG compressor - converts TSG to BTSG format
+#[derive(Default)]
 pub struct BTSGCompressor {
     // Dictionaries for string compression
     node_dict: StringDictionary,
@@ -184,13 +180,8 @@ pub struct BTSGCompressor {
 impl BTSGCompressor {
     pub fn new(compression_level: i32) -> Self {
         Self {
-            node_dict: StringDictionary::new(),
-            edge_dict: StringDictionary::new(),
-            graph_dict: StringDictionary::new(),
-            read_dict: StringDictionary::new(),
-            chromosome_dict: StringDictionary::new(),
-            attribute_dict: StringDictionary::new(),
             compression_level,
+            ..Default::default()
         }
     }
 
@@ -423,6 +414,7 @@ impl BTSGCompressor {
 }
 
 /// TSG decompressor - converts BTSG back to TSG format
+#[derive(Default)]
 pub struct BTSGDecompressor {
     // Dictionaries for string decompression
     node_dict: StringDictionary,
@@ -435,14 +427,7 @@ pub struct BTSGDecompressor {
 
 impl BTSGDecompressor {
     pub fn new() -> Self {
-        Self {
-            node_dict: StringDictionary::new(),
-            edge_dict: StringDictionary::new(),
-            graph_dict: StringDictionary::new(),
-            read_dict: StringDictionary::new(),
-            chromosome_dict: StringDictionary::new(),
-            attribute_dict: StringDictionary::new(),
-        }
+        Self::default()
     }
 
     pub fn decompress<P: AsRef<Path>>(&mut self, input_path: P, output_path: P) -> Result<()> {
@@ -452,18 +437,15 @@ impl BTSGDecompressor {
         let mut magic = [0u8; 4];
         input_file.read_exact(&mut magic)?;
         if &magic != b"BTSG" {
-            return Err(BTSGError::InvalidFormat(
-                "Not a valid BTSG file".to_string(),
-            ));
+            return Err(BTSGError::InvalidFormat("Not a valid BTSG file".to_string()).into());
         }
 
         // Read version
         let version = input_file.read_u32::<LittleEndian>()?;
         if version != BTSG_VERSION {
-            return Err(BTSGError::InvalidFormat(format!(
-                "Unsupported BTSG version: {}",
-                version
-            )));
+            return Err(
+                BTSGError::InvalidFormat(format!("Unsupported BTSG version: {}", version)).into(),
+            );
         }
 
         let mut output_file = File::create(output_path)?;
@@ -505,7 +487,7 @@ impl BTSGDecompressor {
                     }
                 }
                 _ => {
-                    return Err(BTSGError::InvalidBlockType(block.block_type));
+                    return Err(BTSGError::InvalidBlockType(block.block_type).into());
                 }
             }
         }
@@ -516,7 +498,6 @@ impl BTSGDecompressor {
     fn read_dictionaries(&mut self, data: &[u8]) -> Result<()> {
         // Decompress the dictionary data
         let decompressed = decode_all(data).map_err(|e| BTSGError::Compression(e.to_string()))?;
-
         let mut cursor = io::Cursor::new(decompressed);
 
         // Read each dictionary based on its type marker
@@ -550,7 +531,8 @@ impl BTSGDecompressor {
                     return Err(BTSGError::InvalidFormat(format!(
                         "Unknown dictionary type: {}",
                         dict_type
-                    )));
+                    ))
+                    .into());
                 }
             }
         }
@@ -568,18 +550,15 @@ impl BTSGDecompressor {
         let mut magic = [0u8; 4];
         input_file.read_exact(&mut magic)?;
         if &magic != b"BTSG" {
-            return Err(BTSGError::InvalidFormat(
-                "Not a valid BTSG file".to_string(),
-            ));
+            return Err(BTSGError::InvalidFormat("Not a valid BTSG file".to_string()).into());
         }
 
         // Read version
         let version = input_file.read_u32::<LittleEndian>()?;
         if version != BTSG_VERSION {
-            return Err(BTSGError::InvalidFormat(format!(
-                "Unsupported BTSG version: {}",
-                version
-            )));
+            return Err(
+                BTSGError::InvalidFormat(format!("Unsupported BTSG version: {}", version)).into(),
+            );
         }
 
         let mut output = String::new();
@@ -621,7 +600,7 @@ impl BTSGDecompressor {
                     }
                 }
                 _ => {
-                    return Err(BTSGError::InvalidBlockType(block.block_type));
+                    return Err(BTSGError::InvalidBlockType(block.block_type).into());
                 }
             }
         }
