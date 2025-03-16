@@ -1,11 +1,12 @@
 use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
+use tracing::{debug, warn};
 
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read, Write};
+use std::io::{self, BufRead, BufReader, Cursor, Read, Write};
 use std::path::Path;
 
 use crate::graph::TSGraph;
-use anyhow::Result;
+use anyhow::{Context, Result, anyhow};
 use bstr::{BStr, BString, ByteSlice};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
@@ -609,8 +610,167 @@ impl BTSGDecompressor {
     }
 }
 
+impl TSGraph {
+    /// Load a TSGraph from a BTSG (Binary Transcript Segment Graph) file
+    pub fn from_btsg<P: AsRef<Path>>(path: P) -> Result<Self> {
+        debug!(
+            "Loading TSGraph from BTSG file: {}",
+            path.as_ref().display()
+        );
+
+        // Option 1: Use BTSGDecompressor to get TSG content as a string and then parse it
+        let mut decompressor = BTSGDecompressor::new();
+        let tsg_content = decompressor
+            .decompress_to_string(path)
+            .context("Failed to decompress BTSG file")?;
+
+        // Create a cursor for reading the TSG content
+        let cursor = Cursor::new(tsg_content);
+        let mut reader = BufReader::new(cursor);
+        // Parse the TSG content
+        Self::from_reader(&mut reader)
+    }
+
+    /// Load a TSGraph directly from a BTSG file using a more direct approach
+    pub fn from_btsg_direct<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let mut input_file = File::open(path.as_ref()).context(format!(
+            "Failed to open BTSG file: {}",
+            path.as_ref().display()
+        ))?;
+
+        // Read and verify magic number
+        let mut magic = [0u8; 4];
+        input_file
+            .read_exact(&mut magic)
+            .context("Failed to read BTSG magic number")?;
+
+        if &magic != b"BTSG" {
+            return Err(anyhow!("Not a valid BTSG file - invalid magic number"));
+        }
+
+        // Read version
+        let version = input_file
+            .read_u32::<LittleEndian>()
+            .context("Failed to read BTSG version")?;
+
+        debug!("Reading BTSG file version {}", version);
+        // Create a buffer for the decompressed TSG content
+        let mut tsg_content = Vec::new();
+
+        // Process each block
+        loop {
+            // Read block type and length
+            let block_type = match input_file.read_u8() {
+                Ok(t) => t,
+                Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break, // End of file
+                Err(e) => return Err(anyhow!("Error reading block type: {}", e)),
+            };
+
+            let block_length = match input_file.read_u32::<LittleEndian>() {
+                Ok(len) => len,
+                Err(e) => return Err(anyhow!("Error reading block length: {}", e)),
+            };
+
+            // Read block data
+            let mut block_data = vec![0u8; block_length as usize];
+            input_file
+                .read_exact(&mut block_data)
+                .context("Failed to read block data")?;
+
+            // Process block based on type
+            match block_type {
+                BLOCK_DICTIONARY => {
+                    debug!("Processing dictionary block");
+                    // Dictionary processing not needed for decompression to TSG
+                }
+                BLOCK_HEADER => {
+                    debug!("Processing header block");
+                    // Decompress header data
+                    let decompressed = decode_all(&block_data[..])
+                        .map_err(|e| anyhow!("Failed to decompress header block: {}", e))?;
+
+                    // Add to TSG content
+                    tsg_content.extend_from_slice(&decompressed);
+                    tsg_content.push(b'\n');
+                }
+                BLOCK_GRAPH => {
+                    debug!("Processing graph block");
+
+                    // Decompress graph data
+                    let decompressed = decode_all(&block_data[..])
+                        .map_err(|e| anyhow!("Failed to decompress graph block: {}", e))?;
+
+                    // Convert to string and parse line by line to handle the graph line correctly
+                    let content = String::from_utf8_lossy(&decompressed);
+                    let mut lines = content.lines();
+
+                    // The first line should be the graph declaration line (G)
+                    if let Some(first_line) = lines.next() {
+                        // Add the graph declaration line
+                        tsg_content.extend_from_slice(first_line.as_bytes());
+                        tsg_content.push(b'\n');
+
+                        // Add the rest of the lines
+                        for line in lines {
+                            tsg_content.extend_from_slice(line.as_bytes());
+                            tsg_content.push(b'\n');
+                        }
+                    }
+                }
+                BLOCK_NODE | BLOCK_EDGE | BLOCK_ATTRIBUTE | BLOCK_CHAIN | BLOCK_PATH
+                | BLOCK_LINK => {
+                    debug!("Processing block type {}", block_type);
+                    // Decompress block data
+                    let decompressed = decode_all(&block_data[..]).map_err(|e| {
+                        anyhow!("Failed to decompress block type {}: {}", block_type, e)
+                    })?;
+
+                    // Add to TSG content
+                    tsg_content.extend_from_slice(&decompressed);
+                    tsg_content.push(b'\n');
+                }
+                _ => {
+                    warn!("Unknown block type: {}", block_type);
+                }
+            }
+        }
+
+        // Parse the TSG content
+        let cursor = Cursor::new(tsg_content);
+        let reader = BufReader::new(cursor);
+        Self::from_reader(reader)
+    }
+
+    /// Save the TSGraph to a BTSG file
+    pub fn to_btsg<P: AsRef<Path>>(&self, path: P, compression_level: i32) -> Result<()> {
+        use crate::btsg::BTSGCompressor;
+
+        // Create a temporary TSG file
+        let temp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
+        let temp_tsg_path = temp_dir.path().join("temp.tsg");
+
+        // Write the TSGraph to the temporary file
+        self.to_file(&temp_tsg_path)
+            .context("Failed to write TSGraph to temporary file")?;
+
+        // Create a BTSGCompressor instance
+        let mut compressor = BTSGCompressor::new(compression_level);
+
+        // Compress the temporary file to the destination
+        compressor
+            .compress(&temp_tsg_path, &path.as_ref().to_path_buf())
+            .context("Failed to compress TSG to BTSG")?;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use crate::graph::{EdgeData, GraphSection, Header, NodeData, StructuralVariant};
+
     use super::*;
     use tempfile::NamedTempFile;
 
@@ -713,37 +873,94 @@ mod tests {
         Ok(())
     }
 
-    // #[test]
-    // fn test_from_btsg() -> Result<()> {
-    //     // Create a small TSG file
-    //     let mut temp_tsg = NamedTempFile::new()?;
-    //     temp_tsg.write_all(b"H\tTSG\t1.0\nH\treference\tGRCh38\nG\tg1\nN\tn1\tchr1:+:1000-2000\tread1:SO\nE\te1\tn1\tn2\tchr1,chr1,2000,3000,splice\n")?;
+    #[test]
+    fn test_from_btsg() -> Result<()> {
+        // Create a small TSG file
+        let mut temp_tsg = NamedTempFile::new()?;
+        temp_tsg.write_all(b"H\tTSG\t1.0\nH\treference\tGRCh38\nG\tg1\nN\tn1\tchr1:+:1000-2000\tread1:SO\nE\te1\tn1\tn2\tchr1,chr1,2000,3000,splice\n")?;
 
-    //     // Create a temp file for the compressed output
-    //     let temp_btsg = NamedTempFile::new()?;
-    //     let temp_btsg_path = temp_btsg.path().to_path_buf();
+        // Create a temp file for the compressed output
+        let temp_btsg = NamedTempFile::new()?;
+        let temp_btsg_path = temp_btsg.path().to_path_buf();
+        // Compress
+        let mut compressor = BTSGCompressor::new(3); // Medium compression
+        compressor.compress(temp_tsg.path(), &temp_btsg_path)?;
 
-    //     // Compress
-    //     let mut compressor = BTSGCompressor::new(3); // Medium compression
-    //     compressor.compress(temp_tsg.path(), &temp_btsg_path)?;
+        // Use from_btsg to create the graph directly
+        let graph = TSGraph::from_btsg(&temp_btsg_path)?;
 
-    //     // Use from_btsg to create the graph directly
-    //     let graph = match TSGraph::from_btsg(&temp_btsg_path) {
-    //         Ok(g) => g,
-    //         Err(e) => {
-    //             // This test might need to be skipped if the TSGraph implementation doesn't match
-    //             // Just check that we can read the file
-    //             let mut decompressor = BTSGDecompressor::new();
-    //             let content = decompressor.decompress_to_string(&temp_btsg_path)?;
-    //             assert!(!content.is_empty());
-    //             return Ok(());
-    //         }
-    //     };
+        // Basic validation that the graph was loaded correctly
+        assert_eq!(graph.nodes("g1").len(), 1);
+        assert_eq!(graph.edges("g1").len(), 1);
 
-    //     // Basic validation that the graph was loaded correctly
-    //     assert_eq!(graph.node_count(), 1);
-    //     assert_eq!(graph.edge_count(), 1);
+        Ok(())
+    }
 
-    //     Ok(())
-    // }
+    #[test]
+    fn test_from_btsg_roundtrip2() -> Result<()> {
+        // Create a small TSG structure
+        let mut graph = TSGraph::new();
+
+        // Add headers
+        let header1 = Header::builder().tag("TSG").value("1.0").build();
+        let header2 = Header::builder().tag("reference").value("GRCh38").build();
+        graph.headers.push(header1);
+        graph.headers.push(header2);
+
+        // Add a graph section
+        let graph_id: BString = "test_graph".into();
+        let mut graph_section = GraphSection::new(graph_id.clone());
+
+        // Add nodes to the graph section
+        let node1 = NodeData::from_str("N\tn1\tchr1:+:1000-2000\tread1:SO")?;
+        let node2 = NodeData::from_str("N\tn2\tchr1:+:3000-4000\tread1:IN")?;
+        graph_section.add_node(node1)?;
+        graph_section.add_node(node2)?;
+
+        // Add an edge to the graph section
+        let edge_data = EdgeData {
+            id: "e1".into(),
+            sv: StructuralVariant::from_str("chr1,chr1,2000,3000,splice")?,
+            attributes: Default::default(),
+        };
+        graph_section.add_edge(
+            "n1".as_bytes().as_bstr(),
+            "n2".as_bytes().as_bstr(),
+            edge_data,
+        )?;
+
+        // Add the graph section to the main graph
+        graph.graphs.insert(graph_id, graph_section);
+
+        // Create a temporary file for the TSG output
+        let temp_tsg = NamedTempFile::new()?;
+        let temp_tsg_path = temp_tsg.path().to_path_buf();
+
+        // Create a temporary file for the BTSG output
+        let temp_btsg = NamedTempFile::new()?;
+        let temp_btsg_path = temp_btsg.path().to_path_buf();
+
+        // Write the TSGraph to TSG file
+        graph.to_file(&temp_tsg_path)?;
+
+        // Compress the TSG file to BTSG
+        graph.to_btsg(&temp_btsg_path, 3)?;
+
+        // Read the BTSG file back into a TSGraph
+        let loaded_graph = TSGraph::from_btsg(&temp_btsg_path)?;
+
+        // Verify the loaded graph
+        assert_eq!(loaded_graph.headers.len(), 3); // +1 for the PG header
+        assert!(loaded_graph.headers.iter().any(|h| h.tag == "TSG"));
+        assert!(loaded_graph.headers.iter().any(|h| h.tag == "reference"));
+
+        assert_eq!(loaded_graph.graphs.len(), 1);
+        assert!(loaded_graph.graphs.contains_key("test_graph".as_bytes()));
+
+        let loaded_section = &loaded_graph.graphs["test_graph".as_bytes()];
+        assert_eq!(loaded_section.node_indices.len(), 2);
+        assert_eq!(loaded_section.edge_indices.len(), 1);
+
+        Ok(())
+    }
 }

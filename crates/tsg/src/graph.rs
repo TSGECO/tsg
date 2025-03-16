@@ -918,7 +918,7 @@ impl TSGraph {
         Ok(())
     }
 
-    pub fn from_reader<R: BufRead>(reader: &mut R) -> Result<Self> {
+    pub fn from_reader<R: BufRead>(reader: R) -> Result<Self> {
         let mut tsgraph = TSGraph::new();
 
         // Create a default graph if needed for backward compatibility
@@ -990,8 +990,8 @@ impl TSGraph {
     /// Parse a TSG file and construct a TSGraph
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file = File::open(path)?;
-        let mut reader = BufReader::new(file);
-        Self::from_reader(&mut reader)
+        let reader = BufReader::new(file);
+        Self::from_reader(reader)
     }
 
     /// Write the TSGraph to writer
