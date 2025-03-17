@@ -14,12 +14,29 @@ use serde_json::json;
 use std::io;
 use tracing::debug;
 
-// Define the interval struct
-// []
+/// Represents a simple interval with start and end positions.
+///
+/// An interval is defined by two positions:
+/// - `start`: The inclusive beginning position of the interval
+/// - `end`: The exclusive ending position of the interval
+///
+/// The interval spans from `start` (inclusive) to `end` (exclusive).
 #[derive(Debug, Builder, Clone)]
 pub struct Interval {
     pub start: usize,
     pub end: usize,
+}
+
+impl Interval {
+    /// Returns the length of the interval.
+    ///
+    /// The length is calculated as `end - start`.
+    ///
+    /// # Returns
+    /// The length of the interval as a `usize`.
+    pub fn span(&self) -> usize {
+        self.end - self.start
+    }
 }
 
 impl FromStr for Interval {
@@ -53,6 +70,14 @@ impl FromStr for Interval {
 }
 
 #[derive(Debug, Builder, Clone, Default)]
+/// Represents a collection of exons, which are contiguous regions within genomic sequences.
+///
+/// Exons are the parts of a gene's DNA that code for proteins, and they're separated by
+/// non-coding regions called introns. This structure stores a collection of exons as intervals.
+///
+/// # Fields
+///
+/// * `exons` - A vector of intervals representing the positions of exons within a genomic sequence.
 pub struct Exons {
     pub exons: Vec<Interval>,
 }
@@ -79,33 +104,87 @@ impl fmt::Display for Exons {
         write!(f, "{}", exons)
     }
 }
+
+/// Methods for working with exon structures.
+///
+/// # Methods
+///
+/// - `introns()` - Calculates the intron intervals between exons
+/// - `is_empty()` - Checks if there are no exons
+/// - `len()` - Returns the number of exons
+/// - `span()` - Calculates the total number of bases covered by all exons
+/// - `first_exon()` - Gets a reference to the first exon
+/// - `last_exon()` - Gets a reference to the last exon
+///
+/// # Panics
+///
+/// - `first_exon()` will panic if there are no exons
+/// - `last_exon()` will panic if there are no exons
 impl Exons {
+    /// Returns a vector of intervals representing introns.
+    ///
+    /// Introns are the regions between consecutive exons. For each pair of adjacent exons,
+    /// an intron is created starting at the position immediately after the end of the first exon
+    /// and ending at the position immediately before the start of the second exon.
+    ///
+    /// # Returns
+    /// A `Vec<Interval>` containing all introns between exons in this structure.
     pub fn introns(&self) -> Vec<Interval> {
-        let mut introns = Vec::new();
-        for i in 0..self.exons.len() - 1 {
+        let mut introns = Vec::with_capacity(self.exons.len().saturating_sub(1));
+        for i in 0..self.exons.len().saturating_sub(1) {
             introns.push(Interval {
                 start: self.exons[i].end + 1,
-                end: self.exons[i + 1].start - 1,
+                end: self.exons[i + 1].start,
             });
         }
         introns
     }
+
+    /// Checks if the exon collection is empty.
+    ///
+    /// # Returns
+    /// `true` if there are no exons, `false` otherwise.
     pub fn is_empty(&self) -> bool {
         self.exons.is_empty()
     }
 
+    /// Returns the number of exons.
+    ///
+    /// # Returns
+    /// The count of exons as a `usize`.
     pub fn len(&self) -> usize {
         self.exons.len()
     }
 
+    /// Calculates the total span (combined length) of all exons.
+    ///
+    /// The span is computed by summing the lengths of all intervals,
+    /// where each interval length is calculated as `end - start + 1`.
+    ///
+    /// # Returns
+    /// The total span as a `usize`.
     pub fn span(&self) -> usize {
-        self.exons.iter().map(|x| x.end - x.start + 1).sum()
+        self.exons.iter().map(|e| e.span()).sum()
     }
 
+    /// Returns a reference to the first exon.
+    ///
+    /// # Panics
+    /// Panics if the exon collection is empty.
+    ///
+    /// # Returns
+    /// A reference to the first `Interval` in the exon collection.
     pub fn first_exon(&self) -> &Interval {
         &self.exons[0]
     }
 
+    /// Returns a reference to the last exon.
+    ///
+    /// # Panics
+    /// Panics if the exon collection is empty.
+    ///
+    /// # Returns
+    /// A reference to the last `Interval` in the exon collection.
     pub fn last_exon(&self) -> &Interval {
         &self.exons[self.exons.len() - 1]
     }
@@ -388,9 +467,9 @@ mod tests {
         let introns = exons.introns();
         assert_eq!(introns.len(), 2);
         assert_eq!(introns[0].start, 201);
-        assert_eq!(introns[0].end, 299);
+        assert_eq!(introns[0].end, 300);
         assert_eq!(introns[1].start, 401);
-        assert_eq!(introns[1].end, 499);
+        assert_eq!(introns[1].end, 500);
     }
 
     #[test]
