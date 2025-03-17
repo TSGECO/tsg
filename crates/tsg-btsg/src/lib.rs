@@ -378,35 +378,42 @@ impl BTSGCompressor {
     }
 
     fn create_compressed_block(&self, block_type: u8, data: String) -> Result<Block> {
-        // For graph blocks, we need to ensure proper formatting
-        if block_type == BLOCK_GRAPH {
-            // The data already contains the G line at the beginning, but we need to make sure
-            // it doesn't include it in the subsequent lines as well
+        // For graph blocks, we ensure proper formatting
+        let data_to_compress = if block_type == BLOCK_GRAPH {
             let mut lines = data.lines();
 
             // Extract the graph declaration line
-            if let Some(graph_line) = lines.next() {
-                // Rebuild the data without duplicating the graph line
-                let mut cleaned_data = String::from(graph_line);
+            match lines.next() {
+                Some(graph_line) if graph_line.starts_with("G\t") => {
+                    // Estimate capacity to avoid reallocations
+                    let mut cleaned_data = String::with_capacity(data.len());
+                    cleaned_data.push_str(graph_line);
 
-                // Add the rest of the lines, filtering out any additional G lines
-                for line in lines {
-                    if !line.starts_with("G\t") {
-                        cleaned_data.push('\n');
-                        cleaned_data.push_str(line);
+                    // Add the rest of the lines, filtering out any additional G lines
+                    for line in lines {
+                        if !line.starts_with("G\t") {
+                            cleaned_data.push('\n');
+                            cleaned_data.push_str(line);
+                        }
                     }
+                    cleaned_data
                 }
-
-                // Compress the cleaned data
-                let compressed = encode_all(cleaned_data.as_bytes(), self.compression_level)
-                    .map_err(|e| BTSGError::Compression(e.to_string()))?;
-
-                return Ok(Block::new(block_type, compressed));
+                Some(line) => {
+                    // If the first line isn't a graph line, something is wrong
+                    debug!("Expected graph line starting with G\\t, got: {}", line);
+                    data // Use original data as fallback
+                }
+                None => {
+                    // Empty data, just return as is
+                    data
+                }
             }
-        }
+        } else {
+            data
+        };
 
-        // For other block types, proceed as before
-        let compressed = encode_all(data.as_bytes(), self.compression_level)
+        // Compress the data
+        let compressed = encode_all(data_to_compress.as_bytes(), self.compression_level)
             .map_err(|e| BTSGError::Compression(e.to_string()))?;
 
         Ok(Block::new(block_type, compressed))
