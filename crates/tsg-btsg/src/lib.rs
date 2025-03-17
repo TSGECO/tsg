@@ -1,3 +1,5 @@
+//! BTSG (Binary Transcript Segment Graph) format for compressed TSG files
+
 use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use tracing::{debug, warn};
 
