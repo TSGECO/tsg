@@ -1,0 +1,29 @@
+[package]
+name = "btsg"
+version = { workspace = true }
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+keywords = ["bioinformatics", "biological-data"]
+license = { workspace = true }
+readme = "../../README.md"
+description = { workspace = true }
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+bstr = { workspace = true }
+rayon = { workspace = true }
+ahash = { workspace = true }
+bon = { workspace = true }
+bytes = { workspace = true }
+byteorder = { workspace = true }
+thiserror = { workspace = true }
+zstd = { workspace = true }
+
+tsg = { path = "../tsg" }
+
+tempfile = "3.19"

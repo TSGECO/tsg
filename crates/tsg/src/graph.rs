@@ -99,12 +99,12 @@ impl GraphSection {
         // Get source and sink node indices
         let source_idx = *self
             .node_indices
-            .get(source_id.as_bytes())
+            .get(source_id)
             .ok_or_else(|| anyhow!("Source node with ID {} not found", source_id))?;
 
         let sink_idx = *self
             .node_indices
-            .get(sink_id.as_bytes())
+            .get(sink_id)
             .ok_or_else(|| anyhow!("Sink node with ID {} not found", sink_id))?;
 
         // petgraph provide update_edge method to update edge data

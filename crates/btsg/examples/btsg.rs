@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         tsg_file.display(),
         btsg_file.display()
     );
-    let mut compressor = tsg::btsg::BTSGCompressor::new(3); // Use compression level 3
+    let mut compressor = btsg::BTSGCompressor::new(3); // Use compression level 3
     compressor.compress(tsg_file, btsg_file)?;
 
     // Get file sizes for comparison
@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         btsg_file.display(),
         output_tsg.display()
     );
-    let mut decompressor = tsg::btsg::BTSGDecompressor::new();
+    let mut decompressor = btsg::BTSGDecompressor::new();
     decompressor.decompress(btsg_file, output_tsg)?;
 
     println!("Decompression completed successfully");

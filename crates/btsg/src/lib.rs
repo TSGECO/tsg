@@ -5,11 +5,11 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, Cursor, Read, Write};
 use std::path::Path;
 
-use crate::graph::TSGraph;
 use anyhow::{Context, Result, anyhow};
 use bstr::{BStr, BString, ByteSlice};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
+use tsg::graph::TSGraph;
 use zstd::{decode_all, encode_all};
 
 // Block type identifiers
@@ -610,9 +610,23 @@ impl BTSGDecompressor {
     }
 }
 
-impl TSGraph {
+pub trait BTSG {
+    fn from_btsg<P: AsRef<Path>>(path: P) -> Result<Self>
+    where
+        Self: Sized;
+
+    fn to_btsg<P: AsRef<Path>>(&self, path: P, compression_level: i32) -> Result<()>
+    where
+        Self: Sized;
+
+    fn from_btsg_direct<P: AsRef<Path>>(path: P) -> Result<Self>
+    where
+        Self: Sized;
+}
+
+impl BTSG for TSGraph {
     /// Load a TSGraph from a BTSG (Binary Transcript Segment Graph) file
-    pub fn from_btsg<P: AsRef<Path>>(path: P) -> Result<Self> {
+    fn from_btsg<P: AsRef<Path>>(path: P) -> Result<Self> {
         debug!(
             "Loading TSGraph from BTSG file: {}",
             path.as_ref().display()
@@ -632,7 +646,7 @@ impl TSGraph {
     }
 
     /// Load a TSGraph directly from a BTSG file using a more direct approach
-    pub fn from_btsg_direct<P: AsRef<Path>>(path: P) -> Result<Self> {
+    fn from_btsg_direct<P: AsRef<Path>>(path: P) -> Result<Self> {
         let mut input_file = File::open(path.as_ref()).context(format!(
             "Failed to open BTSG file: {}",
             path.as_ref().display()
@@ -742,9 +756,7 @@ impl TSGraph {
     }
 
     /// Save the TSGraph to a BTSG file
-    pub fn to_btsg<P: AsRef<Path>>(&self, path: P, compression_level: i32) -> Result<()> {
-        use crate::btsg::BTSGCompressor;
-
+    fn to_btsg<P: AsRef<Path>>(&self, path: P, compression_level: i32) -> Result<()> {
         // Create a temporary TSG file
         let temp_dir = tempfile::tempdir().context("Failed to create temporary directory")?;
         let temp_tsg_path = temp_dir.path().join("temp.tsg");
@@ -769,7 +781,7 @@ impl TSGraph {
 mod tests {
     use std::str::FromStr;
 
-    use crate::graph::{EdgeData, GraphSection, Header, NodeData, StructuralVariant};
+    use tsg::graph::{EdgeData, GraphSection, Header, NodeData, StructuralVariant};
 
     use super::*;
     use tempfile::NamedTempFile;
