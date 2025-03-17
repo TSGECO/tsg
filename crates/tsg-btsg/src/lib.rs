@@ -66,14 +66,12 @@ impl StringDictionary {
         if let Some(&id) = self.str_to_id.get(s.as_bytes()) {
             return id;
         }
-
         let id = self.next_id;
         self.next_id += 1;
 
         let s_owned = s.to_owned();
         self.str_to_id.insert(s_owned.clone(), id);
         self.id_to_str.insert(id, s_owned);
-
         id
     }
 
@@ -95,7 +93,6 @@ impl StringDictionary {
             writer.write_u32::<LittleEndian>(string.len() as u32)?;
             writer.write_all(string)?;
         }
-
         Ok(())
     }
 
@@ -247,7 +244,7 @@ impl BTSGCompressor {
                 }
                 _ => {
                     // Unknown record type, skip
-                    eprintln!("Warning: Unknown record type: {}", fields[0]);
+                    warn!("Unknown record type: {}", fields[0]);
                 }
             }
         }
