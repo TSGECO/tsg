@@ -382,9 +382,10 @@ impl fmt::Display for NodeData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "N\t{}\t{}:{}\t{}\t{}",
+            "N\t{}\t{}:{}:{}\t{}\t{}",
             self.id,
             self.reference_id,
+            self.strand,
             self.exons,
             self.reads
                 .iter()
