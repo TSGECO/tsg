@@ -76,11 +76,11 @@ impl StringDictionary {
         id
     }
 
-    fn get_str(&self, id: u32) -> Option<&BStr> {
+    fn str(&self, id: u32) -> Option<&BStr> {
         self.id_to_str.get(&id).map(|s| s.as_bstr())
     }
 
-    fn get_id(&self, s: &BStr) -> Option<u32> {
+    fn id(&self, s: &BStr) -> Option<u32> {
         self.str_to_id.get(s.as_bytes()).copied()
     }
 
@@ -802,13 +802,13 @@ mod tests {
         assert_eq!(id3, 0); // Same as id1
 
         // Lookup by ID
-        assert_eq!(dict.get_str(id1).unwrap(), "hello".as_bytes().as_bstr());
-        assert_eq!(dict.get_str(id2).unwrap(), "world".as_bytes().as_bstr());
+        assert_eq!(dict.str(id1).unwrap(), "hello".as_bytes().as_bstr());
+        assert_eq!(dict.str(id2).unwrap(), "world".as_bytes().as_bstr());
 
         // Lookup by string
-        assert_eq!(dict.get_id("hello".as_bytes().as_bstr()).unwrap(), id1);
-        assert_eq!(dict.get_id("world".as_bytes().as_bstr()).unwrap(), id2);
-        assert_eq!(dict.get_id("unknown".as_bytes().as_bstr()), None);
+        assert_eq!(dict.id("hello".as_bytes().as_bstr()).unwrap(), id1);
+        assert_eq!(dict.id("world".as_bytes().as_bstr()).unwrap(), id2);
+        assert_eq!(dict.id("unknown".as_bytes().as_bstr()), None);
 
         // Test serialization and deserialization
         let mut buffer = Vec::new();
@@ -818,22 +818,10 @@ mod tests {
         let loaded_dict = StringDictionary::read(&mut cursor).unwrap();
 
         // Verify loaded dictionary
-        assert_eq!(
-            loaded_dict.get_str(id1).unwrap(),
-            "hello".as_bytes().as_bstr()
-        );
-        assert_eq!(
-            loaded_dict.get_str(id2).unwrap(),
-            "world".as_bytes().as_bstr()
-        );
-        assert_eq!(
-            loaded_dict.get_id("hello".as_bytes().as_bstr()).unwrap(),
-            id1
-        );
-        assert_eq!(
-            loaded_dict.get_id("world".as_bytes().as_bstr()).unwrap(),
-            id2
-        );
+        assert_eq!(loaded_dict.str(id1).unwrap(), "hello".as_bytes().as_bstr());
+        assert_eq!(loaded_dict.str(id2).unwrap(), "world".as_bytes().as_bstr());
+        assert_eq!(loaded_dict.id("hello".as_bytes().as_bstr()).unwrap(), id1);
+        assert_eq!(loaded_dict.id("world".as_bytes().as_bstr()).unwrap(), id2);
     }
 
     #[test]

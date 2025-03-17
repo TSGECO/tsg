@@ -1,26 +1,26 @@
-# Command-Line Help for `tsg`
+# Command-Line Help for `tsg-cli`
 
-This document contains the help content for the `tsg` command-line program.
+This document contains the help content for the `tsg-cli` command-line program.
 
 **Command Overview:**
 
-* [`tsg`↴](#tsg)
-* [`tsg parse`↴](#tsg-parse)
-* [`tsg fa`↴](#tsg-fa)
-* [`tsg gtf`↴](#tsg-gtf)
-* [`tsg vcf`↴](#tsg-vcf)
-* [`tsg dot`↴](#tsg-dot)
-* [`tsg json`↴](#tsg-json)
-* [`tsg traverse`↴](#tsg-traverse)
-* [`tsg merge`↴](#tsg-merge)
-* [`tsg split`↴](#tsg-split)
-* [`tsg query`↴](#tsg-query)
+* [`tsg-cli`↴](#tsg-cli)
+* [`tsg-cli parse`↴](#tsg-cli-parse)
+* [`tsg-cli fa`↴](#tsg-cli-fa)
+* [`tsg-cli gtf`↴](#tsg-cli-gtf)
+* [`tsg-cli vcf`↴](#tsg-cli-vcf)
+* [`tsg-cli dot`↴](#tsg-cli-dot)
+* [`tsg-cli json`↴](#tsg-cli-json)
+* [`tsg-cli traverse`↴](#tsg-cli-traverse)
+* [`tsg-cli merge`↴](#tsg-cli-merge)
+* [`tsg-cli split`↴](#tsg-cli-split)
+* [`tsg-cli query`↴](#tsg-cli-query)
 
-## `tsg`
+## `tsg-cli`
 
 Transcript Segment Graph (TSG) CLI tool
 
-**Usage:** `tsg [OPTIONS] [COMMAND]`
+**Usage:** `tsg-cli [OPTIONS] [COMMAND]`
 
 ###### **Subcommands:**
 
@@ -46,11 +46,11 @@ Transcript Segment Graph (TSG) CLI tool
 
 
 
-## `tsg parse`
+## `tsg-cli parse`
 
 Parse a TSG file and validate its structure
 
-**Usage:** `tsg parse <INPUT>`
+**Usage:** `tsg-cli parse <INPUT>`
 
 ###### **Arguments:**
 
@@ -58,11 +58,11 @@ Parse a TSG file and validate its structure
 
 
 
-## `tsg fa`
+## `tsg-cli fa`
 
 Convert a TSG file to FASTA format
 
-**Usage:** `tsg fa [OPTIONS] <INPUT>`
+**Usage:** `tsg-cli fa [OPTIONS] <INPUT>`
 
 ###### **Arguments:**
 
@@ -74,11 +74,11 @@ Convert a TSG file to FASTA format
 
 
 
-## `tsg gtf`
+## `tsg-cli gtf`
 
 Convert a TSG file to GTF format
 
-**Usage:** `tsg gtf [OPTIONS] <INPUT>`
+**Usage:** `tsg-cli gtf [OPTIONS] <INPUT>`
 
 ###### **Arguments:**
 
@@ -90,11 +90,11 @@ Convert a TSG file to GTF format
 
 
 
-## `tsg vcf`
+## `tsg-cli vcf`
 
 Convert a TSG file to VCF format
 
-**Usage:** `tsg vcf [OPTIONS] <INPUT>`
+**Usage:** `tsg-cli vcf [OPTIONS] <INPUT>`
 
 ###### **Arguments:**
 
@@ -106,11 +106,11 @@ Convert a TSG file to VCF format
 
 
 
-## `tsg dot`
+## `tsg-cli dot`
 
 Convert a TSG file to DOT format for graph visualization
 
-**Usage:** `tsg dot [OPTIONS] <INPUT>`
+**Usage:** `tsg-cli dot [OPTIONS] <INPUT>`
 
 ###### **Arguments:**
 
@@ -122,11 +122,11 @@ Convert a TSG file to DOT format for graph visualization
 
 
 
-## `tsg json`
+## `tsg-cli json`
 
 Convert a TSG file to JSON format
 
-**Usage:** `tsg json [OPTIONS] <INPUT>`
+**Usage:** `tsg-cli json [OPTIONS] <INPUT>`
 
 ###### **Arguments:**
 
@@ -141,11 +141,11 @@ Convert a TSG file to JSON format
 
 
 
-## `tsg traverse`
+## `tsg-cli traverse`
 
 Find and enumerate all valid paths through the graph
 
-**Usage:** `tsg traverse [OPTIONS] <INPUT>`
+**Usage:** `tsg-cli traverse [OPTIONS] <INPUT>`
 
 ###### **Arguments:**
 
@@ -160,11 +160,11 @@ Find and enumerate all valid paths through the graph
 
 
 
-## `tsg merge`
+## `tsg-cli merge`
 
 Merge multiple TSG files into a single TSG file
 
-**Usage:** `tsg merge [OPTIONS] <INPUTS>...`
+**Usage:** `tsg-cli merge [OPTIONS] <INPUTS>...`
 
 ###### **Arguments:**
 
@@ -176,11 +176,11 @@ Merge multiple TSG files into a single TSG file
 
 
 
-## `tsg split`
+## `tsg-cli split`
 
 Split a TSG file into multiple TSG files
 
-**Usage:** `tsg split [OPTIONS] <INPUT>`
+**Usage:** `tsg-cli split [OPTIONS] <INPUT>`
 
 ###### **Arguments:**
 
@@ -192,11 +192,11 @@ Split a TSG file into multiple TSG files
 
 
 
-## `tsg query`
+## `tsg-cli query`
 
 Query specific graphs from a TSG file
 
-**Usage:** `tsg query [OPTIONS] --ids <IDS> <INPUT>`
+**Usage:** `tsg-cli query [OPTIONS] --ids <IDS> <INPUT>`
 
 ###### **Arguments:**
 
