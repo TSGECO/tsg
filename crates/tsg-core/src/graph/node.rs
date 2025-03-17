@@ -481,8 +481,8 @@ mod tests {
     #[test]
     fn test_exons_span() {
         let exons = Exons::from_str("100-200,300-400,500-600").unwrap();
-        // (200-100+1) + (400-300+1) + (600-500+1) = 101 + 101 + 101 = 303
-        assert_eq!(exons.span(), 303);
+        // (200-100) + (400-300) + (600-500) = 100 + 100 + 100 = 300
+        assert_eq!(exons.span(), 300);
     }
 
     #[test]
