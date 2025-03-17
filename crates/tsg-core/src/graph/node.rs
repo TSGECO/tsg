@@ -322,7 +322,6 @@ impl FromStr for NodeData {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // N  <rid>:<id>  <chrom>:<strand>:<exons>  <reads>  [<seq>]
-
         let fields: Vec<&str> = s.split_whitespace().collect();
         if fields.len() < 4 {
             return Err(io::Error::new(
@@ -374,9 +373,14 @@ impl FromStr for NodeData {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use ahash::HashMapExt;
 
-    use super::*;
+    #[test]
+    fn test_node_from_str() {
+        let node1 = NodeData::from_str("N\tn1\tchr1:+:1000-2000\tread1:SO").unwrap();
+        assert_eq!(node1.id, "n1");
+    }
 
     #[test]
     fn test_exons_introns() {

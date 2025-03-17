@@ -914,6 +914,7 @@ mod tests {
         // Add nodes to the graph section
         let node1 = NodeData::from_str("N\tn1\tchr1:+:1000-2000\tread1:SO")?;
         let node2 = NodeData::from_str("N\tn2\tchr1:+:3000-4000\tread1:IN")?;
+
         graph_section.add_node(node1)?;
         graph_section.add_node(node2)?;
 
