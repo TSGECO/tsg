@@ -273,8 +273,9 @@ impl BTSGCompressor {
         let file = File::open(input_path)?;
         let reader = BufReader::new(file);
 
-        let mut read_ids = HashSet::new();
-        let mut chromosomes = HashSet::new();
+        // Pre-allocate collections with reasonable capacities
+        let mut read_ids = HashSet::with_capacity(100);
+        let mut chromosomes = HashSet::with_capacity(24); // Most genomes have fewer than 24 chromosomes
 
         for line in reader.lines() {
             let line = line?;
@@ -282,61 +283,66 @@ impl BTSGCompressor {
                 continue;
             }
 
-            let fields: Vec<&str> = line.split('\t').collect();
-            if fields.is_empty() {
-                continue;
-            }
+            // Using split_once is more efficient than creating a Vec for fields
+            let (record_type, rest) = match line.split_once('\t') {
+                Some(parts) => parts,
+                None => continue, // Skip malformed lines
+            };
 
-            match fields[0] {
+            match record_type {
                 "G" => {
                     // Add graph ID to dictionary
-                    if fields.len() >= 2 {
-                        self.graph_dict.add(fields[1].as_bytes().as_bstr());
+                    if let Some((graph_id, _)) = rest.split_once('\t') {
+                        self.graph_dict.add(graph_id.as_bytes().as_bstr());
                     }
                 }
                 "N" => {
-                    // N	n1	chr1:1000-1200,1500-1700	read1:SO,read2:SO	ACGTACGT
-
-                    // Add node ID and parse genomic location
-                    if fields.len() >= 4 {
-                        self.node_dict.add(fields[1].as_bytes().as_bstr());
+                    // Format: N node_id genomic_loc read_info [sequence]
+                    let fields: Vec<&str> = rest.split('\t').collect();
+                    if fields.len() >= 3 {
+                        // At least node_id, genomic_loc, read_info
+                        // Add node ID
+                        self.node_dict.add(fields[0].as_bytes().as_bstr());
 
                         // Extract chromosome from genomic location
-                        let genomic_loc = fields[2];
+                        let genomic_loc = fields[1];
                         if let Some(chr_end) = genomic_loc.find(':') {
                             let chromosome = &genomic_loc[0..chr_end];
                             chromosomes.insert(chromosome.to_string());
                         }
 
-                        // Extract read IDs
-                        let reads = fields[3];
+                        // Extract read IDs more efficiently
+                        let reads = fields[2];
                         for read_entry in reads.split(',') {
-                            if let Some(colon_pos) = read_entry.find(':') {
-                                let read_id = &read_entry[0..colon_pos];
+                            if let Some((read_id, _)) = read_entry.split_once(':') {
                                 read_ids.insert(read_id.to_string());
                             }
                         }
                     }
                 }
                 "E" => {
-                    // Add edge ID and node IDs
-                    if fields.len() >= 4 {
-                        self.edge_dict.add(fields[1].as_bytes().as_bstr());
+                    // Format: E edge_id source_node target_node sv_info
+                    let fields: Vec<&str> = rest.split('\t').collect();
+                    if fields.len() >= 3 {
+                        // At least edge_id, source_node, target_node
+                        self.edge_dict.add(fields[0].as_bytes().as_bstr());
+                        self.node_dict.add(fields[1].as_bytes().as_bstr());
                         self.node_dict.add(fields[2].as_bytes().as_bstr());
-                        self.node_dict.add(fields[3].as_bytes().as_bstr());
                     }
                 }
                 "A" => {
-                    // Add attribute tag
-                    if fields.len() >= 4 {
-                        self.attribute_dict.add(fields[3].as_bytes().as_bstr());
+                    // Format: A graph_or_node_or_edge attribute_target attribute_name attribute_value
+                    let fields: Vec<&str> = rest.split('\t').collect();
+                    if fields.len() >= 3 {
+                        // At least target, target_id, attribute_name
+                        self.attribute_dict.add(fields[2].as_bytes().as_bstr());
                     }
                 }
                 _ => {}
             }
         }
 
-        // Add all read IDs and chromosomes to dictionaries
+        // Add all read IDs and chromosomes to dictionaries in batch
         for read_id in read_ids {
             self.read_dict.add(read_id.as_bytes().as_bstr());
         }
@@ -568,7 +574,8 @@ impl BTSGDecompressor {
             );
         }
 
-        let mut output = String::new();
+        // Pre-allocate with a reasonable capacity
+        let mut output = String::with_capacity(10_000); // 10KB initial capacity
 
         // Read blocks until EOF
         while let Ok(block) = Block::read(&mut input_file) {
@@ -577,10 +584,13 @@ impl BTSGDecompressor {
                     // Read dictionaries
                     self.read_dictionaries(&block.data)?;
                 }
-                BLOCK_HEADER => {
-                    // Write header data to output
+                BLOCK_HEADER | BLOCK_NODE | BLOCK_EDGE | BLOCK_ATTRIBUTE | BLOCK_CHAIN
+                | BLOCK_PATH | BLOCK_LINK => {
+                    // These block types are handled similarly - decompress and append
                     let decompressed = decode_all(&block.data[..])
                         .map_err(|e| BTSGError::Compression(e.to_string()))?;
+
+                    // Convert to string and append with newline
                     output.push_str(&String::from_utf8_lossy(&decompressed));
                     output.push('\n');
                 }
@@ -589,20 +599,38 @@ impl BTSGDecompressor {
                     let decompressed = decode_all(&block.data[..])
                         .map_err(|e| BTSGError::Compression(e.to_string()))?;
 
-                    // Convert to string and parse line by line
-                    let content = String::from_utf8_lossy(&decompressed);
-                    let mut lines = content.lines();
+                    // Converting directly from UTF-8 is more efficient than String::from_utf8_lossy
+                    // for valid UTF-8 data (which TSG should be)
+                    match std::str::from_utf8(&decompressed) {
+                        Ok(content) => {
+                            let mut lines = content.lines();
 
-                    // The first line should be the graph declaration line (G)
-                    if let Some(first_line) = lines.next() {
-                        // Write the graph declaration line
-                        output.push_str(first_line);
-                        output.push('\n');
+                            // The first line should be the graph declaration line (G)
+                            if let Some(first_line) = lines.next() {
+                                output.push_str(first_line);
+                                output.push('\n');
 
-                        // Write the rest of the lines
-                        for line in lines {
-                            output.push_str(line);
-                            output.push('\n');
+                                // Write the rest of the lines
+                                for line in lines {
+                                    output.push_str(line);
+                                    output.push('\n');
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            // Fallback to the slower but more robust method
+                            let content = String::from_utf8_lossy(&decompressed);
+                            let mut lines = content.lines();
+
+                            if let Some(first_line) = lines.next() {
+                                output.push_str(first_line);
+                                output.push('\n');
+
+                                for line in lines {
+                                    output.push_str(line);
+                                    output.push('\n');
+                                }
+                            }
                         }
                     }
                 }
@@ -610,6 +638,11 @@ impl BTSGDecompressor {
                     return Err(BTSGError::InvalidBlockType(block.block_type).into());
                 }
             }
+        }
+
+        // Shrink the output string to free unused memory
+        if output.capacity() > output.len() * 2 {
+            output.shrink_to_fit();
         }
 
         Ok(output)
@@ -673,9 +706,16 @@ impl BTSG for TSGraph {
             .read_u32::<LittleEndian>()
             .context("Failed to read BTSG version")?;
 
+        if version != BTSG_VERSION {
+            return Err(anyhow!("Unsupported BTSG version: {}", version));
+        }
+
         debug!("Reading BTSG file version {}", version);
-        // Create a buffer for the decompressed TSG content
-        let mut tsg_content = Vec::new();
+        // Create a buffer for the decompressed TSG content with a reasonable initial capacity
+        let mut tsg_content = Vec::with_capacity(10_000); // 10KB initial capacity
+
+        // Dictionary handler (we need to maintain this state)
+        let mut dictionary_handler = BTSGDecompressor::new();
 
         // Process each block
         loop {
@@ -687,31 +727,54 @@ impl BTSG for TSGraph {
             };
 
             let block_length = match input_file.read_u32::<LittleEndian>() {
-                Ok(len) => len,
+                Ok(len) => len as usize,
+                Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break, // Unexpected EOF, but we'll try to parse what we have
                 Err(e) => return Err(anyhow!("Error reading block length: {}", e)),
             };
 
+            // Check for unreasonable block size to prevent OOM attacks
+            if block_length > 100_000_000 {
+                // 100 MB seems like a reasonable limit
+                return Err(anyhow!("Block size too large: {} bytes", block_length));
+            }
+
             // Read block data
-            let mut block_data = vec![0u8; block_length as usize];
-            input_file
-                .read_exact(&mut block_data)
-                .context("Failed to read block data")?;
+            let mut block_data = vec![0u8; block_length];
+            match input_file.read_exact(&mut block_data) {
+                Ok(_) => {}
+                Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {
+                    return Err(anyhow!("Unexpected EOF while reading block data"));
+                }
+                Err(e) => return Err(anyhow!("Error reading block data: {}", e)),
+            };
 
             // Process block based on type
             match block_type {
                 BLOCK_DICTIONARY => {
                     debug!("Processing dictionary block");
-                    // Dictionary processing not needed for decompression to TSG
+                    if let Err(e) = dictionary_handler.read_dictionaries(&block_data) {
+                        warn!("Error processing dictionary block: {}", e);
+                        // Continue processing - dictionaries are optional for this direct method
+                    }
                 }
-                BLOCK_HEADER => {
-                    debug!("Processing header block");
-                    // Decompress header data
-                    let decompressed = decode_all(&block_data[..])
-                        .map_err(|e| anyhow!("Failed to decompress header block: {}", e))?;
-
-                    // Add to TSG content
-                    tsg_content.extend_from_slice(&decompressed);
-                    tsg_content.push(b'\n');
+                BLOCK_HEADER | BLOCK_NODE | BLOCK_EDGE | BLOCK_ATTRIBUTE | BLOCK_CHAIN
+                | BLOCK_PATH | BLOCK_LINK => {
+                    debug!("Processing block type {}", block_type);
+                    // Decompress block data
+                    match decode_all(&block_data[..]) {
+                        Ok(decompressed) => {
+                            // Add to TSG content
+                            tsg_content.extend_from_slice(&decompressed);
+                            tsg_content.push(b'\n');
+                        }
+                        Err(e) => {
+                            return Err(anyhow!(
+                                "Failed to decompress block type {}: {}",
+                                block_type,
+                                e
+                            ));
+                        }
+                    }
                 }
                 BLOCK_GRAPH => {
                     debug!("Processing graph block");
@@ -720,37 +783,39 @@ impl BTSG for TSGraph {
                     let decompressed = decode_all(&block_data[..])
                         .map_err(|e| anyhow!("Failed to decompress graph block: {}", e))?;
 
-                    // Convert to string and parse line by line to handle the graph line correctly
-                    let content = String::from_utf8_lossy(&decompressed);
-                    let mut lines = content.lines();
+                    // Process the graph data line by line
+                    match std::str::from_utf8(&decompressed) {
+                        Ok(content) => {
+                            let mut lines = content.lines();
+                            if let Some(first_line) = lines.next() {
+                                tsg_content.extend_from_slice(first_line.as_bytes());
+                                tsg_content.push(b'\n');
 
-                    // The first line should be the graph declaration line (G)
-                    if let Some(first_line) = lines.next() {
-                        // Add the graph declaration line
-                        tsg_content.extend_from_slice(first_line.as_bytes());
-                        tsg_content.push(b'\n');
+                                for line in lines {
+                                    tsg_content.extend_from_slice(line.as_bytes());
+                                    tsg_content.push(b'\n');
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            // Fallback to slower method for invalid UTF-8
+                            let content = String::from_utf8_lossy(&decompressed);
+                            let mut lines = content.lines();
+                            if let Some(first_line) = lines.next() {
+                                tsg_content.extend_from_slice(first_line.as_bytes());
+                                tsg_content.push(b'\n');
 
-                        // Add the rest of the lines
-                        for line in lines {
-                            tsg_content.extend_from_slice(line.as_bytes());
-                            tsg_content.push(b'\n');
+                                for line in lines {
+                                    tsg_content.extend_from_slice(line.as_bytes());
+                                    tsg_content.push(b'\n');
+                                }
+                            }
                         }
                     }
                 }
-                BLOCK_NODE | BLOCK_EDGE | BLOCK_ATTRIBUTE | BLOCK_CHAIN | BLOCK_PATH
-                | BLOCK_LINK => {
-                    debug!("Processing block type {}", block_type);
-                    // Decompress block data
-                    let decompressed = decode_all(&block_data[..]).map_err(|e| {
-                        anyhow!("Failed to decompress block type {}: {}", block_type, e)
-                    })?;
-
-                    // Add to TSG content
-                    tsg_content.extend_from_slice(&decompressed);
-                    tsg_content.push(b'\n');
-                }
                 _ => {
                     warn!("Unknown block type: {}", block_type);
+                    // Skip unknown blocks instead of failing
                 }
             }
         }
