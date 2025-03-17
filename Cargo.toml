@@ -34,7 +34,7 @@ byteorder = "1"
 zstd = "0.13"
 
 tsg-core = { version = "0.1.2", path = "crates/tsg-core" }
-btsg = { version = "0.1.2", path = "crates/btsg" }
+tsg-btsg = { version = "0.1.2", path = "crates/tsg-btsg" }
 
 
 [profile.opt-dev]

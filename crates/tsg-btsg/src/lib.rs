@@ -778,202 +778,202 @@ impl BTSG for TSGraph {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::str::FromStr;
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
 
-//     use tsg_core::graph::{EdgeData, GraphSection, Header, NodeData, StructuralVariant};
+    use tsg_core::graph::{EdgeData, GraphSection, Header, NodeData, StructuralVariant};
 
-//     use super::*;
-//     use tempfile::NamedTempFile;
+    use super::*;
+    use tempfile::NamedTempFile;
 
-//     #[test]
-//     fn test_string_dictionary() {
-//         let mut dict = StringDictionary::new();
+    #[test]
+    fn test_string_dictionary() {
+        let mut dict = StringDictionary::new();
 
-//         // Add some strings
-//         let id1 = dict.add("hello".as_bytes().as_bstr());
-//         let id2 = dict.add("world".as_bytes().as_bstr());
-//         let id3 = dict.add("hello".as_bytes().as_bstr()); // Should return existing ID
+        // Add some strings
+        let id1 = dict.add("hello".as_bytes().as_bstr());
+        let id2 = dict.add("world".as_bytes().as_bstr());
+        let id3 = dict.add("hello".as_bytes().as_bstr()); // Should return existing ID
 
-//         // Check IDs
-//         assert_eq!(id1, 0);
-//         assert_eq!(id2, 1);
-//         assert_eq!(id3, 0); // Same as id1
+        // Check IDs
+        assert_eq!(id1, 0);
+        assert_eq!(id2, 1);
+        assert_eq!(id3, 0); // Same as id1
 
-//         // Lookup by ID
-//         assert_eq!(dict.get_str(id1).unwrap(), "hello".as_bytes().as_bstr());
-//         assert_eq!(dict.get_str(id2).unwrap(), "world".as_bytes().as_bstr());
+        // Lookup by ID
+        assert_eq!(dict.get_str(id1).unwrap(), "hello".as_bytes().as_bstr());
+        assert_eq!(dict.get_str(id2).unwrap(), "world".as_bytes().as_bstr());
 
-//         // Lookup by string
-//         assert_eq!(dict.get_id("hello".as_bytes().as_bstr()).unwrap(), id1);
-//         assert_eq!(dict.get_id("world".as_bytes().as_bstr()).unwrap(), id2);
-//         assert_eq!(dict.get_id("unknown".as_bytes().as_bstr()), None);
+        // Lookup by string
+        assert_eq!(dict.get_id("hello".as_bytes().as_bstr()).unwrap(), id1);
+        assert_eq!(dict.get_id("world".as_bytes().as_bstr()).unwrap(), id2);
+        assert_eq!(dict.get_id("unknown".as_bytes().as_bstr()), None);
 
-//         // Test serialization and deserialization
-//         let mut buffer = Vec::new();
-//         dict.write(&mut buffer).unwrap();
+        // Test serialization and deserialization
+        let mut buffer = Vec::new();
+        dict.write(&mut buffer).unwrap();
 
-//         let mut cursor = io::Cursor::new(buffer);
-//         let loaded_dict = StringDictionary::read(&mut cursor).unwrap();
+        let mut cursor = io::Cursor::new(buffer);
+        let loaded_dict = StringDictionary::read(&mut cursor).unwrap();
 
-//         // Verify loaded dictionary
-//         assert_eq!(
-//             loaded_dict.get_str(id1).unwrap(),
-//             "hello".as_bytes().as_bstr()
-//         );
-//         assert_eq!(
-//             loaded_dict.get_str(id2).unwrap(),
-//             "world".as_bytes().as_bstr()
-//         );
-//         assert_eq!(
-//             loaded_dict.get_id("hello".as_bytes().as_bstr()).unwrap(),
-//             id1
-//         );
-//         assert_eq!(
-//             loaded_dict.get_id("world".as_bytes().as_bstr()).unwrap(),
-//             id2
-//         );
-//     }
+        // Verify loaded dictionary
+        assert_eq!(
+            loaded_dict.get_str(id1).unwrap(),
+            "hello".as_bytes().as_bstr()
+        );
+        assert_eq!(
+            loaded_dict.get_str(id2).unwrap(),
+            "world".as_bytes().as_bstr()
+        );
+        assert_eq!(
+            loaded_dict.get_id("hello".as_bytes().as_bstr()).unwrap(),
+            id1
+        );
+        assert_eq!(
+            loaded_dict.get_id("world".as_bytes().as_bstr()).unwrap(),
+            id2
+        );
+    }
 
-//     #[test]
-//     fn test_block_serialization() {
-//         let data = b"test data".to_vec();
-//         let block = Block::new(BLOCK_HEADER, data.clone());
+    #[test]
+    fn test_block_serialization() {
+        let data = b"test data".to_vec();
+        let block = Block::new(BLOCK_HEADER, data.clone());
 
-//         let mut buffer = Vec::new();
-//         block.write(&mut buffer).unwrap();
+        let mut buffer = Vec::new();
+        block.write(&mut buffer).unwrap();
 
-//         let mut cursor = io::Cursor::new(buffer);
-//         let loaded_block = Block::read(&mut cursor).unwrap();
+        let mut cursor = io::Cursor::new(buffer);
+        let loaded_block = Block::read(&mut cursor).unwrap();
 
-//         assert_eq!(loaded_block.block_type, BLOCK_HEADER);
-//         assert_eq!(loaded_block.data, data);
-//     }
+        assert_eq!(loaded_block.block_type, BLOCK_HEADER);
+        assert_eq!(loaded_block.data, data);
+    }
 
-//     #[test]
-//     fn test_compression_round_trip() -> Result<()> {
-//         // Create a small TSG file
-//         let mut temp_tsg = NamedTempFile::new()?;
-//         temp_tsg.write_all(b"H\tTSG\t1.0\nH\treference\tGRCh38\nG\tg1\nN\tn1\tchr1:+:1000-2000\tread1:SO\nE\te1\tn1\tn2\tchr1,chr1,2000,3000,splice\n")?;
+    #[test]
+    fn test_compression_round_trip() -> Result<()> {
+        // Create a small TSG file
+        let mut temp_tsg = NamedTempFile::new()?;
+        temp_tsg.write_all(b"H\tTSG\t1.0\nH\treference\tGRCh38\nG\tg1\nN\tn1\tchr1:+:1000-2000\tread1:SO\nE\te1\tn1\tn2\tchr1,chr1,2000,3000,splice\n")?;
 
-//         // Create a temp file for the compressed output
-//         let temp_btsg = NamedTempFile::new()?;
-//         let temp_btsg_path = temp_btsg.path().to_path_buf();
+        // Create a temp file for the compressed output
+        let temp_btsg = NamedTempFile::new()?;
+        let temp_btsg_path = temp_btsg.path().to_path_buf();
 
-//         // Create a temp file for the decompressed output
-//         let temp_out = NamedTempFile::new()?;
-//         let temp_out_path = temp_out.path().to_path_buf();
+        // Create a temp file for the decompressed output
+        let temp_out = NamedTempFile::new()?;
+        let temp_out_path = temp_out.path().to_path_buf();
 
-//         // Compress
-//         let mut compressor = BTSGCompressor::new(3); // Medium compression
-//         compressor.compress(temp_tsg.path(), &temp_btsg_path)?;
+        // Compress
+        let mut compressor = BTSGCompressor::new(3); // Medium compression
+        compressor.compress(temp_tsg.path(), &temp_btsg_path)?;
 
-//         // Decompress
-//         let mut decompressor = BTSGDecompressor::new();
-//         decompressor.decompress(&temp_btsg_path, &temp_out_path)?;
+        // Decompress
+        let mut decompressor = BTSGDecompressor::new();
+        decompressor.decompress(&temp_btsg_path, &temp_out_path)?;
 
-//         // Compare original and round-tripped content
-//         let original = std::fs::read_to_string(temp_tsg.path())?;
-//         let roundtrip = std::fs::read_to_string(&temp_out_path)?;
+        // Compare original and round-tripped content
+        let original = std::fs::read_to_string(temp_tsg.path())?;
+        let roundtrip = std::fs::read_to_string(&temp_out_path)?;
 
-//         // Normalize line endings and trim
-//         let original_lines: Vec<&str> = original.lines().collect();
-//         let roundtrip_lines: Vec<&str> = roundtrip.lines().collect();
+        // Normalize line endings and trim
+        let original_lines: Vec<&str> = original.lines().collect();
+        let roundtrip_lines: Vec<&str> = roundtrip.lines().collect();
 
-//         assert_eq!(original_lines, roundtrip_lines);
+        assert_eq!(original_lines, roundtrip_lines);
 
-//         Ok(())
-//     }
+        Ok(())
+    }
 
-//     #[test]
-//     fn test_from_btsg() -> Result<()> {
-//         // Create a small TSG file
-//         let mut temp_tsg = NamedTempFile::new()?;
-//         temp_tsg.write_all(b"H\tTSG\t1.0\nH\treference\tGRCh38\nG\tg1\nN\tn1\tchr1:+:1000-2000\tread1:SO\nE\te1\tn1\tn2\tchr1,chr1,2000,3000,splice\n")?;
+    #[test]
+    fn test_from_btsg() -> Result<()> {
+        // Create a small TSG file
+        let mut temp_tsg = NamedTempFile::new()?;
+        temp_tsg.write_all(b"H\tTSG\t1.0\nH\treference\tGRCh38\nG\tg1\nN\tn1\tchr1:+:1000-2000\tread1:SO\nE\te1\tn1\tn2\tchr1,chr1,2000,3000,splice\n")?;
 
-//         // Create a temp file for the compressed output
-//         let temp_btsg = NamedTempFile::new()?;
-//         let temp_btsg_path = temp_btsg.path().to_path_buf();
-//         // Compress
-//         let mut compressor = BTSGCompressor::new(3); // Medium compression
-//         compressor.compress(temp_tsg.path(), &temp_btsg_path)?;
+        // Create a temp file for the compressed output
+        let temp_btsg = NamedTempFile::new()?;
+        let temp_btsg_path = temp_btsg.path().to_path_buf();
+        // Compress
+        let mut compressor = BTSGCompressor::new(3); // Medium compression
+        compressor.compress(temp_tsg.path(), &temp_btsg_path)?;
 
-//         // Use from_btsg to create the graph directly
-//         let graph = TSGraph::from_btsg(&temp_btsg_path)?;
+        // Use from_btsg to create the graph directly
+        let graph = TSGraph::from_btsg(&temp_btsg_path)?;
 
-//         // Basic validation that the graph was loaded correctly
-//         assert_eq!(graph.nodes("g1").len(), 1);
-//         assert_eq!(graph.edges("g1").len(), 1);
+        // Basic validation that the graph was loaded correctly
+        assert_eq!(graph.nodes("g1").len(), 1);
+        assert_eq!(graph.edges("g1").len(), 1);
 
-//         Ok(())
-//     }
+        Ok(())
+    }
 
-//     #[test]
-//     fn test_from_btsg_roundtrip2() -> Result<()> {
-//         // Create a small TSG structure
-//         let mut graph = TSGraph::new();
+    #[test]
+    fn test_from_btsg_roundtrip2() -> Result<()> {
+        // Create a small TSG structure
+        let mut graph = TSGraph::new();
 
-//         // Add headers
-//         let header1 = Header::builder().tag("TSG").value("1.0").build();
-//         let header2 = Header::builder().tag("reference").value("GRCh38").build();
-//         graph.headers.push(header1);
-//         graph.headers.push(header2);
+        // Add headers
+        let header1 = Header::builder().tag("TSG").value("1.0").build();
+        let header2 = Header::builder().tag("reference").value("GRCh38").build();
+        graph.headers.push(header1);
+        graph.headers.push(header2);
 
-//         // Add a graph section
-//         let graph_id: BString = "test_graph".into();
-//         let mut graph_section = GraphSection::new(graph_id.clone());
+        // Add a graph section
+        let graph_id: BString = "test_graph".into();
+        let mut graph_section = GraphSection::new(graph_id.clone());
 
-//         // Add nodes to the graph section
-//         let node1 = NodeData::from_str("N\tn1\tchr1:+:1000-2000\tread1:SO")?;
-//         let node2 = NodeData::from_str("N\tn2\tchr1:+:3000-4000\tread1:IN")?;
-//         graph_section.add_node(node1)?;
-//         graph_section.add_node(node2)?;
+        // Add nodes to the graph section
+        let node1 = NodeData::from_str("N\tn1\tchr1:+:1000-2000\tread1:SO")?;
+        let node2 = NodeData::from_str("N\tn2\tchr1:+:3000-4000\tread1:IN")?;
+        graph_section.add_node(node1)?;
+        graph_section.add_node(node2)?;
 
-//         // Add an edge to the graph section
-//         let edge_data = EdgeData {
-//             id: "e1".into(),
-//             sv: StructuralVariant::from_str("chr1,chr1,2000,3000,splice")?,
-//             attributes: Default::default(),
-//         };
-//         graph_section.add_edge(
-//             "n1".as_bytes().as_bstr(),
-//             "n2".as_bytes().as_bstr(),
-//             edge_data,
-//         )?;
+        // Add an edge to the graph section
+        let edge_data = EdgeData {
+            id: "e1".into(),
+            sv: StructuralVariant::from_str("chr1,chr1,2000,3000,splice")?,
+            attributes: Default::default(),
+        };
+        graph_section.add_edge(
+            "n1".as_bytes().as_bstr(),
+            "n2".as_bytes().as_bstr(),
+            edge_data,
+        )?;
 
-//         // Add the graph section to the main graph
-//         graph.graphs.insert(graph_id, graph_section);
+        // Add the graph section to the main graph
+        graph.graphs.insert(graph_id, graph_section);
 
-//         // Create a temporary file for the TSG output
-//         let temp_tsg = NamedTempFile::new()?;
-//         let temp_tsg_path = temp_tsg.path().to_path_buf();
+        // Create a temporary file for the TSG output
+        let temp_tsg = NamedTempFile::new()?;
+        let temp_tsg_path = temp_tsg.path().to_path_buf();
 
-//         // Create a temporary file for the BTSG output
-//         let temp_btsg = NamedTempFile::new()?;
-//         let temp_btsg_path = temp_btsg.path().to_path_buf();
+        // Create a temporary file for the BTSG output
+        let temp_btsg = NamedTempFile::new()?;
+        let temp_btsg_path = temp_btsg.path().to_path_buf();
 
-//         // Write the TSGraph to TSG file
-//         graph.to_file(&temp_tsg_path)?;
+        // Write the TSGraph to TSG file
+        graph.to_file(&temp_tsg_path)?;
 
-//         // Compress the TSG file to BTSG
-//         graph.to_btsg(&temp_btsg_path, 3)?;
+        // Compress the TSG file to BTSG
+        graph.to_btsg(&temp_btsg_path, 3)?;
 
-//         // Read the BTSG file back into a TSGraph
-//         let loaded_graph = TSGraph::from_btsg(&temp_btsg_path)?;
+        // Read the BTSG file back into a TSGraph
+        let loaded_graph = TSGraph::from_btsg(&temp_btsg_path)?;
 
-//         // Verify the loaded graph
-//         assert_eq!(loaded_graph.headers.len(), 3); // +1 for the PG header
-//         assert!(loaded_graph.headers.iter().any(|h| h.tag == "TSG"));
-//         assert!(loaded_graph.headers.iter().any(|h| h.tag == "reference"));
+        // Verify the loaded graph
+        assert_eq!(loaded_graph.headers.len(), 3); // +1 for the PG header
+        assert!(loaded_graph.headers.iter().any(|h| h.tag == "TSG"));
+        assert!(loaded_graph.headers.iter().any(|h| h.tag == "reference"));
 
-//         assert_eq!(loaded_graph.graphs.len(), 1);
-//         assert!(loaded_graph.graphs.contains_key("test_graph".as_bytes()));
+        assert_eq!(loaded_graph.graphs.len(), 1);
+        assert!(loaded_graph.graphs.contains_key("test_graph".as_bytes()));
 
-//         let loaded_section = &loaded_graph.graphs["test_graph".as_bytes()];
-//         assert_eq!(loaded_section.node_indices.len(), 2);
-//         assert_eq!(loaded_section.edge_indices.len(), 1);
+        let loaded_section = &loaded_graph.graphs["test_graph".as_bytes()];
+        assert_eq!(loaded_section.node_indices.len(), 2);
+        assert_eq!(loaded_section.edge_indices.len(), 1);
 
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}

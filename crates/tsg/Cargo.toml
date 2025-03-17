@@ -12,11 +12,11 @@ description = "Deep Learning Processing Library for Biological Data"
 
 [dependencies]
 tsg-core = { workspace = true, optional = true }
-btsg = { workspace = true, optional = true }
+tsg-btsg = { workspace = true, optional = true }
 
 [features]
 default = ["dep:tsg-core"]
-btsg = ["dep:btsg"]
+btsg = ["dep:tsg-btsg"]
 
 [package.metadata.docs.rs]
 all-features = true
