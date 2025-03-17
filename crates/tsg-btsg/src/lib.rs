@@ -867,7 +867,6 @@ mod tests {
         // Normalize line endings and trim
         let original_lines: Vec<&str> = original.lines().collect();
         let roundtrip_lines: Vec<&str> = roundtrip.lines().collect();
-
         assert_eq!(original_lines, roundtrip_lines);
 
         Ok(())
