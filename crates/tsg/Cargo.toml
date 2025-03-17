@@ -8,25 +8,15 @@ repository = { workspace = true }
 keywords = ["bioinformatics", "biological-data"]
 license = { workspace = true }
 readme = "../../README.md"
-description = { workspace = true }
+description = "Deep Learning Processing Library for Biological Data"
 
 [dependencies]
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-anyhow = { workspace = true }
-bstr = { workspace = true }
-rayon = { workspace = true }
-ahash = { workspace = true }
-bon = { workspace = true }
-bytes = { workspace = true }
-byteorder = { workspace = true }
-thiserror = { workspace = true }
-zstd = { workspace = true }
-petgraph = { workspace = true }
-noodles = { workspace = true }
-regex = { workspace = true }
-sha2 = { workspace = true }
+tsg-core = { workspace = true, optional = true }
+btsg = { workspace = true, optional = true }
 
-tempfile = "3.19"
+[features]
+default = ["dep:tsg-core"]
+btsg = ["dep:btsg"]
+
+[package.metadata.docs.rs]
+all-features = true
