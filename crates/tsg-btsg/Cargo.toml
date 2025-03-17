@@ -24,6 +24,6 @@ byteorder = { workspace = true }
 thiserror = { workspace = true }
 zstd = { workspace = true }
 
-tsg-core = { path = "../tsg-core" }
+tsg-core = { path = "../tsg-core", version = "0.1" }
 
 tempfile = "3.19"
