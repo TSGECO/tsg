@@ -9,9 +9,8 @@ use anyhow::{Context, Result, anyhow};
 use bstr::{BStr, BString, ByteSlice};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use thiserror::Error;
-use zstd::{decode_all, encode_all};
-
 use tsg_core::graph::TSGraph;
+use zstd::{decode_all, encode_all};
 
 // Block type identifiers
 const BLOCK_HEADER: u8 = 0x01;

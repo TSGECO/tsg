@@ -5,7 +5,6 @@ pub trait GraphAnalysis {
     fn is_connected(&self) -> bool;
     fn is_cyclic(&self) -> bool;
     fn detect_bubbles(&self) -> Vec<Vec<NodeIndex>>;
-
     fn is_directed_acyclic_graph(&self) -> bool {
         self.is_connected() && !self.is_cyclic()
     }
