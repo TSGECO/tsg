@@ -890,7 +890,7 @@ mod tests {
         let graph = TSGraph::from_btsg(&temp_btsg_path)?;
 
         // Basic validation that the graph was loaded correctly
-        assert_eq!(graph.nodes("g1").len(), 1);
+        assert_eq!(graph.nodes("g1").len(), 2);
         assert_eq!(graph.edges("g1").len(), 1);
 
         Ok(())

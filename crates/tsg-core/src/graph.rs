@@ -96,16 +96,33 @@ impl GraphSection {
     ) -> Result<EdgeIndex> {
         let id = edge_data.id.clone();
 
-        // Get source and sink node indices
-        let source_idx = *self
-            .node_indices
-            .get(source_id)
-            .ok_or_else(|| anyhow!("Source node with ID {} not found", source_id))?;
+        // Get source node index or create it if it doesn't exist
+        let source_idx = match self.node_indices.get(source_id) {
+            Some(&idx) => idx,
+            None => {
+                // Create a placeholder node if it doesn't exist
+                let placeholder_node = NodeData {
+                    id: source_id.to_owned(),
+                    ..Default::default()
+                };
+                let new_idx = self.add_node(placeholder_node)?;
+                new_idx
+            }
+        };
 
-        let sink_idx = *self
-            .node_indices
-            .get(sink_id)
-            .ok_or_else(|| anyhow!("Sink node with ID {} not found", sink_id))?;
+        // Get sink node index or create it if it doesn't exist
+        let sink_idx = match self.node_indices.get(sink_id) {
+            Some(&idx) => idx,
+            None => {
+                // Create a placeholder node if it doesn't exist
+                let placeholder_node = NodeData {
+                    id: sink_id.to_owned(),
+                    ..Default::default()
+                };
+                let new_idx = self.add_node(placeholder_node)?;
+                new_idx
+            }
+        };
 
         // petgraph provide update_edge method to update edge data
         let edge_idx = self._graph.update_edge(source_idx, sink_idx, edge_data);
