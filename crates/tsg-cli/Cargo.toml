@@ -26,4 +26,4 @@ tsg = { path = "../tsg" }
 
 [[bin]]
 path = "src/main.rs"
-name = "tsg"
+name = "tsg-cli"

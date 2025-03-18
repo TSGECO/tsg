@@ -105,8 +105,7 @@ impl GraphSection {
                     id: source_id.to_owned(),
                     ..Default::default()
                 };
-                let new_idx = self.add_node(placeholder_node)?;
-                new_idx
+                self.add_node(placeholder_node)?
             }
         };
 
@@ -119,8 +118,7 @@ impl GraphSection {
                     id: sink_id.to_owned(),
                     ..Default::default()
                 };
-                let new_idx = self.add_node(placeholder_node)?;
-                new_idx
+                self.add_node(placeholder_node)?
             }
         };
 

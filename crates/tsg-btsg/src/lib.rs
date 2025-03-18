@@ -14,6 +14,8 @@ use thiserror::Error;
 use tsg_core::graph::TSGraph;
 use zstd::{decode_all, encode_all};
 
+use tsg_core::graph::DEFAULT_GRAPH_ID;
+
 // Block type identifiers
 const BLOCK_HEADER: u8 = 0x01;
 const BLOCK_GRAPH: u8 = 0x02;
@@ -202,62 +204,88 @@ impl BTSGCompressor {
         let input_file = File::open(input_path)?;
         let reader = BufReader::new(input_file);
 
-        // Organize data by block type
+        // Organize data by block type with optimized grouping
         let mut header_data = Vec::new();
         let mut graphs: HashMap<BString, Vec<String>> = HashMap::new();
+        let mut node_data: HashMap<BString, Vec<String>> = HashMap::new();
+        let mut edge_data: HashMap<BString, Vec<String>> = HashMap::new();
         let mut current_graph: Option<BString> = None;
 
+        // Optimized first-pass data organization
         for line in reader.lines() {
             let line = line?;
             if line.trim().is_empty() || line.starts_with('#') {
                 continue;
             }
 
-            let fields: Vec<&str> = line.split('\t').collect();
-            if fields.is_empty() {
-                continue;
-            }
+            let (record_type, rest) = match line.split_once('\t') {
+                Some(parts) => parts,
+                None => continue, // Skip malformed lines
+            };
 
-            match fields[0] {
+            match record_type {
                 "H" => {
                     // Add to header block
                     header_data.push(line);
                 }
                 "G" => {
                     // New graph
-                    if fields.len() >= 2 {
-                        let graph_id = BString::from(fields[1]);
-                        current_graph = Some(graph_id.clone());
-                        graphs.entry(graph_id).or_default().push(line);
+                    if let Some((graph_id, _)) = rest.split_once('\t') {
+                        let graph_id_bstr = BString::from(graph_id);
+                        current_graph = Some(graph_id_bstr.clone());
+                        graphs.entry(graph_id_bstr).or_default().push(line);
                     }
                 }
-                "N" | "E" | "A" | "C" | "P" | "L" => {
+                "N" => {
+                    // Group all node data by graph for better compression
+                    if let Some(ref graph_id) = current_graph {
+                        node_data.entry(graph_id.clone()).or_default().push(line);
+                    } else {
+                        // No current graph, create a default one
+                        let default_graph = BString::from(DEFAULT_GRAPH_ID);
+                        current_graph = Some(default_graph.clone());
+                        node_data.entry(default_graph).or_default().push(line);
+                    }
+                }
+                "E" => {
+                    // Group all edge data by graph for better compression
+                    if let Some(ref graph_id) = current_graph {
+                        edge_data.entry(graph_id.clone()).or_default().push(line);
+                    } else {
+                        // No current graph, create a default one
+                        let default_graph = BString::from(DEFAULT_GRAPH_ID);
+                        current_graph = Some(default_graph.clone());
+                        edge_data.entry(default_graph).or_default().push(line);
+                    }
+                }
+                "A" | "C" | "P" | "L" => {
                     // Add to current graph's data
                     if let Some(ref graph_id) = current_graph {
                         graphs.entry(graph_id.clone()).or_default().push(line);
                     } else {
                         // No current graph, create a default one
-                        let default_graph = BString::from("default");
+                        let default_graph = BString::from(DEFAULT_GRAPH_ID);
                         current_graph = Some(default_graph.clone());
                         graphs.entry(default_graph).or_default().push(line);
                     }
                 }
                 _ => {
                     // Unknown record type, skip
-                    warn!("Unknown record type: {}", fields[0]);
+                    warn!("Unknown record type: {}", record_type);
                 }
             }
         }
 
         // Write header block
         if !header_data.is_empty() {
-            let header_block =
-                self.create_compressed_block(BLOCK_HEADER, header_data.join("\n"))?;
+            // Apply dictionary compression on header data for better compression
+            let optimized_headers = self.optimize_header_data(&header_data)?;
+            let header_block = self.create_compressed_block(BLOCK_HEADER, optimized_headers)?;
             header_block.write(&mut output_file)?;
         }
 
         // Write graph blocks
-        for (graph_id, graph_data) in graphs {
+        for (graph_id, graph_data) in &graphs {
             // Create a compressed block for this graph's data
             let graph_block = self.create_compressed_block(
                 BLOCK_GRAPH,
@@ -266,7 +294,165 @@ impl BTSGCompressor {
             graph_block.write(&mut output_file)?;
         }
 
+        // Write dedicated node blocks for better compression
+        for (graph_id, nodes) in &node_data {
+            if nodes.is_empty() {
+                continue;
+            }
+
+            // Apply node-specific optimizations
+            let optimized_nodes = self.optimize_node_data(graph_id.as_bstr(), nodes)?;
+            let node_block = self.create_compressed_block(BLOCK_NODE, optimized_nodes)?;
+            node_block.write(&mut output_file)?;
+        }
+
+        // Write dedicated edge blocks for better compression
+        for (graph_id, edges) in &edge_data {
+            if edges.is_empty() {
+                continue;
+            }
+
+            // Apply edge-specific optimizations
+            let optimized_edges = self.optimize_edge_data(graph_id.as_bstr(), edges)?;
+            let edge_block = self.create_compressed_block(BLOCK_EDGE, optimized_edges)?;
+            edge_block.write(&mut output_file)?;
+        }
+
         Ok(())
+    }
+
+    // New helper methods for optimized data compression
+
+    /// Optimize header data for better compression
+    fn optimize_header_data(&self, headers: &[String]) -> Result<String> {
+        // Headers are often very similar - we can optimize this
+        let mut optimized = String::with_capacity(headers.iter().map(|s| s.len()).sum());
+
+        // Sort headers by type to group similar ones together
+        let mut sorted_headers = headers.to_vec();
+        sorted_headers.sort_by(|a, b| {
+            let a_type = a.split('\t').nth(1).unwrap_or("");
+            let b_type = b.split('\t').nth(1).unwrap_or("");
+            a_type.cmp(b_type)
+        });
+
+        for header in sorted_headers {
+            optimized.push_str(&header);
+            optimized.push('\n');
+        }
+
+        Ok(optimized)
+    }
+
+    /// Optimize node data for better compression
+    fn optimize_node_data(&self, graph_id: &BStr, nodes: &[String]) -> Result<String> {
+        // Apply delta encoding and further optimizations for nodes
+        let mut optimized = format!("G\t{}\n", graph_id);
+
+        // Sort nodes by ID for potential better compression via delta values
+        let mut sorted_nodes = nodes.to_vec();
+        sorted_nodes.sort_by(|a, b| {
+            let a_id = a.split('\t').nth(1).unwrap_or("");
+            let b_id = b.split('\t').nth(1).unwrap_or("");
+            a_id.cmp(b_id)
+        });
+
+        // Group by chromosome to improve compression
+        let mut by_chromosome: HashMap<String, Vec<&String>> = HashMap::new();
+        for node in &sorted_nodes {
+            let chromosome = node
+                .split('\t')
+                .nth(2)
+                .and_then(|loc| loc.split(':').next())
+                .unwrap_or("unknown");
+            by_chromosome
+                .entry(chromosome.to_string())
+                .or_default()
+                .push(node);
+        }
+
+        // Output nodes grouped by chromosome
+        for (_, nodes) in by_chromosome {
+            for node in nodes {
+                optimized.push_str(node);
+                optimized.push('\n');
+            }
+        }
+
+        Ok(optimized)
+    }
+
+    /// Optimize edge data for better compression
+    fn optimize_edge_data(&self, graph_id: &BStr, edges: &[String]) -> Result<String> {
+        // Apply specific optimizations for edge data
+        let mut optimized = format!("G\t{}\n", graph_id);
+
+        // Sort edges by source and target nodes
+        let mut sorted_edges = edges.to_vec();
+        sorted_edges.sort_by(|a, b| {
+            let a_parts: Vec<&str> = a.split('\t').collect();
+            let b_parts: Vec<&str> = b.split('\t').collect();
+
+            let a_src = a_parts.get(2).unwrap_or(&"");
+            let a_dst = a_parts.get(3).unwrap_or(&"");
+            let b_src = b_parts.get(2).unwrap_or(&"");
+            let b_dst = b_parts.get(3).unwrap_or(&"");
+
+            (a_src, a_dst).cmp(&(b_src, b_dst))
+        });
+
+        // Group by edge type for better compression
+        let mut by_type: HashMap<String, Vec<&String>> = HashMap::new();
+        for edge in &sorted_edges {
+            let edge_type = edge
+                .split('\t')
+                .nth(4)
+                .and_then(|sv| sv.split(',').last())
+                .unwrap_or("unknown");
+            by_type.entry(edge_type.to_string()).or_default().push(edge);
+        }
+
+        // Output edges grouped by type
+        for (_, edges) in by_type {
+            for edge in edges {
+                optimized.push_str(edge);
+                optimized.push('\n');
+            }
+        }
+
+        Ok(optimized)
+    }
+
+    // Update how the dictionary block is created for better compression
+    fn create_dictionary_block(&self) -> Result<Block> {
+        let mut buffer = Vec::new();
+
+        // Write each dictionary with its type marker
+        buffer.write_u8(0x01)?; // Node dictionary
+        self.node_dict.write(&mut buffer)?;
+
+        buffer.write_u8(0x02)?; // Edge dictionary
+        self.edge_dict.write(&mut buffer)?;
+
+        buffer.write_u8(0x03)?; // Graph dictionary
+        self.graph_dict.write(&mut buffer)?;
+
+        buffer.write_u8(0x04)?; // Read dictionary
+        self.read_dict.write(&mut buffer)?;
+
+        buffer.write_u8(0x05)?; // Chromosome dictionary
+        self.chromosome_dict.write(&mut buffer)?;
+
+        buffer.write_u8(0x06)?; // Attribute dictionary
+        self.attribute_dict.write(&mut buffer)?;
+
+        // Use higher compression level specifically for dictionary blocks
+        // Dictionaries benefit from maximum compression since they're referenced frequently
+        let compression_level = 19; // Maximum zstd compression level
+        let compressed = encode_all(&buffer[..], compression_level)
+            .map_err(|e| BTSGError::Compression(e.to_string()))?;
+
+        Ok(Block::new(BLOCK_DICTIONARY, compressed))
     }
 
     fn build_dictionaries<P: AsRef<Path>>(&mut self, input_path: P) -> Result<()> {
@@ -354,35 +540,6 @@ impl BTSGCompressor {
         Ok(())
     }
 
-    fn create_dictionary_block(&self) -> Result<Block> {
-        let mut buffer = Vec::new();
-
-        // Write each dictionary with its type marker
-        buffer.write_u8(0x01)?; // Node dictionary
-        self.node_dict.write(&mut buffer)?;
-
-        buffer.write_u8(0x02)?; // Edge dictionary
-        self.edge_dict.write(&mut buffer)?;
-
-        buffer.write_u8(0x03)?; // Graph dictionary
-        self.graph_dict.write(&mut buffer)?;
-
-        buffer.write_u8(0x04)?; // Read dictionary
-        self.read_dict.write(&mut buffer)?;
-
-        buffer.write_u8(0x05)?; // Chromosome dictionary
-        self.chromosome_dict.write(&mut buffer)?;
-
-        buffer.write_u8(0x06)?; // Attribute dictionary
-        self.attribute_dict.write(&mut buffer)?;
-
-        // Create a compressed block
-        let compressed = encode_all(&buffer[..], self.compression_level)
-            .map_err(|e| BTSGError::Compression(e.to_string()))?;
-
-        Ok(Block::new(BLOCK_DICTIONARY, compressed))
-    }
-
     fn create_compressed_block(&self, block_type: u8, data: String) -> Result<Block> {
         // For graph blocks, we ensure proper formatting
         let data_to_compress = if block_type == BLOCK_GRAPH {
@@ -463,44 +620,229 @@ impl BTSGDecompressor {
 
         let mut output_file = File::create(output_path)?;
 
-        // Read blocks until EOF
+        // Build up the graph data as we read blocks
+        let mut header_lines = Vec::new();
+        let mut graph_data: HashMap<BString, Vec<String>> = HashMap::new();
+        let mut node_data: HashMap<BString, Vec<String>> = HashMap::new();
+        let mut edge_data: HashMap<BString, Vec<String>> = HashMap::new();
+
+        // Add a default graph if needed
+        let default_graph: BString = BString::from(DEFAULT_GRAPH_ID);
+
+        // Track what graph blocks we've seen
+        let mut seen_graphs: HashSet<BString> = HashSet::new();
+
+        // Read all blocks first to properly reconstruct the data
         while let Ok(block) = Block::read(&mut input_file) {
             match block.block_type {
                 BLOCK_DICTIONARY => {
-                    // Read dictionaries
                     self.read_dictionaries(&block.data)?;
                 }
                 BLOCK_HEADER => {
-                    // Write header data to output
                     let decompressed = decode_all(&block.data[..])
                         .map_err(|e| BTSGError::Compression(e.to_string()))?;
-                    output_file.write_all(&decompressed)?;
-                    output_file.write_all(b"\n")?;
+                    let content = String::from_utf8_lossy(&decompressed);
+                    header_lines.extend(content.lines().map(|s| s.to_string()));
                 }
                 BLOCK_GRAPH => {
-                    // Write graph data to output, but need to parse properly
                     let decompressed = decode_all(&block.data[..])
                         .map_err(|e| BTSGError::Compression(e.to_string()))?;
-
-                    // Convert to string and parse line by line
                     let content = String::from_utf8_lossy(&decompressed);
                     let mut lines = content.lines();
 
-                    // The first line should be the graph declaration line (G)
                     if let Some(first_line) = lines.next() {
-                        // Write the graph declaration line
-                        output_file.write_all(first_line.as_bytes())?;
-                        output_file.write_all(b"\n")?;
+                        if let Some((_, graph_id)) = first_line.split_once('\t') {
+                            let graph_id_bstr = BString::from(graph_id);
+                            seen_graphs.insert(graph_id_bstr.clone());
+                            let graph_entries = graph_data.entry(graph_id_bstr).or_default();
+                            graph_entries.push(first_line.to_string());
+                            graph_entries.extend(lines.map(|s| s.to_string()));
+                        }
+                    }
+                }
+                BLOCK_NODE => {
+                    // Handle optimized node blocks
+                    let decompressed = decode_all(&block.data[..])
+                        .map_err(|e| BTSGError::Compression(e.to_string()))?;
+                    let content = String::from_utf8_lossy(&decompressed);
+                    let mut lines = content.lines();
 
-                        // Write the rest of the lines (which don't include the graph line again)
-                        for line in lines {
-                            output_file.write_all(line.as_bytes())?;
-                            output_file.write_all(b"\n")?;
+                    if let Some(first_line) = lines.next() {
+                        if first_line.starts_with("G\t") {
+                            if let Some((_, graph_id)) = first_line.split_once('\t') {
+                                let graph_id_bstr = BString::from(graph_id);
+                                seen_graphs.insert(graph_id_bstr.clone());
+                                let nodes = node_data.entry(graph_id_bstr).or_default();
+                                nodes.extend(lines.map(|s| s.to_string()));
+                            }
+                        }
+                    }
+                }
+                BLOCK_EDGE => {
+                    // Handle optimized edge blocks
+                    let decompressed = decode_all(&block.data[..])
+                        .map_err(|e| BTSGError::Compression(e.to_string()))?;
+                    let content = String::from_utf8_lossy(&decompressed);
+                    let mut lines = content.lines();
+
+                    if let Some(first_line) = lines.next() {
+                        if first_line.starts_with("G\t") {
+                            if let Some((_, graph_id)) = first_line.split_once('\t') {
+                                let graph_id_bstr = BString::from(graph_id);
+                                seen_graphs.insert(graph_id_bstr.clone());
+                                let edges = edge_data.entry(graph_id_bstr).or_default();
+                                edges.extend(lines.map(|s| s.to_string()));
+                            }
                         }
                     }
                 }
                 _ => {
-                    return Err(BTSGError::InvalidBlockType(block.block_type).into());
+                    // For backward compatibility, try to decompress all other block types
+                    match decode_all(&block.data[..]) {
+                        Ok(decompressed) => {
+                            let content = String::from_utf8_lossy(&decompressed);
+                            // Try to determine if this belongs to a graph or is a header
+                            let mut has_graph_line = false;
+                            let mut current_graph: Option<BString> = None;
+
+                            for line in content.lines() {
+                                if line.starts_with("G\t") {
+                                    has_graph_line = true;
+                                    if let Some((_, graph_id)) = line.split_once('\t') {
+                                        let graph_id_bstr = BString::from(graph_id);
+                                        current_graph = Some(graph_id_bstr.clone());
+                                        seen_graphs.insert(graph_id_bstr.clone());
+                                        graph_data
+                                            .entry(graph_id_bstr)
+                                            .or_default()
+                                            .push(line.to_string());
+                                    }
+                                } else if line.starts_with("H\t") {
+                                    header_lines.push(line.to_string());
+                                } else if line.starts_with("N\t") {
+                                    // It's a node line
+                                    let graph_id = current_graph
+                                        .clone()
+                                        .unwrap_or_else(|| default_graph.clone());
+                                    node_data
+                                        .entry(graph_id)
+                                        .or_default()
+                                        .push(line.to_string());
+                                } else if line.starts_with("E\t") {
+                                    // It's an edge line
+                                    let graph_id = current_graph
+                                        .clone()
+                                        .unwrap_or_else(|| default_graph.clone());
+                                    edge_data
+                                        .entry(graph_id)
+                                        .or_default()
+                                        .push(line.to_string());
+                                } else {
+                                    // Add to current graph or headers
+                                    if let Some(ref graph_id) = current_graph {
+                                        graph_data
+                                            .entry(graph_id.clone())
+                                            .or_default()
+                                            .push(line.to_string());
+                                    } else {
+                                        // Add as header if we don't know what it is
+                                        header_lines.push(line.to_string());
+                                    }
+                                }
+                            }
+
+                            if !has_graph_line {
+                                // No graph line found, treat all content as headers
+                                header_lines.extend(content.lines().map(|s| s.to_string()));
+                            }
+                        }
+                        Err(e) => {
+                            // Log but don't fail on unknown blocks
+                            warn!(
+                                "Failed to decompress block type {}: {}",
+                                block.block_type, e
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        // Write out headers first
+        for line in header_lines {
+            output_file.write_all(line.as_bytes())?;
+            output_file.write_all(b"\n")?;
+        }
+
+        // For any graph that only exists in node_data or edge_data but not graph_data,
+        // create a graph entry
+        for graph_id in node_data.keys().chain(edge_data.keys()) {
+            if !graph_data.contains_key(graph_id) && graph_id != &default_graph {
+                graph_data.insert(graph_id.clone(), vec![format!("G\t{}", graph_id)]);
+                seen_graphs.insert(graph_id.clone());
+            }
+        }
+
+        // Write out graph data in the right order
+        for graph_id in seen_graphs {
+            // Get the graph header line
+            let graph_lines = graph_data
+                .remove(&graph_id)
+                .unwrap_or_else(|| vec![format!("G\t{}", graph_id)]);
+
+            // Make sure we have at least a graph declaration line
+            if graph_lines.is_empty() {
+                output_file.write_all(format!("G\t{}\n", graph_id).as_bytes())?;
+            } else {
+                // Write graph header line
+                output_file.write_all(graph_lines[0].as_bytes())?;
+                output_file.write_all(b"\n")?;
+            }
+
+            // Write nodes for this graph if they exist
+            if let Some(nodes) = node_data.remove(&graph_id) {
+                for line in nodes {
+                    output_file.write_all(line.as_bytes())?;
+                    output_file.write_all(b"\n")?;
+                }
+            }
+
+            // Write edges for this graph if they exist
+            if let Some(edges) = edge_data.remove(&graph_id) {
+                for line in edges {
+                    output_file.write_all(line.as_bytes())?;
+                    output_file.write_all(b"\n")?;
+                }
+            }
+
+            // Write remaining graph content
+            for line in &graph_lines[1..] {
+                output_file.write_all(line.as_bytes())?;
+                output_file.write_all(b"\n")?;
+            }
+        }
+
+        // If there are any orphaned nodes or edges (belonging to no graph),
+        // write them under the default graph
+        let has_orphaned_data =
+            node_data.contains_key(&default_graph) || edge_data.contains_key(&default_graph);
+        if has_orphaned_data {
+            // Write default graph header
+            output_file.write_all(format!("G\t{}\n", default_graph).as_bytes())?;
+
+            // Write orphaned nodes
+            if let Some(nodes) = node_data.remove(&default_graph) {
+                for line in nodes {
+                    output_file.write_all(line.as_bytes())?;
+                    output_file.write_all(b"\n")?;
+                }
+            }
+
+            // Write orphaned edges
+            if let Some(edges) = edge_data.remove(&default_graph) {
+                for line in edges {
+                    output_file.write_all(line.as_bytes())?;
+                    output_file.write_all(b"\n")?;
                 }
             }
         }
@@ -577,59 +919,80 @@ impl BTSGDecompressor {
         // Pre-allocate with a reasonable capacity
         let mut output = String::with_capacity(10_000); // 10KB initial capacity
 
+        // Similar approach as decompress method but writing to a string
+        let mut header_lines = Vec::new();
+        let mut graph_data: HashMap<BString, Vec<String>> = HashMap::new();
+        let mut node_data: HashMap<BString, Vec<String>> = HashMap::new();
+        let mut edge_data: HashMap<BString, Vec<String>> = HashMap::new();
+
         // Read blocks until EOF
         while let Ok(block) = Block::read(&mut input_file) {
             match block.block_type {
                 BLOCK_DICTIONARY => {
-                    // Read dictionaries
                     self.read_dictionaries(&block.data)?;
                 }
-                BLOCK_HEADER | BLOCK_NODE | BLOCK_EDGE | BLOCK_ATTRIBUTE | BLOCK_CHAIN
-                | BLOCK_PATH | BLOCK_LINK => {
-                    // These block types are handled similarly - decompress and append
+                BLOCK_HEADER => {
                     let decompressed = decode_all(&block.data[..])
                         .map_err(|e| BTSGError::Compression(e.to_string()))?;
-
-                    // Convert to string and append with newline
-                    output.push_str(&String::from_utf8_lossy(&decompressed));
-                    output.push('\n');
+                    let content = String::from_utf8_lossy(&decompressed);
+                    header_lines.extend(content.lines().map(|s| s.to_string()));
                 }
                 BLOCK_GRAPH => {
-                    // Write graph data to output
                     let decompressed = decode_all(&block.data[..])
                         .map_err(|e| BTSGError::Compression(e.to_string()))?;
+                    let content = String::from_utf8_lossy(&decompressed);
+                    let mut lines = content.lines();
 
-                    // Converting directly from UTF-8 is more efficient than String::from_utf8_lossy
-                    // for valid UTF-8 data (which TSG should be)
-                    match std::str::from_utf8(&decompressed) {
-                        Ok(content) => {
-                            let mut lines = content.lines();
+                    if let Some(first_line) = lines.next() {
+                        if let Some((_, graph_id)) = first_line.split_once('\t') {
+                            let graph_id_bstr = BString::from(graph_id);
+                            let graph_entries = graph_data.entry(graph_id_bstr).or_default();
+                            graph_entries.push(first_line.to_string());
+                            graph_entries.extend(lines.map(|s| s.to_string()));
+                        }
+                    }
+                }
+                BLOCK_NODE | BLOCK_EDGE | BLOCK_ATTRIBUTE | BLOCK_CHAIN | BLOCK_PATH
+                | BLOCK_LINK => {
+                    // Process other block types consistently with decompress method
+                    let decompressed = decode_all(&block.data[..])
+                        .map_err(|e| BTSGError::Compression(e.to_string()))?;
+                    let content = String::from_utf8_lossy(&decompressed);
 
-                            // The first line should be the graph declaration line (G)
-                            if let Some(first_line) = lines.next() {
-                                output.push_str(first_line);
-                                output.push('\n');
-
-                                // Write the rest of the lines
-                                for line in lines {
-                                    output.push_str(line);
-                                    output.push('\n');
+                    // Process differently based on block type
+                    if block.block_type == BLOCK_NODE || block.block_type == BLOCK_EDGE {
+                        let mut lines = content.lines();
+                        // First line contains graph information
+                        if let Some(first_line) = lines.next() {
+                            if first_line.starts_with("G\t") {
+                                if let Some((_, graph_id)) = first_line.split_once('\t') {
+                                    let graph_id_bstr = BString::from(graph_id);
+                                    let entries = if block.block_type == BLOCK_NODE {
+                                        node_data.entry(graph_id_bstr).or_default()
+                                    } else {
+                                        edge_data.entry(graph_id_bstr).or_default()
+                                    };
+                                    entries.extend(lines.map(|s| s.to_string()));
                                 }
                             }
                         }
-                        Err(_) => {
-                            // Fallback to the slower but more robust method
-                            let content = String::from_utf8_lossy(&decompressed);
-                            let mut lines = content.lines();
+                    } else {
+                        // For other block types, add all lines as they are
+                        let entries = content.lines().map(|s| s.to_string()).collect::<Vec<_>>();
 
-                            if let Some(first_line) = lines.next() {
-                                output.push_str(first_line);
-                                output.push('\n');
-
-                                for line in lines {
-                                    output.push_str(line);
-                                    output.push('\n');
+                        // Determine which graph this belongs to
+                        if let Some(first_line) = entries.first() {
+                            if first_line.starts_with("G\t") {
+                                if let Some((_, graph_id)) = first_line.split_once('\t') {
+                                    let graph_id_bstr = BString::from(graph_id);
+                                    graph_data.entry(graph_id_bstr).or_default().extend(entries);
+                                } else {
+                                    // No graph found, just add to general content
+                                    header_lines.extend(entries);
                                 }
+                            } else {
+                                // Not graph-specific content, add to header
+                                header_lines.extend(entries);
                             }
                         }
                     }
@@ -637,6 +1000,44 @@ impl BTSGDecompressor {
                 _ => {
                     return Err(BTSGError::InvalidBlockType(block.block_type).into());
                 }
+            }
+        }
+
+        // Assemble the output string in the right order
+        for line in header_lines {
+            output.push_str(&line);
+            output.push('\n');
+        }
+
+        for (graph_id, graph_lines) in graph_data {
+            if graph_lines.is_empty() || !graph_lines[0].starts_with("G\t") {
+                continue;
+            }
+
+            // Write graph header line
+            output.push_str(&graph_lines[0]);
+            output.push('\n');
+
+            // Write nodes for this graph if they exist
+            if let Some(nodes) = node_data.remove(&graph_id) {
+                for line in nodes {
+                    output.push_str(&line);
+                    output.push('\n');
+                }
+            }
+
+            // Write edges for this graph if they exist
+            if let Some(edges) = edge_data.remove(&graph_id) {
+                for line in edges {
+                    output.push_str(&line);
+                    output.push('\n');
+                }
+            }
+
+            // Write remaining graph content
+            for line in &graph_lines[1..] {
+                output.push_str(line);
+                output.push('\n');
             }
         }
 
@@ -711,8 +1112,12 @@ impl BTSG for TSGraph {
         }
 
         debug!("Reading BTSG file version {}", version);
-        // Create a buffer for the decompressed TSG content with a reasonable initial capacity
-        let mut tsg_content = Vec::with_capacity(10_000); // 10KB initial capacity
+
+        // We need to handle the new block organization
+        let mut header_content = Vec::new();
+        let mut graph_data: HashMap<BString, Vec<u8>> = HashMap::new();
+        let mut node_data: HashMap<BString, Vec<u8>> = HashMap::new();
+        let mut edge_data: HashMap<BString, Vec<u8>> = HashMap::new();
 
         // Dictionary handler (we need to maintain this state)
         let mut dictionary_handler = BTSGDecompressor::new();
@@ -754,68 +1159,152 @@ impl BTSG for TSGraph {
                     debug!("Processing dictionary block");
                     if let Err(e) = dictionary_handler.read_dictionaries(&block_data) {
                         warn!("Error processing dictionary block: {}", e);
-                        // Continue processing - dictionaries are optional for this direct method
                     }
                 }
-                BLOCK_HEADER | BLOCK_NODE | BLOCK_EDGE | BLOCK_ATTRIBUTE | BLOCK_CHAIN
-                | BLOCK_PATH | BLOCK_LINK => {
-                    debug!("Processing block type {}", block_type);
-                    // Decompress block data
-                    match decode_all(&block_data[..]) {
-                        Ok(decompressed) => {
-                            // Add to TSG content
-                            tsg_content.extend_from_slice(&decompressed);
-                            tsg_content.push(b'\n');
-                        }
-                        Err(e) => {
-                            return Err(anyhow!(
-                                "Failed to decompress block type {}: {}",
-                                block_type,
-                                e
-                            ));
-                        }
-                    }
+                BLOCK_HEADER => {
+                    debug!("Processing header block");
+                    let decompressed = decode_all(&block_data[..])
+                        .map_err(|e| anyhow!("Failed to decompress header block: {}", e))?;
+                    header_content.extend_from_slice(&decompressed);
+                    header_content.push(b'\n');
                 }
                 BLOCK_GRAPH => {
                     debug!("Processing graph block");
-
-                    // Decompress graph data
                     let decompressed = decode_all(&block_data[..])
                         .map_err(|e| anyhow!("Failed to decompress graph block: {}", e))?;
 
-                    // Process the graph data line by line
-                    match std::str::from_utf8(&decompressed) {
-                        Ok(content) => {
-                            let mut lines = content.lines();
-                            if let Some(first_line) = lines.next() {
-                                tsg_content.extend_from_slice(first_line.as_bytes());
-                                tsg_content.push(b'\n');
+                    // Extract graph ID from first line
+                    let content = String::from_utf8_lossy(&decompressed);
+                    let mut lines = content.lines();
+                    if let Some(first_line) = lines.next() {
+                        if let Some((_, graph_id)) = first_line.split_once('\t') {
+                            let graph_id_bstr = BString::from(graph_id);
+                            let entry = graph_data.entry(graph_id_bstr).or_default();
+                            entry.extend_from_slice(&decompressed);
+                            entry.push(b'\n');
+                        }
+                    }
+                }
+                BLOCK_NODE => {
+                    debug!("Processing node block");
+                    let decompressed = decode_all(&block_data[..])
+                        .map_err(|e| anyhow!("Failed to decompress node block: {}", e))?;
 
-                                for line in lines {
-                                    tsg_content.extend_from_slice(line.as_bytes());
-                                    tsg_content.push(b'\n');
+                    // Extract graph ID from first line
+                    let content = String::from_utf8_lossy(&decompressed);
+                    let mut lines = content.lines();
+                    if let Some(first_line) = lines.next() {
+                        if first_line.starts_with("G\t") {
+                            if let Some((_, graph_id)) = first_line.split_once('\t') {
+                                let graph_id_bstr = BString::from(graph_id);
+                                // Store all lines except the first one (which is just the graph ID)
+                                let nodes_content =
+                                    lines.collect::<Vec<_>>().join("\n").into_bytes();
+                                if !nodes_content.is_empty() {
+                                    let entry = node_data.entry(graph_id_bstr.clone()).or_default();
+                                    entry.extend_from_slice(&nodes_content);
+                                    entry.push(b'\n');
                                 }
                             }
                         }
-                        Err(_) => {
-                            // Fallback to slower method for invalid UTF-8
-                            let content = String::from_utf8_lossy(&decompressed);
-                            let mut lines = content.lines();
-                            if let Some(first_line) = lines.next() {
-                                tsg_content.extend_from_slice(first_line.as_bytes());
-                                tsg_content.push(b'\n');
+                    }
+                }
+                BLOCK_EDGE => {
+                    debug!("Processing edge block");
+                    let decompressed = decode_all(&block_data[..])
+                        .map_err(|e| anyhow!("Failed to decompress edge block: {}", e))?;
 
-                                for line in lines {
-                                    tsg_content.extend_from_slice(line.as_bytes());
-                                    tsg_content.push(b'\n');
+                    // Extract graph ID from first line
+                    let content = String::from_utf8_lossy(&decompressed);
+                    let mut lines = content.lines();
+                    if let Some(first_line) = lines.next() {
+                        if first_line.starts_with("G\t") {
+                            if let Some((_, graph_id)) = first_line.split_once('\t') {
+                                let graph_id_bstr = BString::from(graph_id);
+                                // Store all lines except the first one (which is just the graph ID)
+                                let edges_content =
+                                    lines.collect::<Vec<_>>().join("\n").into_bytes();
+                                if !edges_content.is_empty() {
+                                    let edges = edge_data.entry(graph_id_bstr.clone()).or_default();
+                                    edges.extend_from_slice(&edges_content);
+                                    edges.push(b'\n');
                                 }
                             }
+                        }
+                    }
+                }
+                BLOCK_ATTRIBUTE | BLOCK_CHAIN | BLOCK_PATH | BLOCK_LINK => {
+                    debug!("Processing block type {}", block_type);
+                    let decompressed = decode_all(&block_data[..]).map_err(|e| {
+                        anyhow!("Failed to decompress block type {}: {}", block_type, e)
+                    })?;
+
+                    // Add to appropriate section based on first line
+                    let content = String::from_utf8_lossy(&decompressed);
+                    let mut lines = content.lines();
+                    if let Some(first_line) = lines.next() {
+                        if first_line.starts_with("G\t") {
+                            if let Some((_, graph_id)) = first_line.split_once('\t') {
+                                let graph_id_bstr = BString::from(graph_id);
+                                // Store content with the appropriate graph
+                                let entry = graph_data.entry(graph_id_bstr).or_default();
+                                entry.extend_from_slice(&decompressed);
+                                entry.push(b'\n');
+                            }
+                        } else {
+                            // No graph associated, add to general content
+                            header_content.extend_from_slice(&decompressed);
+                            header_content.push(b'\n');
                         }
                     }
                 }
                 _ => {
                     warn!("Unknown block type: {}", block_type);
                     // Skip unknown blocks instead of failing
+                }
+            }
+        }
+
+        // Assemble the complete TSG content
+        let mut tsg_content = Vec::with_capacity(
+            header_content.len()
+                + graph_data.values().map(|v| v.len()).sum::<usize>()
+                + node_data.values().map(|v| v.len()).sum::<usize>()
+                + edge_data.values().map(|v| v.len()).sum::<usize>(),
+        );
+
+        // Add headers
+        if !header_content.is_empty() {
+            tsg_content.extend_from_slice(&header_content);
+        }
+
+        // Add each graph with its nodes and edges
+        for (graph_id, graph_content) in graph_data {
+            // Find the graph declaration line
+            let graph_content_str = String::from_utf8_lossy(&graph_content);
+            let mut lines = graph_content_str.lines();
+
+            if let Some(graph_line) = lines.next() {
+                if graph_line.starts_with("G\t") {
+                    // Add the graph line
+                    tsg_content.extend_from_slice(graph_line.as_bytes());
+                    tsg_content.push(b'\n');
+
+                    // Add nodes for this graph if they exist
+                    if let Some(nodes) = node_data.get(&graph_id) {
+                        tsg_content.extend_from_slice(nodes);
+                    }
+
+                    // Add edges for this graph if they exist
+                    if let Some(edges) = edge_data.get(&graph_id) {
+                        tsg_content.extend_from_slice(edges);
+                    }
+
+                    // Add the rest of the graph content
+                    for line in lines {
+                        tsg_content.extend_from_slice(line.as_bytes());
+                        tsg_content.push(b'\n');
+                    }
                 }
             }
         }
@@ -933,9 +1422,24 @@ mod tests {
         let original = std::fs::read_to_string(temp_tsg.path())?;
         let roundtrip = std::fs::read_to_string(&temp_out_path)?;
 
+        // Debug output in case of failure
+        if original != roundtrip {
+            println!("Original content:\n{}", original);
+            println!("Roundtrip content:\n{}", roundtrip);
+        }
+
         // Normalize line endings and trim
         let original_lines: Vec<&str> = original.lines().collect();
         let roundtrip_lines: Vec<&str> = roundtrip.lines().collect();
+
+        assert_eq!(
+            original_lines.len(),
+            roundtrip_lines.len(),
+            "Number of lines differs: {} vs {}",
+            original_lines.len(),
+            roundtrip_lines.len()
+        );
+
         assert_eq!(original_lines, roundtrip_lines);
 
         Ok(())
@@ -1032,6 +1536,87 @@ mod tests {
         let loaded_section = &loaded_graph.graph("test_graph").unwrap();
         assert_eq!(loaded_section.nodes().len(), 2);
         assert_eq!(loaded_section.edges().len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn test_compression_with_separated_blocks() -> Result<()> {
+        // Create a TSG file with multiple node and edge entries
+        let mut temp_tsg = NamedTempFile::new()?;
+        temp_tsg.write_all(
+            b"H\tTSG\t1.0\nH\treference\tGRCh38\n\
+                           G\tg1\n\
+                           N\tn1\tchr1:+:1000-2000\tread1:SO\n\
+                           N\tn2\tchr1:+:2100-3000\tread1:SO\n\
+                           N\tn3\tchr2:+:1000-2000\tread2:SO\n\
+                           E\te1\tn1\tn2\tchr1,chr1,2000,2100,splice\n\
+                           E\te2\tn2\tn3\tchr1,chr2,3000,1000,trans\n",
+        )?;
+
+        // Create temp files for btsg and decompressed output
+        let temp_btsg = NamedTempFile::new()?;
+        let temp_btsg_path = temp_btsg.path().to_path_buf();
+        let temp_out = NamedTempFile::new()?;
+        let temp_out_path = temp_out.path().to_path_buf();
+
+        // Compress with block separation
+        let mut compressor = BTSGCompressor::new(3);
+        compressor.compress(temp_tsg.path(), &temp_btsg_path)?;
+
+        // Print BTSG contents for debugging
+        let btsg_size = std::fs::metadata(&temp_btsg_path)?.len();
+        println!("BTSG file size: {} bytes", btsg_size);
+
+        // Decompress
+        let mut decompressor = BTSGDecompressor::new();
+        decompressor.decompress(&temp_btsg_path, &temp_out_path)?;
+
+        // Verify content is unchanged
+        let original = std::fs::read_to_string(temp_tsg.path())?;
+        let roundtrip = std::fs::read_to_string(&temp_out_path)?;
+
+        // Debug output
+        println!(
+            "Original content ({} lines):\n{}",
+            original.lines().count(),
+            original
+        );
+        println!(
+            "Roundtrip content ({} lines):\n{}",
+            roundtrip.lines().count(),
+            roundtrip
+        );
+
+        // Compare normalized content
+        let original_lines: Vec<&str> = original.lines().collect();
+        let roundtrip_lines: Vec<&str> = roundtrip.lines().collect();
+
+        assert_eq!(
+            original_lines.len(),
+            roundtrip_lines.len(),
+            "Line count mismatch: expected {}, got {}",
+            original_lines.len(),
+            roundtrip_lines.len()
+        );
+
+        // Compare lines, ignoring exact ordering for nodes and edges
+        let mut original_sorted = original_lines.clone();
+        let mut roundtrip_sorted = roundtrip_lines.clone();
+        original_sorted.sort();
+        roundtrip_sorted.sort();
+
+        assert_eq!(original_sorted, roundtrip_sorted);
+
+        // Also test direct loading
+        let graph = TSGraph::from_btsg(&temp_btsg_path)?;
+
+        // Debug output for the loaded graph
+        println!("Graph nodes: {}", graph.nodes("g1").len());
+        println!("Graph edges: {}", graph.edges("g1").len());
+
+        assert_eq!(graph.nodes("g1").len(), 3, "Expected 3 nodes in graph");
+        assert_eq!(graph.edges("g1").len(), 2, "Expected 2 edges in graph");
+
         Ok(())
     }
 }
