@@ -1,4 +1,4 @@
-<img src="./doc/logo.png" alt="crates.io" height="100" align="center"/>
+<img src="./docs/logo.png" alt="crates.io" height="100" align="center"/>
 
 # TSG - Transcript Segment Graph
 
