@@ -231,50 +231,62 @@ This distinction is important: chains define what each graph is, paths define wa
 ### Example with Multiple Graphs
 
 ```text
-# File header
+# Global headers
 H  TSG  1.0
 H  reference  GRCh38
 
-# Graph definitions
-H  graph  gene_a  BRCA1 transcripts
-H  graph  gene_b  BRCA2 transcripts
+# First graph
+G  gene_a  name:Z:BRCA1  locus:Z:chr17q21.31
 
 # Nodes for gene_a
-N  gene_a:n1  chr17:+:41196312-41196402  read1:SO,read2:SO  ACGTACGT
-N  gene_a:n2  chr17:+:41199660-41199720  read2:IN,read3:IN  TGCATGCA
-N  gene_a:n3  chr17:+:41203080-41203134  read1:SI,read2:SI  CTGACTGA
-
-# Nodes for gene_b
-N  gene_b:n1  chr13:+:32315480-32315652  read4:SO,read5:SO  GATTACA
-N  gene_b:n2  chr13:+:32316528-32316800  read4:IN,read5:IN  TACGATCG
-N  gene_b:n3  chr13:+:32319077-32319325  read4:SI,read5:SI  CGTACGTA
+N  n1  chr17:+:41196312-41196402  read1:SO,read2:SO  ACGTACGT
+N  n2  chr17:+:41199660-41199720  read2:IN,read3:IN  TGCATGCA
+N  n3  chr17:+:41203080-41203134  read1:SI,read2:SI  CTGACTGA
 
 # Edges for gene_a
-E  gene_a:e1  gene_a:n1  gene_a:n2  chr17,chr17,41196402,41199660,splice
-E  gene_a:e2  gene_a:n2  gene_a:n3  chr17,chr17,41199720,41203080,splice
-
-# Edges for gene_b
-E  gene_b:e1  gene_b:n1  gene_b:n2  chr13,chr13,32315652,32316528,splice
-E  gene_b:e2  gene_b:n2  gene_b:n3  chr13,chr13,32316800,32319077,splice
+E  e1  n1  n2  chr17,chr17,41196402,41199660,splice
+E  e2  n2  n3  chr17,chr17,41199720,41203080,splice
 
 # Chains for gene_a
-C  gene_a:chain1  gene_a:n1  gene_a:e1  gene_a:n2  gene_a:e2  gene_a:n3
-
-# Chains for gene_b
-C  gene_b:chain1  gene_b:n1  gene_b:e1  gene_b:n2  gene_b:e2  gene_b:n3
+C  chain1  n1  e1  n2  e2  n3
 
 # Paths for gene_a
-P  gene_a:transcript1  gene_a:n1+  gene_a:e1+  gene_a:n2+  gene_a:e2+  gene_a:n3+
+P  transcript1  n1+  e1+  n2+  e2+  n3+
+
+# Sets for gene_a
+U  exon_set  n1  n2  n3
+
+# Attributes for gene_a elements
+A  N  n1  expression:f:10.5
+A  N  n1  ptc:i:10
+A  P  transcript1  tpm:f:8.2
+
+# Second graph
+G  gene_b  name:Z:BRCA2  locus:Z:chr13q13.1
+
+# Nodes for gene_b
+N  n1  chr13:+:32315480-32315652  read4:SO,read5:SO  GATTACA
+N  n2  chr13:+:32316528-32316800  read4:IN,read5:IN  TACGATCG
+N  n3  chr13:+:32319077-32319325  read4:SI,read5:SI  CGTACGTA
+
+# Edges for gene_b
+E  e1  n1  n2  chr13,chr13,32315652,32316528,splice
+E  e2  n2  n3  chr13,chr13,32316800,32319077,splice
+
+# Chains for gene_b
+C  chain1  n1  e1  n2  e2  n3
 
 # Paths for gene_b
-P  gene_b:transcript1  gene_b:n1+  gene_b:e1+  gene_b:n2+  gene_b:e2+  gene_b:n3+
+P  transcript1  n1+  e1+  n2+  e2+  n3+
 
-# Inter-graph link (e.g., for a fusion transcript)
+# Sets for gene_b
+U  exon_set  n1  n2  n3
+
+# Attributes for gene_b elements
+A  P  transcript1  tpm:f:3.7
+
+# Inter-graph links (appears after all graph sections)
 L  fusion1  gene_a:n3  gene_b:n1  fusion  type:Z:chromosomal
-
-# Attributes
-A  N  gene_a:n1  expression:f:10.5
-A  P  gene_a:transcript1  tpm:f:8.2
 ```
 
 ## Contributing
