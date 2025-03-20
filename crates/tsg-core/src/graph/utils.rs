@@ -17,9 +17,11 @@ use sha2::{Digest, Sha256};
 ///
 /// # Examples
 ///
-/// ```no_run
-/// let hash = to_hash_identifier("Hello World!", Some(16));
-/// assert_eq!(hash, "a591a6d40bf420");
+/// ```
+/// use tsg_core::graph::to_hash_identifier;
+///
+/// let hash = to_hash_identifier("Hello World!", Some(16)).unwrap();
+/// assert_eq!(hash, "af83b1657ff1fc53");
 /// ```
 pub fn to_hash_identifier(input_string: &str, length: Option<usize>) -> Result<String> {
     // Validate input

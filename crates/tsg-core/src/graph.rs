@@ -24,6 +24,7 @@ pub use group::*;
 pub use header::*;
 pub use node::*;
 pub use path::*;
+pub use utils::*;
 
 use bon::Builder;
 use petgraph::dot::{Config, Dot};
