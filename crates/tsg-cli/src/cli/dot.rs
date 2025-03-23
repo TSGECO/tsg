@@ -4,6 +4,29 @@ use anyhow::Result;
 use tracing::info;
 use tsg::graph::TSGraph;
 
+/// Converts a TSG graph from a file into DOT format and writes it to an output directory.
+///
+/// # Parameters
+/// - `input`: The path to the input file containing the TSG graph.
+/// - `output`: An optional path to the output directory. If not provided, a directory
+///   named `<input_file_stem>_dot` will be created in the same location as the input file.
+///
+/// # Returns
+/// - `Result<()>`: Returns `Ok(())` if the operation succeeds, or an error if it fails.
+///
+/// # Errors
+/// - Returns an error if the input file cannot be read or parsed.
+/// - Returns an error if the output directory cannot be created or written to.
+///
+/// # Example
+/// ```
+/// use tsg_cli::cli::dot::to_dot;
+/// use std::path::Path;
+///
+/// let input = Path::new("example.tsg");
+/// let output = Some(Path::new("output_dir"));
+/// to_dot(input, output).expect("Failed to convert TSG to DOT");
+/// ```
 pub fn to_dot<P: AsRef<Path>>(input: P, output: Option<P>) -> Result<()> {
     let tsg_graph = TSGraph::from_file(input.as_ref())?;
 
