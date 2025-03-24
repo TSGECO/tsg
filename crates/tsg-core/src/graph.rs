@@ -17,8 +17,9 @@ use tracing::warn;
 
 use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use anyhow::{Context, Result, anyhow};
-pub use attr::*;
 use bstr::{BStr, BString, ByteSlice};
+
+pub use attr::*;
 pub use edge::*;
 pub use group::*;
 pub use header::*;
