@@ -17,16 +17,6 @@ use tsg::graph::TSGraph;
 /// # Errors
 /// - Returns an error if the input file cannot be read or parsed.
 /// - Returns an error if the output directory cannot be created or written to.
-///
-/// # Example
-/// ```
-/// use tsg_cli::cli::dot::to_dot;
-/// use std::path::Path;
-///
-/// let input = Path::new("example.tsg");
-/// let output = Some(Path::new("output_dir"));
-/// to_dot(input, output).expect("Failed to convert TSG to DOT");
-/// ```
 pub fn to_dot<P: AsRef<Path>>(input: P, output: Option<P>) -> Result<()> {
     let tsg_graph = TSGraph::from_file(input.as_ref())?;
 
