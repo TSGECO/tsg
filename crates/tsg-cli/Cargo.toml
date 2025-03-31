@@ -14,7 +14,7 @@ description = { workspace = true }
 clap = { version = "4.5", features = ["derive"] }
 clap-markdown = "0.1.4"
 clap-verbosity-flag = { version = "3.0", features = ["tracing"] }
-clap_complete = "4.5.46"
+clap_complete = "4.5.47"
 colored = "3"
 anyhow = { workspace = true }
 tracing = { workspace = true }
@@ -22,7 +22,7 @@ bstr = { workspace = true }
 serde_json = { workspace = true }
 tracing-subscriber = { workspace = true }
 
-tsg = { path = "../tsg" }
+tsg = { version = "0.1", path = "../tsg" }
 
 [[bin]]
 path = "src/main.rs"

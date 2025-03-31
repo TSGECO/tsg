@@ -4,6 +4,19 @@ use anyhow::Result;
 use tracing::info;
 use tsg::graph::TSGraph;
 
+/// Converts a TSG graph from a file into DOT format and writes it to an output directory.
+///
+/// # Parameters
+/// - `input`: The path to the input file containing the TSG graph.
+/// - `output`: An optional path to the output directory. If not provided, a directory
+///   named `<input_file_stem>_dot` will be created in the same location as the input file.
+///
+/// # Returns
+/// - `Result<()>`: Returns `Ok(())` if the operation succeeds, or an error if it fails.
+///
+/// # Errors
+/// - Returns an error if the input file cannot be read or parsed.
+/// - Returns an error if the output directory cannot be created or written to.
 pub fn to_dot<P: AsRef<Path>>(input: P, output: Option<P>) -> Result<()> {
     let tsg_graph = TSGraph::from_file(input.as_ref())?;
 

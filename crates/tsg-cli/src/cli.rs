@@ -65,7 +65,7 @@ pub enum Commands {
         output: Option<PathBuf>,
     },
 
-    /// Convert a TSG file to DOT format for graph visualization
+    /// Convert a TSG file to DOT format
     Dot {
         /// Input TSG file path
         #[arg(required = true, value_hint = ValueHint::FilePath)]
