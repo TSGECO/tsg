@@ -4,6 +4,8 @@
 
 TSG is a Rust library and command-line tool for creating, manipulating, and analyzing transcript segment graphs. It provides a comprehensive framework for modeling segmented transcript data, analyzing non-linear splicing events, and working with genomic structural variants.
 
+![](./docs/tsgeco.png)
+
 ## Features
 
 - Parse and write TSG format files

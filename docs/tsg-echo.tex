@@ -1,0 +1,113 @@
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{shadows,shapes,arrows,positioning,fit,backgrounds,decorations.pathreplacing,calc}
+
+% Define colors
+\definecolor{tsgblue}{RGB}{66, 133, 244}     % Core Format
+\definecolor{tsggreen}{RGB}{52, 168, 83}     % Core Tool
+\definecolor{tsgyellow}{RGB}{251, 188, 5}    % API/Bindings
+\definecolor{tsgpurple}{RGB}{103, 58, 183}   % Applications
+\definecolor{tsgred}{RGB}{234, 67, 53}       % Language Bindings
+\definecolor{tsgcyan}{RGB}{0, 151, 167}      % Format Conversion
+\definecolor{tsgindigo}{RGB}{63, 81, 181}    % Format Types
+\definecolor{tsgorange}{RGB}{255, 87, 34}    % End Users
+\definecolor{tsggray}{RGB}{102, 102, 102}    % Connectors
+
+\begin{document}
+
+\begin{tikzpicture}[
+		% Node styles
+		format/.style={draw=tsgblue, fill=tsgblue, text=white, rounded corners=5pt,
+				minimum width=5cm, minimum height=3cm, font=\bfseries, drop shadow, align=center},
+		tool/.style={draw=tsggreen, fill=tsggreen, text=white, rounded corners=5pt,
+				minimum width=5cm, minimum height=2.8cm, font=\bfseries, drop shadow, align=center},
+		binding/.style={draw=tsgyellow, fill=tsgyellow, text=white, rounded corners=5pt,
+				minimum width=4.5cm, minimum height=2.8cm, font=\bfseries, drop shadow, align=center},
+		app/.style={draw=tsgpurple, fill=tsgpurple, text=white, rounded corners=5pt,
+				minimum width=5cm, minimum height=2.8cm, font=\bfseries, drop shadow, align=center},
+		lang/.style={draw=tsgred, fill=tsgred, text=white, rounded corners=3pt,
+				minimum width=2.5cm, minimum height=1.5cm, font=\bfseries, drop shadow, align=center},
+		conversion/.style={draw=tsgcyan, fill=tsgcyan, text=white, rounded corners=5pt,
+				minimum width=5cm, minimum height=2.8cm, font=\bfseries, drop shadow, align=center},
+		format_type/.style={draw=tsgindigo, fill=tsgindigo, text=white, rounded corners=3pt,
+				minimum width=2.5cm, minimum height=1.2cm, font=\bfseries, drop shadow, align=center},
+		user/.style={draw=tsgorange, fill=tsgorange, text=white, rounded corners=5pt,
+				minimum width=5cm, minimum height=2.8cm, font=\bfseries, drop shadow, align=center},
+		connector/.style={->, >=stealth, draw=tsggray, line width=2pt},
+		groupbox/.style={draw=#1, dashed, rounded corners=10pt, line width=1pt},
+		title/.style={font=\LARGE\bfseries},
+		subtitle/.style={font=\small},
+		legend_box/.style={draw=#1, fill=#1, minimum width=0.6cm, minimum height=0.6cm}
+	]
+
+	\pgfdeclarelayer{background}
+	\pgfsetlayers{background,main}
+
+	% Title
+	\node[title] (title) at (0,10) {TSG Ecosystem Architecture};
+	\draw[tsgblue, line width=1.5pt] (-6,9.5) -- (6,9.5);
+
+	% Main components with text on multiple lines
+	\node[format] (tsg_format) at (0,0) {TSG Format \\ Transcript Segment Graph};
+	\node[tool] (tsg_tool) at (0,4) {\Large tsg \\ Rust Library/CLI Tool};
+	\node[binding] (bindings) at (-8,0) {Language \\ Bindings};
+	\node[app] (aurora) at (8,0) {Aurora \\ Web Application};
+	\node[conversion] (conversion) at (0,-4) {Format \\ Conversion};
+	\node[user] (users) at (8,-4) {End Users \\ Researchers, Bioinformaticians \\ Data Scientists};
+
+	% Language bindings 
+	\node[lang] (python) at (-11,-4) {Python};
+	\node[lang] (r) at (-8,-4) {R};
+	\node[lang] (js) at (-5,-4) {JavaScript};
+
+	% Format types
+	\node[format_type] (gff) at (-3,-7) {GFF/GTF};
+	\node[format_type] (bed) at (0,-7) {BED};
+	\node[format_type] (vcf) at (3,-7) {VCF};
+
+	% Connections
+	\draw[connector] (tsg_tool) -- (tsg_format);
+	\draw[connector] (tsg_format) -- (bindings);
+	\draw[connector] (tsg_format) -- (aurora);
+	\draw[connector] (tsg_format) -- (conversion);
+	\draw[connector] (aurora) -- (users);
+
+	% Bindings to languages
+	\draw[connector] (bindings.south) to[out=-120, in=90] (python.north);
+	\draw[connector] (bindings.south) to[out=-90, in=90] (r.north);
+	\draw[connector] (bindings.south) to[out=-60, in=90] (js.north);
+
+	% JavaScript to Aurora
+	\draw[connector] (js.east) -- ++(1,0) -- ++(0,2.2) -- ++(6,0) -- (aurora.west);
+
+	% Format Conversion to formats
+	\draw[connector] (conversion.south) to[out=-135, in=90] (gff.north);
+	\draw[connector] (conversion.south) to[out=-90, in=90] (bed.north);
+	\draw[connector] (conversion.south) to[out=-45, in=90] (vcf.north);
+
+	% Group boxes in background
+	\begin{pgfonlayer}{background}
+		\node[fit=(bindings) (python) (r) (js), groupbox=tsgyellow, inner sep=0.6cm, line width=1.5pt,
+			label={[tsgyellow, font=\bfseries]above:API \& SDK}] {};
+		\node[fit=(aurora) (users), groupbox=tsgpurple, inner sep=0.6cm, line width=1.5pt,
+			label={[tsgpurple, font=\bfseries]above:Visualization \& Analysis}] {};
+		\node[fit=(conversion) (gff) (bed) (vcf), groupbox=tsgcyan, inner sep=0.5cm, line width=1.5pt,
+			label={[tsgcyan, font=\bfseries]below:Bioinformatics Data Formats}] {};
+	\end{pgfonlayer}
+
+	% Legend
+	\node[legend_box=tsgblue] (legend1) at (6,8) {};
+	\node[right=0.2cm of legend1, font=\small] {Core Format};
+
+	\node[legend_box=tsggreen] (legend2) at (6,7.2) {};
+	\node[right=0.2cm of legend2, font=\small] {Core Tool};
+
+	\node[legend_box=tsgyellow] (legend3) at (6,6.4) {};
+	\node[right=0.2cm of legend3, font=\small] {API/Bindings};
+
+	\node[legend_box=tsgpurple] (legend4) at (6,5.6) {};
+	\node[right=0.2cm of legend4, font=\small] {Applications};
+
+\end{tikzpicture}
+
+\end{document}
