@@ -935,11 +935,15 @@ impl TSGraph {
         Ok(())
     }
 
+    pub fn from_str(s: &str) -> Result<Self> {
+        let reader = BufReader::new(s.as_bytes());
+        Self::from_reader(reader)
+    }
+
     pub fn from_reader<R: BufRead>(reader: R) -> Result<Self> {
         let mut tsgraph = TSGraph::new();
 
         // Create a default graph if needed for backward compatibility
-
         let default_graph_id: BString = DEFAULT_GRAPH_ID.into();
         let default_graph = GraphSection::new(default_graph_id.clone());
         tsgraph
@@ -1000,7 +1004,6 @@ impl TSGraph {
                 tsgraph.graphs.remove(&BString::from(DEFAULT_GRAPH_ID));
             }
         }
-
         Ok(tsgraph)
     }
 
@@ -1484,6 +1487,53 @@ mod tests {
         assert_eq!(graph.edges(DEFAULT_GRAPH_ID).len(), 4);
 
         graph.to_file("tests/data/test_write.tsg")?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_str() -> Result<()> {
+        let tsg_string = r#"H	VN	1.0
+    H	PN	TestGraph
+    N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
+    N	node2	chr1:+:300-400	read1:SO,read2:IN
+    N	node3	chr1:+:500-600	read2:SO,read3:IN
+    E	edge1	node1	node2	chr1,chr1,1700,2000,INV
+    E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
+    C	chain1	node1 edge1 node2 edge2 node3
+    "#;
+
+        let graph = TSGraph::from_str(tsg_string)?;
+
+        // Verify headers
+        assert_eq!(graph.headers.len(), 2);
+        assert_eq!(graph.headers[0].tag, "VN");
+        assert_eq!(graph.headers[0].value, "1.0");
+        assert_eq!(graph.headers[1].tag, "PN");
+        assert_eq!(graph.headers[1].value, "TestGraph");
+
+        // Verify nodes
+        assert_eq!(graph.nodes(DEFAULT_GRAPH_ID).len(), 3);
+        let node1 = graph.node(DEFAULT_GRAPH_ID, "node1").unwrap();
+        assert_eq!(node1.id, "node1");
+        assert_eq!(node1.sequence, Some("ACGT".into()));
+
+        // Verify edges
+        assert_eq!(graph.edges(DEFAULT_GRAPH_ID).len(), 2);
+        let edge1 = graph.edge(DEFAULT_GRAPH_ID, "edge1").unwrap();
+        assert_eq!(edge1.id, "edge1");
+
+        // Verify groups
+        let graph_section = graph.graph(DEFAULT_GRAPH_ID).unwrap();
+
+        // Verify chain
+        if let Group::Chain { elements, .. } = &graph_section.chains["chain1".as_bytes()] {
+            assert_eq!(elements.len(), 5);
+            assert_eq!(elements[0], "node1");
+            assert_eq!(elements[1], "edge1");
+        } else {
+            panic!("Expected Chain group");
+        }
 
         Ok(())
     }
