@@ -1,4 +1,5 @@
 use crate::graph::TSGraph;
+use anyhow::Result;
 use petgraph::graph::NodeIndex;
 
 pub trait GraphAnalysis {
@@ -8,6 +9,7 @@ pub trait GraphAnalysis {
     fn is_directed_acyclic_graph(&self) -> bool {
         self.is_connected() && !self.is_cyclic()
     }
+    fn summarize(&self) -> Result<()>;
 }
 
 impl GraphAnalysis for TSGraph {
@@ -22,6 +24,11 @@ impl GraphAnalysis for TSGraph {
     }
 
     fn detect_bubbles(&self) -> Vec<Vec<NodeIndex>> {
+        // Implementation here
+        unimplemented!()
+    }
+
+    fn summarize(&self) -> Result<()> {
         // Implementation here
         unimplemented!()
     }
