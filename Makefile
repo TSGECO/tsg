@@ -11,3 +11,24 @@ images: ## Convert PDF images to PNG format
 test: ## Run tests
 	@echo "Running tests..."
 	@cargo nextest run --nocapture
+
+clean: ## Remove build artifacts
+	@cargo clean
+
+check: ## Check the code for errors without building
+	@cargo check
+
+fmt: ## Format code
+	cargo fmt
+
+lint: ## Run linter
+	cargo clippy
+
+cli-doc: ## Run cli doc generation
+	cargo run -- --markdown-help > docs/cli.md     
+
+pre-commit: ## Run pre-commit checks
+	pre-commit run --all-files
+
+tsg-pdf: ## Convert tsg format  to PDF 
+	pandoc docs/tsg.md -o docs/tsg.pdf

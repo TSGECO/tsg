@@ -935,11 +935,6 @@ impl TSGraph {
         Ok(())
     }
 
-    pub fn from_str(s: &str) -> Result<Self> {
-        let reader = BufReader::new(s.as_bytes());
-        Self::from_reader(reader)
-    }
-
     pub fn from_reader<R: BufRead>(reader: R) -> Result<Self> {
         let mut tsgraph = TSGraph::new();
 
@@ -1346,6 +1341,14 @@ impl TSGraph {
     pub fn to_json_by_id(&self, graph_id: &str) -> Result<serde_json::Value> {
         let graph = self.graphs.get(&BString::from(graph_id)).unwrap();
         graph.to_json()
+    }
+}
+
+impl FromStr for TSGraph {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let reader = BufReader::new(s.as_bytes());
+        Self::from_reader(reader)
     }
 }
 
