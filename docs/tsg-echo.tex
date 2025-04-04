@@ -3,7 +3,7 @@
 \usetikzlibrary{shadows,shapes,arrows,positioning,fit,backgrounds,decorations.pathreplacing,calc}
 
 % Define colors
-\definecolor{tsgblue}{RGB}{66, 133, 244}     % Core Format
+\definecolor{tsgblue}{RGB}{66, 133, 244}     % Core Format color
 \definecolor{tsggreen}{RGB}{52, 168, 83}     % Core Tool
 \definecolor{tsgyellow}{RGB}{251, 188, 5}    % API/Bindings
 \definecolor{tsgpurple}{RGB}{103, 58, 183}   % Applications
@@ -45,23 +45,23 @@
 	\pgfsetlayers{background,main}
 
 	% Title - positioned at the top center
-	\node[title] (title) at (0,10) {TSG Ecosystem Architecture};
-	\draw[tsgblue, line width=1.5pt] (-6,9.5) -- (6,9.5);
+	\node[title] (title) at (0,13) {TSG Ecosystem Architecture};
+	\draw[tsgblue, line width=1.5pt] (-6,12.5) -- (6,12.5);
 
 	% Start with the core format as the center reference point
 	\node[format] (tsg_format) at (0,0) {TSG Format \\ Transcript Segment Graph};
 
 	% Position other main components relative to core format
-	\node[tool] (tsg_tool) [above=4cm of tsg_format] {\Large tsg \\ Rust Library/CLI Tool};
+	\node[tool] (tsg_tool) [above=6cm of tsg_format] {\Large tsg \\ Rust Library/CLI Tool};
 	\node[binding] (bindings) [left=6cm of tsg_tool] {Language \\ Bindings};
-	\node[app] (aurora) [right=6cm of tsg_format] {Aurora \\ Web Application};
+	\node[app] (aurora) [left=6cm of tsg_format] {Aurora \\ Web Application};
 	\node[conversion] (conversion) [below=4cm of tsg_format] {Format \\ Conversion};
 	\node[user] (users) [below=4cm of aurora] {End Users \\ Researchers, Bioinformaticians \\ Data Scientists};
 
 	% Language bindings positioned relative to bindings node - aligned horizontally
-	\node[lang] (python) [below=3cm of bindings, xshift=-3cm] {Python};
-	\node[lang] (r) [below=3cm of bindings] {R};
-	\node[lang] (js) [below=3cm of bindings, xshift=3cm] {JavaScript};
+	\node[lang] (python) [below=2cm of bindings, xshift=-3cm] {Python};
+	\node[lang] (r) [below=2cm of bindings] {R};
+	\node[lang] (js) [below=2cm of bindings, xshift=3cm] {JavaScript};
 
 	% Format types positioned relative to conversion node
 	\node[format_type] (gff) [below=3cm of conversion, xshift=-4.5cm] {GFF/GTF};
@@ -82,6 +82,9 @@
 	\draw[connector] (bindings) to[out=-90, in=90] (r);
 	\draw[connector] (bindings) to[out=-60, in=90] (js);
 
+	% connect javascript to the line between tsg_format and aurora
+	\draw[connector] (js) to[out=-90, in=90] ($(tsg_format.west)!0.5!(aurora.east)$);
+
 	% Format Conversion to formats
 	\draw[connector] (conversion) to[out=-120, in=90] (gff);
 	\draw[connector] (conversion) to[out=-100, in=90] (bed);
@@ -99,7 +102,7 @@
 	\end{pgfonlayer}
 
 	% Legend - positioned relative to top right
-	\node[legend_box=tsgblue] (legend1) at (6,8) {};
+	\node[legend_box=tsgblue] (legend1) at (6,10) {};
 	\node[right=0.2cm of legend1, font=\small] {Core Format};
 
 	\node[legend_box=tsggreen] (legend2) [below=0.8cm of legend1] {};
