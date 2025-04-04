@@ -18,35 +18,46 @@
 \begin{tikzpicture}[
 		% Node styles
 		format/.style={draw=tsgblue, fill=tsgblue, text=white, rounded corners=5pt,
-				minimum width=5cm, minimum height=3cm, font=\bfseries,  align=center},
+				minimum width=5cm, minimum height=3cm, font=\bfseries, align=center,
+				drop shadow={shadow xshift=0.2em, shadow yshift=-0.2em, opacity=0.3}},
 		tool/.style={draw=tsggreen, fill=tsggreen, text=white, rounded corners=5pt,
-				minimum width=5cm, minimum height=2.8cm, font=\bfseries, align=center},
+				minimum width=5cm, minimum height=2.8cm, font=\bfseries, align=center,
+				drop shadow={shadow xshift=0.2em, shadow yshift=-0.2em, opacity=0.3}},
 		binding/.style={draw=tsgyellow, fill=tsgyellow, text=white, rounded corners=5pt,
-				minimum width=4.5cm, minimum height=2.8cm, font=\bfseries, align=center},
+				minimum width=4.5cm, minimum height=2.8cm, font=\bfseries, align=center,
+				drop shadow={shadow xshift=0.2em, shadow yshift=-0.2em, opacity=0.3}},
 		app/.style={draw=tsgpurple, fill=tsgpurple, text=white, rounded corners=5pt,
-				minimum width=5cm, minimum height=2.8cm, font=\bfseries, align=center},
+				minimum width=5cm, minimum height=2.8cm, font=\bfseries, align=center,
+				drop shadow={shadow xshift=0.2em, shadow yshift=-0.2em, opacity=0.3}},
 		lang/.style={draw=tsgred, fill=tsgred, text=white, rounded corners=3pt,
-				minimum width=2.5cm, minimum height=1.5cm, font=\bfseries, align=center},
+				minimum width=2.5cm, minimum height=1.5cm, font=\bfseries, align=center,
+				drop shadow={shadow xshift=0.1em, shadow yshift=-0.1em, opacity=0.3}},
 		conversion/.style={draw=tsgcyan, fill=tsgcyan, text=white, rounded corners=5pt,
-				minimum width=5cm, minimum height=2.8cm, font=\bfseries,  align=center},
+				minimum width=5cm, minimum height=2.8cm, font=\bfseries, align=center,
+				drop shadow={shadow xshift=0.2em, shadow yshift=-0.2em, opacity=0.3}},
 		format_type/.style={draw=tsgindigo, fill=tsgindigo, text=white, rounded corners=3pt,
-				minimum width=2.5cm, minimum height=1.2cm, font=\bfseries, align=center},
+				minimum width=2.5cm, minimum height=1.2cm, font=\bfseries, align=center,
+				drop shadow={shadow xshift=0.1em, shadow yshift=-0.1em, opacity=0.3}},
 		user/.style={draw=tsgorange, fill=tsgorange, text=white, rounded corners=5pt,
-				minimum width=5cm, minimum height=2.8cm, font=\bfseries,  align=center},
+				minimum width=5cm, minimum height=2.8cm, font=\bfseries, align=center,
+				drop shadow={shadow xshift=0.2em, shadow yshift=-0.2em, opacity=0.3}},
 		connector/.style={->, >=stealth, draw=tsggray, line width=3pt, shorten >=3pt, shorten <=3pt},
-		groupbox/.style={draw=#1, dashed, rounded corners=10pt, line width=1pt},
-		title/.style={font=\LARGE\bfseries},
-		subtitle/.style={font=\small},
-		legend_box/.style={draw=#1, fill=#1, minimum width=0.6cm, minimum height=0.6cm},
+		connector/.append style={opacity=0.7},
+		groupbox/.style={draw=#1, dashed, rounded corners=10pt, line width=1.5pt, fill=#1!5},
+		title/.style={font=\LARGE\bfseries\sffamily},
+		subtitle/.style={font=\small\sffamily},
+		legend_box/.style={draw=#1, fill=#1, minimum width=0.6cm, minimum height=0.6cm,
+				drop shadow={shadow xshift=0.1em, shadow yshift=-0.1em, opacity=0.2}},
 		% Define node distances
 	]
 
 	\pgfdeclarelayer{background}
 	\pgfsetlayers{background,main}
 
-	% Title - positioned at the top center
+	% Title - positioned at the top center with decorative elements
 	\node[title] (title) at (0,13) {TSG Ecosystem Architecture};
-	\draw[tsgblue, line width=1.5pt] (-6,12.5) -- (6,12.5);
+	\draw[tsgblue, line width=2pt] (-7,12.5) -- (7,12.5);
+	\draw[tsgblue!50, line width=1pt] (-6.5,12) -- (6.5,12);
 
 	% Start with the core format as the center reference point
 	\node[format] (tsg_format) at (0,0) {TSG Format \\ Transcript Segment Graph};
@@ -69,13 +80,12 @@
 	\node[format_type] (vcf) [below=3cm of conversion, xshift=1.5cm] {VCF};
 	\node[format_type] (fasta) [below=3cm of conversion, xshift=4.5cm] {FASTA};
 
-
-	% Connections
-	\draw[connector] (tsg_tool) -- (tsg_format);
-	\draw[connector] (tsg_tool) -- (bindings);
-	\draw[connector] (tsg_format) -- (aurora);
-	\draw[connector] (tsg_format) -- (conversion);
-	\draw[connector] (aurora) -- (users);
+	% Connections with curved paths for better appearance
+	\draw[connector] (tsg_tool) to[out=-90,in=90] (tsg_format);
+	\draw[connector] (tsg_tool) to[out=180,in=45] (bindings);
+	\draw[connector] (tsg_format) to[out=180,in=0] (aurora);
+	\draw[connector] (tsg_format) to[out=-90,in=90] (conversion);
+	\draw[connector] (aurora) to[out=-90,in=90] (users);
 
 	% Bindings to languages
 	\draw[connector] (bindings) to[out=-120, in=90] (python);
@@ -94,28 +104,31 @@
 	\draw[connector] (conversion) to[out=-80, in=90] (vcf);
 	\draw[connector] (conversion) to[out=-60, in=90] (fasta);
 
-	% Group boxes in background
+	% Group boxes in background with semi-transparent fill
 	\begin{pgfonlayer}{background}
-		\node[fit=(bindings) (python) (r) (js), groupbox=tsgyellow, inner sep=0.6cm, line width=1.5pt,
-			label={[tsgyellow, font=\bfseries]above:API \& SDK}] {};
-		\node[fit=(aurora) (users), groupbox=tsgpurple, inner sep=0.6cm, line width=1.5pt,
-			label={[tsgpurple, font=\bfseries]above:Visualization \& Analysis}] {};
-		\node[fit=(conversion) (gff) (bed) (vcf) (fasta), groupbox=tsgcyan, inner sep=0.5cm, line width=1.5pt,
-			label={[tsgcyan, font=\bfseries]below:Bioinformatics Data Formats}] {};
+		\node[fit=(bindings) (python) (r) (js), groupbox=tsgyellow, inner sep=0.8cm, line width=1.8pt,
+			label={[tsgyellow, font=\bfseries\sffamily]above:API \& SDK}] {};
+		\node[fit=(aurora) (users), groupbox=tsgpurple, inner sep=0.8cm, line width=1.8pt,
+			label={[tsgpurple, font=\bfseries\sffamily]above:Visualization \& Analysis}] {};
+		\node[fit=(conversion) (gff) (bed) (vcf) (fasta), groupbox=tsgcyan, inner sep=0.8cm, line width=1.8pt,
+			label={[tsgcyan, font=\bfseries\sffamily]below:Bioinformatics Data Formats}] {};
 	\end{pgfonlayer}
 
-	% Legend - positioned relative to top right
-	\node[legend_box=tsgblue] (legend1) at (6,10) {};
-	\node[right=0.2cm of legend1, font=\small] {Core Format};
+	% Legend - styled with gradient background
+	\node[draw=black!10, fill=black!3, rounded corners, minimum width=4cm, minimum height=5.5cm] at (6,8) {};
+	\node[font=\bfseries\sffamily] at (6,10.5) {Legend};
+
+	\node[legend_box=tsgblue] (legend1) at (5,10) {};
+	\node[right=0.2cm of legend1, font=\small\sffamily] {Core Format};
 
 	\node[legend_box=tsggreen] (legend2) [below=0.8cm of legend1] {};
-	\node[right=0.2cm of legend2, font=\small] {Core Tool};
+	\node[right=0.2cm of legend2, font=\small\sffamily] {Core Tool};
 
 	\node[legend_box=tsgyellow] (legend3) [below=0.8cm of legend2] {};
-	\node[right=0.2cm of legend3, font=\small] {API/Bindings};
+	\node[right=0.2cm of legend3, font=\small\sffamily] {API/Bindings};
 
 	\node[legend_box=tsgpurple] (legend4) [below=0.8cm of legend3] {};
-	\node[right=0.2cm of legend4, font=\small] {Applications};
+	\node[right=0.2cm of legend4, font=\small\sffamily] {Applications};
 
 \end{tikzpicture}
 
