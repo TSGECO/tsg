@@ -1225,7 +1225,7 @@ impl TSGraph {
 
         match group {
             Group::Chain { elements, .. } => {
-                let mut nodes = Vec::with_capacity((elements.len() + 1) / 2);
+                let mut nodes = Vec::with_capacity(elements.len().div_ceil(2));
 
                 for (i, element_id) in elements.iter().enumerate() {
                     if i % 2 == 0 {

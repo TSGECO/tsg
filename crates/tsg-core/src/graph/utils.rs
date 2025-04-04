@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 ///
 /// * `input_string` - The string to convert
 /// * `length` - The desired length of the output identifier (default: Some(16))
-///             If None, returns the full hash
+///   If None, returns the full hash
 ///
 /// # Returns
 ///

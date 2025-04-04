@@ -2,6 +2,7 @@ use crate::graph::TSGraph;
 use anyhow::Result;
 use petgraph::graph::NodeIndex;
 
+#[allow(dead_code)]
 pub trait GraphAnalysis {
     fn is_connected(&self) -> bool;
     fn is_cyclic(&self) -> bool;

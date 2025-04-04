@@ -190,9 +190,10 @@ impl Exons {
     }
 }
 
+#[allow(clippy::duplicated_attributes)]
 #[derive(Debug, Clone, Builder, PartialEq)]
-#[builder(on(BString, into))]
-#[builder(on(ReadIdentity, into))]
+#[builder(on(BString, into))] // This enables automatic conversion to BString from string types
+#[builder(on(ReadIdentity, into))] // This enables automatic conversion to ReadIdentity from strings
 pub struct ReadData {
     pub id: BString,
     pub identity: ReadIdentity,
