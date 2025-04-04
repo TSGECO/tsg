@@ -82,8 +82,11 @@
 	\draw[connector] (bindings) to[out=-90, in=90] (r);
 	\draw[connector] (bindings) to[out=-60, in=90] (js);
 
-	% connect javascript to the line between tsg_format and aurora
-	\draw[connector] (js) to[out=-90, in=90] ($(tsg_format.west)!0.5!(aurora.east)$);
+	% JS connects directly to Aurora through midpoint of tsg_format-aurora path
+	\coordinate (midpoint) at ($(tsg_format.west)!0.5!(aurora.east)$);
+	\draw[connector] (js) to[out=-90, in=45] (midpoint);
+	% Direct path from tsg_format through midpoint to aurora
+	\draw[connector] (tsg_format) -- (midpoint) -- (aurora);
 
 	% Format Conversion to formats
 	\draw[connector] (conversion) to[out=-120, in=90] (gff);
