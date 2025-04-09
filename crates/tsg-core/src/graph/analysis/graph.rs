@@ -1,8 +1,10 @@
+use crate::graph::PathAnalysis;
 use crate::graph::{GraphSection, TSGraph};
 use ahash::HashMap;
 use ahash::HashMapExt;
 use ahash::HashSet;
 use ahash::HashSetExt;
+use anyhow::Context;
 use anyhow::Result;
 use bstr::BString;
 use petgraph::graph::NodeIndex;
@@ -33,9 +35,19 @@ impl TSGraphAnalysis for TSGraph {
 
         // Pre-allocate with capacity to avoid reallocations
         let mut summary = Vec::with_capacity(estimated_capacity);
+        let headers = vec![
+            "gid",
+            "nodes",
+            "edges",
+            "paths",
+            "max_path_len",
+            "super_path",
+            "bubble",
+        ];
 
-        let header = b"gid\tnodes\tedges\tpaths\tmax_path_len\n";
-        summary.extend_from_slice(header);
+        let delimiter = "\t";
+        let header_str = headers.join(delimiter) + "\n";
+        summary.extend_from_slice(header_str.as_bytes());
 
         for (id, graph) in self.graphs.iter() {
             let node_count = graph.nodes().len();
@@ -45,13 +57,25 @@ impl TSGraphAnalysis for TSGraph {
             let path_count = paths.len();
             let max_path_len = paths.iter().map(|path| path.nodes.len()).max().unwrap_or(0);
 
+            let include_super_path = paths.iter().any(|path| {
+                path.is_super()
+                    .context("Failed to check super path")
+                    .unwrap()
+            });
+            let graph_is_bubble = graph.is_bubble()?;
+
             // Use write! to format directly into the buffer without intermediate allocations
             use std::io::Write;
-
             writeln!(
                 summary,
-                "{}\t{}\t{}\t{}\t{}",
-                id, node_count, edge_count, path_count, max_path_len
+                "{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                id,
+                node_count,
+                edge_count,
+                path_count,
+                max_path_len,
+                include_super_path,
+                graph_is_bubble
             )?;
         }
         // Convert to BString only once at the end
