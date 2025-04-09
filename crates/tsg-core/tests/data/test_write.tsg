@@ -18,10 +18,10 @@ E	e3	n2	n3	chr1,chr1,2200,2500,TDUP
 E	e4	n3	n5	chr1,chr1,1700,2500,DUP
 # Groups
 C	chain2	n2 e3 n3 e4 n5
-C	chain1	n1 e1 n3 e2 n4
-U	exon_set	n1 n2 n3
 P	transcript1	n1+ e1+ n3+ e2+ n4+
+U	exon_set	n1 n2 n3
 P	transcript2	n2+ e3+ n3+ e4+ n5+
+C	chain1	n1 e1 n3 e2 n4
 # Attributes
 A	N	n1	expression:f:10.5
 A	N	n1	ptc:i:10

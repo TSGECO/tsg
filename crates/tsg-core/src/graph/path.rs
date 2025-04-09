@@ -96,6 +96,11 @@ impl<'a> TSGPath<'a> {
         self.nodes.is_empty()
     }
 
+    /// Get the number of nodes in the path
+    pub fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
     pub fn id(&self) -> Result<BString> {
         if self.nodes.is_empty() {
             return Err(anyhow!("No nodes in path"));

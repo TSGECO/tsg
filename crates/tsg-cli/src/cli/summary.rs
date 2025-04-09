@@ -4,8 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 use tracing::info;
-use tsg::graph::GraphAnalysis;
 use tsg::graph::TSGraph;
+use tsg::graph::TSGraphAnalysis;
 
 pub fn summary<P: AsRef<Path>>(input: P, output: Option<PathBuf>) -> Result<()> {
     let tsg_graph = TSGraph::from_file(input.as_ref())?;

@@ -58,8 +58,16 @@ impl GraphSection {
         }
     }
 
-    pub fn default_graph() -> Self {
+    pub fn new_default_graph() -> Self {
         Self::new(DEFAULT_GRAPH_ID.into())
+    }
+
+    pub fn node_weight(&self, node_idx: NodeIndex) -> Option<&NodeData> {
+        self._graph.node_weight(node_idx)
+    }
+
+    pub fn edge_weight(&self, edge_idx: EdgeIndex) -> Option<&EdgeData> {
+        self._graph.edge_weight(edge_idx)
     }
 
     /// Add a node to the graph
@@ -518,7 +526,7 @@ pub struct TSGraph {
 impl TSGraph {
     /// Create a new empty TSGraph
     pub fn new() -> Self {
-        let graph = GraphSection::default_graph();
+        let graph = GraphSection::new_default_graph();
         let mut graphs = HashMap::new();
         graphs.insert(graph.id.clone(), graph);
         Self {
