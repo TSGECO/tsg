@@ -30,7 +30,6 @@ jobs:
   release-plz-pr:
     name: Release-plz PR
     runs-on: ubuntu-latest
-    if: ${{ github.repository_owner == 'TSGECO' }}
     permissions:
       pull-requests: write
       contents: write
@@ -44,6 +43,40 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLZ_TOKEN }}
           ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Fix Git Repository State
+        run: |
+          echo "Ensuring repository is in a consistent state..."
+          # First check if HEAD is valid
+          if ! git rev-parse --verify HEAD &>/dev/null; then
+            echo "HEAD reference is invalid, attempting to fix"
+            if git show-ref --verify refs/heads/main &>/dev/null; then
+              git symbolic-ref HEAD refs/heads/main
+            else
+              echo "Creating main branch with initial commit"
+              git checkout --orphan main
+              git config --global user.name "GitHub Action"
+              git config --global user.email "action@github.com"
+              git commit --allow-empty -m "chore: Initialize repository after transfer"
+              git push origin main
+            fi
+          fi
+
+          # Create a local tag reference if none exists to prevent release-plz issues
+          if ! git tag -l | grep -q "v0.1.0"; then
+            echo "Creating base tag for version reference"
+            git tag v0.1.0 $(git rev-list --max-parents=0 HEAD) || \
+            git tag v0.1.0 $(git rev-parse HEAD) || \
+            echo "Could not create tag, continuing anyway"
+          fi
+
+          # Check overall repository state
+          echo "Current branch: $(git branch --show-current)"
+          echo "Git status:"
+          git status
+          echo "Recent commits:"
+          git log --oneline -n 5 || echo "No commit history"
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
