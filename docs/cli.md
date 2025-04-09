@@ -5,7 +5,7 @@ This document contains the help content for the `tsg-cli` command-line program.
 **Command Overview:**
 
 * [`tsg-cli`↴](#tsg-cli)
-* [`tsg-cli parse`↴](#tsg-cli-parse)
+* [`tsg-cli summary`↴](#tsg-cli-summary)
 * [`tsg-cli fa`↴](#tsg-cli-fa)
 * [`tsg-cli gtf`↴](#tsg-cli-gtf)
 * [`tsg-cli vcf`↴](#tsg-cli-vcf)
@@ -24,11 +24,11 @@ Transcript Segment Graph (TSG) CLI tool
 
 ###### **Subcommands:**
 
-* `parse` — Parse a TSG file and validate its structure
+* `summary` — Parse a TSG file and validate its structure
 * `fa` — Convert a TSG file to FASTA format
 * `gtf` — Convert a TSG file to GTF format
 * `vcf` — Convert a TSG file to VCF format
-* `dot` — Convert a TSG file to DOT format for graph visualization
+* `dot` — Convert a TSG file to DOT format
 * `json` — Convert a TSG file to JSON format
 * `traverse` — Find and enumerate all valid paths through the graph
 * `merge` — Merge multiple TSG files into a single TSG file
@@ -46,15 +46,19 @@ Transcript Segment Graph (TSG) CLI tool
 
 
 
-## `tsg-cli parse`
+## `tsg-cli summary`
 
 Parse a TSG file and validate its structure
 
-**Usage:** `tsg-cli parse <INPUT>`
+**Usage:** `tsg-cli summary [OPTIONS] <INPUT>`
 
 ###### **Arguments:**
 
 * `<INPUT>` — Input TSG file path
+
+###### **Options:**
+
+* `-o`, `--output <OUTPUT>` — Output file path for the summary, default is stdout
 
 
 
@@ -108,7 +112,7 @@ Convert a TSG file to VCF format
 
 ## `tsg-cli dot`
 
-Convert a TSG file to DOT format for graph visualization
+Convert a TSG file to DOT format
 
 **Usage:** `tsg-cli dot [OPTIONS] <INPUT>`
 
