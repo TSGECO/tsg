@@ -41,7 +41,7 @@ pub enum Commands {
         #[arg(required = true, value_hint = ValueHint::FilePath)]
         input: PathBuf,
 
-        /// Output file path for the summary, default is stdout
+        /// Output file path for the summary via txt format, default is stdout
         #[arg(short, long, value_hint = ValueHint::FilePath)]
         output: Option<PathBuf>,
     },
