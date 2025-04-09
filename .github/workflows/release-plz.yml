@@ -6,44 +6,6 @@ on:
       - main
 
 jobs:
-  diagnose-git-state:
-    name: Diagnose Git Repository State
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.RELEASE_PLZ_TOKEN }}
-      - name: Diagnose Git Repository
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Git status:"
-          git status || echo "Git status failed"
-          echo "Git log:"
-          git log --oneline -n 5 || echo "Git log failed"
-          echo "Git refs:"
-          ls -la .git/refs/heads/ || echo "Refs listing failed"
-          echo "Git HEAD content:"
-          cat .git/HEAD || echo "HEAD reading failed"
-      - name: Fix Git HEAD if needed
-        run: |
-          # Check if HEAD reference exists and points to a valid commit
-          if ! git rev-parse --verify HEAD &>/dev/null; then
-            echo "HEAD reference is invalid, attempting to fix"
-            # Check if main branch exists
-            if git show-ref --verify refs/heads/main &>/dev/null; then
-              # Point HEAD to main
-              git symbolic-ref HEAD refs/heads/main
-            else
-              # Create an empty commit if needed
-              git checkout --orphan main
-              git commit --allow-empty -m "feat: Initialize repository after transfer"
-            fi
-            # Push changes
-            git push origin main
-          fi
-
   release-plz-release:
     name: Release-plz release
     runs-on: ubuntu-latest
@@ -68,6 +30,7 @@ jobs:
   release-plz-pr:
     name: Release-plz PR
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'TSGECO' }}
     permissions:
       pull-requests: write
       contents: write
@@ -81,23 +44,6 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.RELEASE_PLZ_TOKEN }}
           ref: ${{ github.head_ref || github.ref_name }}
-      - name: Fix Git HEAD if needed
-        run: |
-          # Check if HEAD reference exists and points to a valid commit
-          if ! git rev-parse --verify HEAD &>/dev/null; then
-            echo "HEAD reference is invalid, attempting to fix"
-            # Check if main branch exists
-            if git show-ref --verify refs/heads/main &>/dev/null; then
-              # Point HEAD to main
-              git symbolic-ref HEAD refs/heads/main
-            else
-              # Create an empty commit if needed
-              git checkout --orphan main
-              git commit --allow-empty -m "feat: Initialize repository after transfer"
-            fi
-            # Push changes if necessary
-            git push origin main || echo "No need to push"
-          fi
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
