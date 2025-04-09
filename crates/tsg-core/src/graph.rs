@@ -19,6 +19,7 @@ use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use anyhow::{Context, Result, anyhow};
 use bstr::{BStr, BString, ByteSlice};
 
+pub use analysis::*;
 pub use attr::*;
 pub use edge::*;
 pub use group::*;
