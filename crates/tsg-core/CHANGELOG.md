@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.1.8](https://github.com/TSGECO/tsg/compare/tsg-core-v0.1.7...tsg-core-v0.1.8)
+
+### Added
+
+
+- Update summary output description and correct chain references in test data - ([0774e06](https://github.com/TSGECO/tsg/commit/0774e06ac1e578e815d674c2e357dcab28a27e3f))
+
+### Other
+
+
+- Clean up whitespace and formatting in various files - ([fa803b5](https://github.com/TSGECO/tsg/commit/fa803b51b5818624bec304799998c8e8ec289bd1))
+
+
 ## [0.1.7](https://github.com/TSGECO/tsg/compare/tsg-core-v0.1.6...tsg-core-v0.1.7)
 
 ### Added
