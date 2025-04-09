@@ -35,7 +35,7 @@ pub enum Commands {
         #[arg(required = true, value_hint = ValueHint::FilePath)]
         input: PathBuf,
     },
-    /// Parse a TSG file and validate its structure
+    /// Summary a TSG file
     Summary {
         /// Input TSG file path
         #[arg(required = true, value_hint = ValueHint::FilePath)]
