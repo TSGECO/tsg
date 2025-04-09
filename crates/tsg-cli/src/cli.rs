@@ -6,6 +6,7 @@ mod merge;
 mod path;
 mod query;
 mod split;
+mod summary;
 mod vcf;
 
 pub use dot::*;
@@ -16,6 +17,7 @@ pub use merge::*;
 pub use path::*;
 pub use query::*;
 pub use split::*;
+pub use summary::*;
 pub use vcf::*;
 
 use clap::Subcommand;
@@ -26,10 +28,14 @@ use std::path::PathBuf;
 #[derive(Subcommand)]
 pub enum Commands {
     /// Parse a TSG file and validate its structure
-    Parse {
+    Summary {
         /// Input TSG file path
         #[arg(required = true, value_hint = ValueHint::FilePath)]
         input: PathBuf,
+
+        /// Output file path for the summary, default is stdout
+        #[arg(short, long, value_hint = ValueHint::FilePath)]
+        output: Option<PathBuf>,
     },
 
     /// Convert a TSG file to FASTA format

@@ -3,7 +3,6 @@ use anyhow::Result;
 use petgraph::graph::NodeIndex;
 
 // TODO this module is not used yet, but it will be used in the future
-
 #[allow(dead_code)]
 pub trait GraphAnalysis {
     fn is_connected(&self) -> bool;

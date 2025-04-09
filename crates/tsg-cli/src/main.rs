@@ -4,11 +4,8 @@ use tracing::info;
 
 use anyhow::Result;
 use clap::{Command, CommandFactory, Parser};
-use cli::Commands;
-use tsg::graph::TSGraph;
-
 use clap_complete::aot::{Generator, Shell, generate};
-use colored::Colorize;
+use cli::Commands;
 use std::io::stdout;
 
 #[derive(Parser)]
@@ -63,18 +60,9 @@ fn run() -> Result<()> {
     tracing_subscriber::fmt().with_max_level(cli.verbose).init();
 
     match command {
-        Commands::Parse { input } => {
-            info!("Parsing TSG file: {}", input.display());
-            let graph = TSGraph::from_file(input)?;
-
-            for (id, graph) in graph.graphs.iter() {
-                println!(
-                    "Successfully parsed graph {} with {} nodes and {} edges",
-                    id.to_string().green(),
-                    graph.nodes().len(),
-                    graph.edges().len()
-                );
-            }
+        Commands::Summary { input, output } => {
+            info!("Generating summary for TSG file: {}", input.display());
+            cli::summary(input, output)?;
             Ok(())
         }
 
