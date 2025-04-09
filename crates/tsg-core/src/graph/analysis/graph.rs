@@ -47,6 +47,7 @@ impl TSGraphAnalysis for TSGraph {
 
             // Use write! to format directly into the buffer without intermediate allocations
             use std::io::Write;
+
             writeln!(
                 summary,
                 "{}\t{}\t{}\t{}\t{}",
@@ -291,5 +292,144 @@ impl GraphSection {
         }
 
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graph::TSGraph;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_is_connected() {
+        // Create a connected graph
+        let tsg_string = r#"H	VN	1.0
+H	PN	TestGraph
+N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
+N	node2	chr1:+:300-400	read1:SO,read3:IN
+N	node3	chr1:+:500-600	read1:SO,read4:IN
+E	edge1	node1	node2	chr1,chr1,1700,2000,INV
+E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
+"#;
+
+        let tsgraph = TSGraph::from_str(tsg_string).unwrap();
+        let graph = tsgraph.default_graph().unwrap();
+        assert!(graph.is_connected());
+
+        // Create a disconnected graph
+        let tsg_string = r#"H	VN	1.0
+H	PN	TestGraph
+N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
+N	node2	chr1:+:300-400	read1:SO,read3:IN
+N	node3	chr1:+:500-600	read1:SO,read4:IN
+E	edge1	node1	node2	chr1,chr1,1700,2000,INV
+"#;
+
+        let tsgraph = TSGraph::from_str(tsg_string).unwrap();
+        let graph = tsgraph.default_graph().unwrap();
+        assert!(!graph.is_connected());
+    }
+
+    #[test]
+    fn test_is_cyclic() {
+        // Create an acyclic graph
+        let tsg_string = r#"H	VN	1.0
+H	PN	TestGraph
+N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
+N	node2	chr1:+:300-400	read1:SO,read3:IN
+N	node3	chr1:+:500-600	read1:SO,read4:IN
+E	edge1	node1	node2	chr1,chr1,1700,2000,INV
+E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
+"#;
+        let tsgraph = TSGraph::from_str(tsg_string).unwrap();
+        let graph = tsgraph.default_graph().unwrap();
+        assert!(!graph.is_cyclic());
+
+        // Create a cyclic graph
+        let tsg_string = r#"H	VN	1.0
+H	PN	TestGraph
+N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
+N	node2	chr1:+:300-400	read1:SO,read3:IN
+N	node3	chr1:+:500-600	read1:SO,read4:IN
+E	edge1	node1	node2	chr1,chr1,1700,2000,INV
+E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
+E	edge3	node3	node1	chr1,chr1,1700,2000,DUP
+"#;
+
+        let tsgraph = TSGraph::from_str(tsg_string).unwrap();
+        let graph = tsgraph.default_graph().unwrap();
+
+        assert!(graph.is_cyclic());
+    }
+
+    #[test]
+    fn test_detect_bubbles() {
+        // Create a graph with a bubble
+        let tsg_string = r#"H	VN	1.0
+H	PN	TestGraph
+N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
+N	node2	chr1:+:300-400	read1:SO,read3:IN
+N	node3	chr1:+:500-600	read1:SO,read4:IN
+N	node4	chr1:+:700-800	read1:SO,read5:IN
+E	edge1	node1	node2	chr1,chr1,1700,2000,INV
+E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
+E	edge3	node2	node4	chr1,chr1,1700,2000,DUP
+E	edge4	node3	node4	chr1,chr1,1700,2000,INV
+E	edge6	node1	node3	chr1,chr1,1700,2000,INV
+"#;
+
+        let tsgraph = TSGraph::from_str(tsg_string).unwrap();
+        let graph = tsgraph.default_graph().unwrap();
+        let bubbles = graph.detect_bubbles();
+
+        print!("Bubble: ");
+        for bubble in &bubbles[0] {
+            print!("{:?} ", bubble);
+        }
+
+        // No bubbles in a linear graph
+        let tsg_string = r#"H	VN	1.0
+H	PN	TestGraph
+N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
+N	node2	chr1:+:300-400	read1:SO,read3:IN
+N	node3	chr1:+:500-600	read1:SO,read4:IN
+E	edge1	node1	node2	chr1,chr1,1700,2000,INV
+E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
+"#;
+
+        let tsgraph = TSGraph::from_str(tsg_string).unwrap();
+        let graph = tsgraph.default_graph().unwrap();
+        let bubbles = graph.detect_bubbles();
+        assert_eq!(bubbles.len(), 0);
+    }
+
+    #[test]
+    fn test_summarize() {
+        let tsg_string = r#"H	VN	1.0
+    H	PN	TestGraph
+    G	g1
+    N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
+    N	node2	chr1:+:300-400	read1:SO,read3:IN
+    N	node3	chr1:+:500-600	read1:SO,read4:IN
+    E	edge1	node1	node2	chr1,chr1,1700,2000,INV
+    E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
+    G	g2
+    N	node4	chr2:+:100-200	read5:SO,read6:IN	ACGT
+    N	node5	chr2:+:300-400	read5:SO,read7:IN
+    E	edge3	node4	node5	chr2,chr2,1700,2000,INV
+    "#;
+
+        let tsgraph = TSGraph::from_str(tsg_string).unwrap();
+        let summary = tsgraph.summarize().unwrap();
+        let summary_str = summary.to_string();
+
+        assert!(summary_str.contains("edges"));
+        assert!(summary_str.contains("paths"));
+        assert!(summary_str.contains("max_path_len"));
+        assert!(summary_str.contains("g1"));
+        assert!(summary_str.contains("g2"));
+        assert!(summary_str.contains("edges"));
+        assert!(summary_str.contains("paths"));
     }
 }

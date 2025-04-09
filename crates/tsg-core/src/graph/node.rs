@@ -297,11 +297,16 @@ impl fmt::Display for Strand {
 #[builder(on(BString, into))]
 pub struct NodeData {
     pub id: BString,
+    #[builder(default)]
     pub reference_id: BString,
+    #[builder(default)]
     pub strand: Strand,
+    #[builder(default)]
     pub exons: Exons,
+    #[builder(default)]
     pub reads: Vec<ReadData>,
     pub sequence: Option<BString>,
+    #[builder(default)]
     pub attributes: HashMap<BString, Attribute>,
 }
 
