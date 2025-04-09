@@ -1,6 +1,7 @@
 mod dot;
 mod fa;
 mod gtf;
+mod header;
 mod json;
 mod merge;
 mod path;
@@ -12,6 +13,7 @@ mod vcf;
 pub use dot::*;
 pub use fa::*;
 pub use gtf::*;
+pub use header::*;
 pub use json::*;
 pub use merge::*;
 pub use path::*;
@@ -27,6 +29,12 @@ use std::path::PathBuf;
 /// Command line interface for the TSG tool
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Print the header of a TSG file
+    Header {
+        /// Input TSG file path
+        #[arg(required = true, value_hint = ValueHint::FilePath)]
+        input: PathBuf,
+    },
     /// Parse a TSG file and validate its structure
     Summary {
         /// Input TSG file path

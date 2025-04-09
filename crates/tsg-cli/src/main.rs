@@ -60,6 +60,11 @@ fn run() -> Result<()> {
     tracing_subscriber::fmt().with_max_level(cli.verbose).init();
 
     match command {
+        Commands::Header { input } => {
+            info!("Printing header for TSG file: {}", input.display());
+            cli::print_header(input)?;
+            Ok(())
+        }
         Commands::Summary { input, output } => {
             info!("Generating summary for TSG file: {}", input.display());
             cli::summary(input, output)?;
