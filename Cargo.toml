@@ -8,8 +8,8 @@ version = "0.1.5"
 edition = "2024"
 authors = ["Yangyang Li <yangyang.li@northwestern.edu>"]
 description = "A tool to analyze and manipulate transcript segment graph (TSG)"
-homepage = "https://github.com/cauliyang/tsg"
-repository = "https://github.com/cauliyang/tsg"
+homepage = "https://github.com/TSGECO/tsg"
+repository = "https://github.com/TSGECO/tsg"
 license = "Apache-2.0"
 readme = "README.md"
 
