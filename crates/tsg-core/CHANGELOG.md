@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.1.7](https://github.com/TSGECO/tsg/compare/tsg-core-v0.1.6...tsg-core-v0.1.7)
+
+### Added
+
+
+- Enhance TSGraph analysis output with additional headers and bubble detection logic; update test data for consistency - ([89887bb](https://github.com/TSGECO/tsg/commit/89887bb5d8c963661ab8d0b2bfe53808f7edb38c))
+- Update GraphAnalysis trait methods to return Result types and modify bubble detection logic - ([06f98f3](https://github.com/TSGECO/tsg/commit/06f98f355a4629a457a544705253b0433929be25))
+- Add tests for graph connectivity, cyclicity, and bubble detection; update NodeData struct with default values - ([692d282](https://github.com/TSGECO/tsg/commit/692d2829eca470c73ed896cda9c408987ef5255a))
+- Add header command to CLI for printing TSG file headers - ([5843513](https://github.com/TSGECO/tsg/commit/58435131a0e02d9204c88621629dedbe224adbff))
+- Enhance graph analysis with new traits and methods for path analysis - ([0456eea](https://github.com/TSGECO/tsg/commit/0456eeabcc2600d08c567011bd69ba57921ad90a))
+
+
 ## [0.1.6](https://github.com/cauliyang/tsg/compare/tsg-core-v0.1.5...tsg-core-v0.1.6)
 
 ### Added
