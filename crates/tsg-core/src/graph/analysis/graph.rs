@@ -12,11 +12,11 @@ use std::collections::VecDeque;
 // TODO this module is not used yet, but it will be used in the future
 #[allow(dead_code)]
 pub trait GraphAnalysis {
-    fn is_connected(&self) -> bool;
-    fn is_cyclic(&self) -> bool;
-    fn detect_bubbles(&self) -> Vec<Vec<NodeIndex>>;
-    fn is_directed_acyclic_graph(&self) -> bool {
-        self.is_connected() && !self.is_cyclic()
+    fn is_connected(&self) -> Result<bool>;
+    fn is_cyclic(&self) -> Result<bool>;
+    fn is_bubble(&self) -> Result<bool>; // Updated return type to Result<bool>
+    fn is_directed_acyclic_graph(&self) -> Result<bool> {
+        Ok(self.is_connected()? && !self.is_cyclic()?)
     }
 }
 
@@ -60,9 +60,9 @@ impl TSGraphAnalysis for TSGraph {
 }
 
 impl GraphAnalysis for GraphSection {
-    fn is_connected(&self) -> bool {
+    fn is_connected(&self) -> Result<bool> {
         if self.nodes().is_empty() {
-            return true; // Empty graph is trivially connected
+            return Ok(true); // Empty graph is trivially connected
         }
 
         // Start DFS from the first node
@@ -73,10 +73,10 @@ impl GraphAnalysis for GraphSection {
         self.dfs(*start_node, &mut visited);
 
         // The graph is connected if all nodes are visited
-        visited.len() == self.node_indices.len()
+        Ok(visited.len() == self.node_indices.len())
     }
 
-    fn is_cyclic(&self) -> bool {
+    fn is_cyclic(&self) -> Result<bool> {
         // Track both visited nodes and nodes in the current recursion stack
         let mut visited = HashSet::new();
         let mut rec_stack = HashSet::new();
@@ -84,29 +84,24 @@ impl GraphAnalysis for GraphSection {
         // Check from each node (to handle disconnected components)
         for start_node in self.node_indices.values() {
             if self.is_cyclic_util(*start_node, &mut visited, &mut rec_stack) {
-                return true;
+                return Ok(true);
             }
         }
 
-        false
+        Ok(false) // Updated to return Result<bool>
     }
 
-    fn detect_bubbles(&self) -> Vec<Vec<NodeIndex>> {
-        let mut bubbles = Vec::new();
+    fn is_bubble(&self) -> Result<bool> {
         let mut visited = HashSet::new();
+        let mut bubbles = Vec::new();
 
-        // For each node, check if it's the start of a bubble
-        for &start_node in self.node_indices.values() {
-            // Skip already visited nodes
-            if visited.contains(&start_node) {
-                continue;
+        for start_node in self.node_indices.values() {
+            if !visited.contains(start_node) {
+                self.find_bubbles(*start_node, &mut bubbles, &mut visited);
             }
-
-            // Find all bubble structures starting from this node
-            self.find_bubbles(start_node, &mut bubbles, &mut visited);
         }
 
-        bubbles
+        Ok(!bubbles.is_empty())
     }
 }
 
@@ -315,7 +310,7 @@ E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
 
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
         let graph = tsgraph.default_graph().unwrap();
-        assert!(graph.is_connected());
+        assert!(graph.is_connected().unwrap());
 
         // Create a disconnected graph
         let tsg_string = r#"H	VN	1.0
@@ -328,7 +323,7 @@ E	edge1	node1	node2	chr1,chr1,1700,2000,INV
 
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
         let graph = tsgraph.default_graph().unwrap();
-        assert!(!graph.is_connected());
+        assert!(!graph.is_connected().unwrap());
     }
 
     #[test]
@@ -344,7 +339,7 @@ E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
 "#;
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
         let graph = tsgraph.default_graph().unwrap();
-        assert!(!graph.is_cyclic());
+        assert!(!graph.is_cyclic().unwrap());
 
         // Create a cyclic graph
         let tsg_string = r#"H	VN	1.0
@@ -360,7 +355,7 @@ E	edge3	node3	node1	chr1,chr1,1700,2000,DUP
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
         let graph = tsgraph.default_graph().unwrap();
 
-        assert!(graph.is_cyclic());
+        assert!(graph.is_cyclic().unwrap());
     }
 
     #[test]
@@ -381,12 +376,8 @@ E	edge6	node1	node3	chr1,chr1,1700,2000,INV
 
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
         let graph = tsgraph.default_graph().unwrap();
-        let bubbles = graph.detect_bubbles();
-
-        print!("Bubble: ");
-        for bubble in &bubbles[0] {
-            print!("{:?} ", bubble);
-        }
+        let bubbles = graph.is_bubble().unwrap();
+        assert!(bubbles);
 
         // No bubbles in a linear graph
         let tsg_string = r#"H	VN	1.0
@@ -400,8 +391,8 @@ E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
 
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
         let graph = tsgraph.default_graph().unwrap();
-        let bubbles = graph.detect_bubbles();
-        assert_eq!(bubbles.len(), 0);
+        let bubbles = graph.is_bubble().unwrap();
+        assert!(!bubbles);
     }
 
     #[test]
