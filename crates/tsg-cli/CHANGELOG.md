@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.1.6](https://github.com/cauliyang/tsg/compare/tsg-cli-v0.1.5...tsg-cli-v0.1.6)
+
+### Added
+
+
+- Implement graph summary functionality and update test data for consistency - ([0cf710d](https://github.com/cauliyang/tsg/commit/0cf710d355384c289340e6e13110c355d7b0812c))
+- Add summary command to CLI for generating TSG graph summaries - ([e7b74b3](https://github.com/cauliyang/tsg/commit/e7b74b3adac59169b6e4abda48459d00cd29245d))
+
+
 ## [0.1.3](https://github.com/cauliyang/tsg/compare/tsg-cli-v0.1.2...tsg-cli-v0.1.3)
 
 ### Added

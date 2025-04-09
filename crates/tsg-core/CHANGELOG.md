@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [0.1.6](https://github.com/cauliyang/tsg/compare/tsg-core-v0.1.5...tsg-core-v0.1.6)
+
+### Added
+
+
+- Add GraphAnalysis and PathAnalysis traits for future graph analysis functionality - ([5ce91f8](https://github.com/cauliyang/tsg/commit/5ce91f810c21e656bb39cda48e6955e277e72f38))
+- Implement graph summary functionality and update test data for consistency - ([0cf710d](https://github.com/cauliyang/tsg/commit/0cf710d355384c289340e6e13110c355d7b0812c))
+- Add summary command to CLI for generating TSG graph summaries - ([e7b74b3](https://github.com/cauliyang/tsg/commit/e7b74b3adac59169b6e4abda48459d00cd29245d))
+
+### Fixed
+
+
+- Reorder groups and transcripts for consistency in test_write.tsg - ([7f4fcea](https://github.com/cauliyang/tsg/commit/7f4fcea167753b21abad3e8d30888c230c5935d5))
+- Update dependencies in Cargo.toml and reorder attributes in test files for consistency - ([b305692](https://github.com/cauliyang/tsg/commit/b30569254289c2f0bd895bd3760900c3f71851fe))
+- Reorder attributes in test_write.tsg for consistency - ([ed115db](https://github.com/cauliyang/tsg/commit/ed115dbb74756e9156a9946ee170ac9d0a827f57))
+- Optimize node capacity calculation and improve trait documentation - ([90a1483](https://github.com/cauliyang/tsg/commit/90a148383fb2ed324e99c00d9f7ae038f1c37cb7))
+- Update pre-commit hooks and enhance Makefile with additional commands - ([2c928a4](https://github.com/cauliyang/tsg/commit/2c928a470bd1c1913fa46c7a58d0bdcddd2a3232))
+- Reorder attributes and groups in test files for consistency - ([799d413](https://github.com/cauliyang/tsg/commit/799d413b37dd7af2739ba4ddba2a3eacda2ba4a2))
+
+### Other
+
+
+- *(test.gtf, test_write.tsg)* Reorder attributes by type and name for better readability - ([0d17669](https://github.com/cauliyang/tsg/commit/0d176694be091a4e0402f5dc93fb968afdb4141f))
+- Add TODO comment for future use of the GraphAnalysis module - ([aca1160](https://github.com/cauliyang/tsg/commit/aca1160360fce61c1ba15566da6a2a1dfec6e90d))
+
+
 ## [0.1.3](https://github.com/cauliyang/tsg/compare/tsg-core-v0.1.2...tsg-core-v0.1.3)
 
 ### Added
