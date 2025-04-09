@@ -6,7 +6,7 @@ help: ## Display this help message
 
 images: ## Convert PDF images to PNG format
 	@echo "Building images..."
-	@inkscape docs/tsg-echo.pdf --export-type=png --export-dpi=300 --export-filename=docs/tsgeco.png         
+	@inkscape docs/tsg-echo.pdf --export-type=png --export-dpi=300 --export-filename=docs/tsgeco.png
 
 test: ## Run tests
 	@echo "Running tests..."
@@ -25,10 +25,13 @@ lint: ## Run linter
 	cargo clippy
 
 cli-doc: ## Run cli doc generation
-	cargo run -- --markdown-help > docs/cli.md     
+	cargo run -- --markdown-help > docs/cli.md
 
 pre-commit: ## Run pre-commit checks
 	pre-commit run --all-files
 
-tsg-pdf: ## Convert tsg format  to PDF 
+tsg-pdf: ## Convert tsg format  to PDF
 	pandoc docs/tsg.md -o docs/tsg.pdf
+
+sanitize: test pre-commit ## Sanitize the repo
+	@echo "Sanitizing Repo..."

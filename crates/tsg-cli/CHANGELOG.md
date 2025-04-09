@@ -38,4 +38,3 @@
 - Update README to clarify read types for genomic location - ([b0a44b6](https://github.com/cauliyang/tsg/commit/b0a44b6c797f67f230580ffc35aa516bb7981f7c))
 - Update README to enhance documentation on TSG features, usage, and file format - ([6207da9](https://github.com/cauliyang/tsg/commit/6207da9f56a9082d3844ad8e6feb1d300b0bbbd0))
 - Initial commit - ([2677300](https://github.com/cauliyang/tsg/commit/26773001f4da0e3d28788005a429dc3030d6c0c5))
-

@@ -67,4 +67,3 @@
 
 - Remove unnecessary whitespace and comments - ([8d9c56f](https://github.com/cauliyang/tsg/commit/8d9c56f6bd8b5f67891f0a7b28f5166b053f60d1))
 - Update pre-commit hooks and improve CLI documentation; refactor function names for clarity - ([d289043](https://github.com/cauliyang/tsg/commit/d2890439a0477bf6126b483286d12befcc550f2a))
-

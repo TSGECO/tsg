@@ -35,7 +35,7 @@ impl TSGraphAnalysis for TSGraph {
 
         // Pre-allocate with capacity to avoid reallocations
         let mut summary = Vec::with_capacity(estimated_capacity);
-        let headers = vec![
+        let headers = [
             "gid",
             "nodes",
             "edges",

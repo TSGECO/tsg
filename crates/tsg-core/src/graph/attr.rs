@@ -198,9 +198,9 @@ mod tests {
         let attr = Attribute {
             tag: "ptf".into(),
             attribute_type: 'f',
-            value: "3.14".into(),
+            value: "3.1".into(),
         };
-        assert_eq!(attr.as_float().unwrap(), 3.14);
+        assert_eq!(attr.as_float().unwrap(), 3.1);
 
         let attr = Attribute {
             tag: "ptf".into(),

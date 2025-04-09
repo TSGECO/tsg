@@ -26,4 +26,3 @@
 - Update dependencies and improve reader handling in TSGraph - ([a6f55fa](https://github.com/cauliyang/tsg/commit/a6f55fa342e35db82d18739b86ffdecbbdc2c97c))
 - Simplify initialization of StringDictionary and update error handling in BTSGDecompressor - ([c37479e](https://github.com/cauliyang/tsg/commit/c37479e6f9c1839ad66e65e594880ac80b5557d8))
 - Update TSG format specification in documentation - ([5ae674b](https://github.com/cauliyang/tsg/commit/5ae674bfd3ff78d2f854b5a60c15ed4a01dae975))
-
