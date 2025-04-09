@@ -5,6 +5,7 @@ This document contains the help content for the `tsg-cli` command-line program.
 **Command Overview:**
 
 * [`tsg-cli`↴](#tsg-cli)
+* [`tsg-cli header`↴](#tsg-cli-header)
 * [`tsg-cli summary`↴](#tsg-cli-summary)
 * [`tsg-cli fa`↴](#tsg-cli-fa)
 * [`tsg-cli gtf`↴](#tsg-cli-gtf)
@@ -24,6 +25,7 @@ Transcript Segment Graph (TSG) CLI tool
 
 ###### **Subcommands:**
 
+* `header` — Print the header of a TSG file
 * `summary` — Parse a TSG file and validate its structure
 * `fa` — Convert a TSG file to FASTA format
 * `gtf` — Convert a TSG file to GTF format
@@ -43,6 +45,18 @@ Transcript Segment Graph (TSG) CLI tool
 
 * `-v`, `--verbose` — Increase logging verbosity
 * `-q`, `--quiet` — Decrease logging verbosity
+
+
+
+## `tsg-cli header`
+
+Print the header of a TSG file
+
+**Usage:** `tsg-cli header <INPUT>`
+
+###### **Arguments:**
+
+* `<INPUT>` — Input TSG file path
 
 
 
