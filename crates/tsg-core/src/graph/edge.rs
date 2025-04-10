@@ -8,6 +8,41 @@ use bstr::{BString, ByteVec};
 
 use super::Attribute;
 
+/// Represents a structural variant in a genomic sequence.
+///
+/// A structural variant describes a genomic rearrangement between two locations,
+/// potentially on different reference sequences.
+///
+/// # Fields
+///
+/// * `reference_name1` - The name of the first reference sequence.
+/// * `reference_name2` - The name of the second reference sequence.
+/// * `breakpoint1` - The position on the first reference sequence where the variant occurs.
+/// * `breakpoint2` - The position on the second reference sequence where the variant occurs.
+/// * `sv_type` - The type of structural variant (e.g., "DEL", "INV", "DUP", "TRA").
+///
+/// # Examples
+///
+/// ```
+/// use bstr::BString;
+/// use tsg_core::graph::StructuralVariant;
+///
+/// let sv = StructuralVariant {
+///     reference_name1: BString::from("chr1"),
+///     reference_name2: BString::from("chr1"),
+///     breakpoint1: 1000,
+///     breakpoint2: 5000,
+///     sv_type: BString::from("DEL"),
+/// };
+///
+/// let sv_from_builder = StructuralVariant::builder()
+///    .reference_name1("chr1")
+///    .reference_name2("chr1")
+///    .breakpoint1(1000)
+///    .breakpoint2(5000)
+///    .sv_type(BString::from("DEL"))
+///    .build();
+/// ```
 #[derive(Debug, Builder, Clone, Default)]
 #[builder(on(BString, into))]
 pub struct StructuralVariant {
@@ -69,7 +104,16 @@ impl fmt::Display for StructuralVariant {
     }
 }
 
-/// Edge in the transcript segment graph
+/// Represents an edge in a transcript segment graph.
+///
+/// Each edge contains a structural variant and additional attributes.
+///
+/// # Fields
+///
+/// * `id` - The unique identifier for this edge.
+/// * `sv` - The structural variant associated with this edge.
+/// * `attributes` - A collection of additional attributes for this edge.
+///
 #[derive(Debug, Clone, Builder, Default)]
 #[builder(on(BString, into))]
 pub struct EdgeData {

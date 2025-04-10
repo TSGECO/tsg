@@ -5,6 +5,15 @@ use anyhow::{Result, anyhow};
 use bon::Builder;
 use bstr::{BStr, BString, ByteSlice};
 
+/// Represents different types of attribute values in the graph
+///
+/// This enum contains various data types that can be stored as attribute values:
+/// * `Int` - Integer values (stored as `isize`)
+/// * `Float` - Floating-point values (stored as `f32`)
+/// * `String` - UTF-8 string values (stored as `BString`)
+/// * `Json` - Structured JSON data (stored as `serde_json::Value`)
+/// * `Hex` - Hexadecimal representation of data (stored as `BString`)
+/// * `Bytes` - Raw binary data (stored as `Vec<u8>`)
 #[derive(Debug, Clone)]
 pub enum AttributeValue {
     Int(isize),
@@ -15,7 +24,20 @@ pub enum AttributeValue {
     Bytes(Vec<u8>),
 }
 
-/// Represents an optional attribute
+/// Represents an optional attribute in a graph
+///
+/// Attributes consist of three components:
+/// * `tag` - Identifier for the attribute (e.g., "name", "weight")
+/// * `attribute_type` - Single character identifying the data type:
+///   - 'i': Integer
+///   - 'f': Float
+///   - 'Z': String (default)
+///   - 'J': JSON
+///   - 'H': Hexadecimal
+///   - 'B': Binary bytes
+/// * `value` - The actual value stored as a BString
+///
+/// Attributes are typically formatted as "tag:type:value" when serialized.
 #[derive(Debug, Clone, Builder, Default)]
 #[builder(on(BString, into))]
 pub struct Attribute {
