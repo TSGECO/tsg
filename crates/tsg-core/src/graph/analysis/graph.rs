@@ -45,7 +45,7 @@ impl TSGraphAnalysis for TSGraph {
             "bubble",
         ];
 
-        let delimiter = "\t";
+        let delimiter = ",";
         let header_str = headers.join(delimiter) + "\n";
         summary.extend_from_slice(header_str.as_bytes());
 
@@ -68,7 +68,7 @@ impl TSGraphAnalysis for TSGraph {
             use std::io::Write;
             writeln!(
                 summary,
-                "{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                "{},{},{},{},{},{},{}",
                 id,
                 node_count,
                 edge_count,
