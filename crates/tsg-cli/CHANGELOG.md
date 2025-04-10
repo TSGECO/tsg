@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [0.1.8](https://github.com/TSGECO/tsg/compare/tsg-cli-v0.1.7...tsg-cli-v0.1.8)
+
+### Added
+
+
+- Enhance documentation for TSGraph to FA conversion and attribute representation - ([ce47d6b](https://github.com/TSGECO/tsg/commit/ce47d6b85a17a8b962d3787043b161a1e2b3dcbf))
+- Update summary output description and correct chain references in test data - ([0774e06](https://github.com/TSGECO/tsg/commit/0774e06ac1e578e815d674c2e357dcab28a27e3f))
+
+### Fixed
+
+
+- Update summary output formatting and correct test data entries - ([3eea99c](https://github.com/TSGECO/tsg/commit/3eea99c83989b21e4c693f7d36fc9f97f36b7680))
+
+### Other
+
+
+- Clean up whitespace and formatting in various files - ([fa803b5](https://github.com/TSGECO/tsg/commit/fa803b51b5818624bec304799998c8e8ec289bd1))
+
+
 ## [0.1.6](https://github.com/cauliyang/tsg/compare/tsg-cli-v0.1.5...tsg-cli-v0.1.6)
 
 ### Added
