@@ -70,6 +70,18 @@ impl GraphSection {
         self._graph.edge_weight(edge_idx)
     }
 
+    pub fn in_degree(&self, node_idx: NodeIndex) -> usize {
+        self._graph
+            .edges_directed(node_idx, petgraph::Direction::Incoming)
+            .count()
+    }
+
+    pub fn out_degree(&self, node_idx: NodeIndex) -> usize {
+        self._graph
+            .edges_directed(node_idx, petgraph::Direction::Outgoing)
+            .count()
+    }
+
     /// Add a node to the graph
     pub fn add_node(&mut self, node_data: NodeData) -> Result<NodeIndex> {
         let id = node_data.id.clone();

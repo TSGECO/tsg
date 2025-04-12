@@ -89,6 +89,23 @@ pub trait GraphAnalysis {
     /// * `Err` - If an error occurs during the analysis
     fn is_fade_out(&self) -> Result<bool>;
 
+    /// Determines whether the graph is bipartite.
+    ///
+    /// A bipartite graph is a graph which is simple but not fade-in and fade-out
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph is bipartite
+    /// * `Ok(false)` - If the graph is not bipartite
+    /// * `Err` - If an error occurs during the analysis
+    fn is_bipartite(&self) -> Result<bool> {
+        // A graph is bipartite if it is simple but not fade-in and fade-out
+        let is_simple = self.is_simple()?;
+        let is_fade_in = self.is_fade_in()?;
+        let is_fade_out = self.is_fade_out()?;
+        Ok(is_simple && !is_fade_in && !is_fade_out)
+    }
+
     /// Determines whether the graph contains a unique path.
     ///
     /// A graph has a unique path if it is not simple and there is only one path
@@ -177,6 +194,42 @@ impl GraphAnalysis for GraphSection {
         }
 
         Ok(!bubbles.is_empty())
+    }
+
+    fn is_simple(&self) -> Result<bool> {
+        // A graph is simple if the maximum path length is 1
+        let paths = self.traverse()?;
+        let max_path_len = paths.iter().map(|path| path.len()).max().unwrap_or(0);
+        Ok(max_path_len == 1)
+    }
+
+    fn is_fade_in(&self) -> Result<bool> {
+        // A graph is a fade-in if it is simple and has only one source node
+        let is_simple = self.is_simple()?;
+        let source_count = self
+            .node_indices
+            .values()
+            .filter(|&&node| self.in_degree(node) == 0)
+            .count();
+        Ok(is_simple && source_count == 1)
+    }
+
+    fn is_fade_out(&self) -> Result<bool> {
+        // A graph is a fade-out if it is simple and has only one sink node
+        let is_simple = self.is_simple()?;
+        let sink_count = self
+            .node_indices
+            .values()
+            .filter(|&&node| self.out_degree(node) == 0)
+            .count();
+        Ok(is_simple && sink_count == 1)
+    }
+
+    fn is_unique_path(&self) -> Result<bool> {
+        // A graph has a unique path if it is not simple and there is only one path
+        let paths = self.traverse()?;
+        let unique_path_count = paths.len();
+        Ok(!self.is_simple()? && unique_path_count == 1)
     }
 }
 
