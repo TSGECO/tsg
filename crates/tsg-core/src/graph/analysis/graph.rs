@@ -1,86 +1,137 @@
-use crate::graph::PathAnalysis;
-use crate::graph::{GraphSection, TSGraph};
-use ahash::HashMap;
-use ahash::HashMapExt;
-use ahash::HashSet;
-use ahash::HashSetExt;
-use anyhow::Context;
-use anyhow::Result;
+use crate::graph::{GraphSection, PathAnalysis, TSGraph};
+use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
+use anyhow::{Context, Result};
 use bstr::BString;
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;
 use std::collections::VecDeque;
 
-// TODO this module is not used yet, but it will be used in the future
-#[allow(dead_code)]
 pub trait GraphAnalysis {
+    /// Determines whether the graph is connected.
+    ///
+    /// A graph is connected if there is a path between every pair of vertices.
+    /// For directed graphs, this considers connections in both directions.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph is connected or empty
+    /// * `Ok(false)` - If the graph has disconnected components
+    /// * `Err` - If an error occurs during the analysis
     fn is_connected(&self) -> Result<bool>;
+
+    /// Determines whether the graph contains any cycles.
+    ///
+    /// A cycle is a path that starts and ends at the same node.
+    /// This method performs a depth-first search to detect cycles.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph contains at least one cycle
+    /// * `Ok(false)` - If the graph is acyclic (contains no cycles)
+    /// * `Err` - If an error occurs during the analysis
     fn is_cyclic(&self) -> Result<bool>;
-    fn is_bubble(&self) -> Result<bool>; // Updated return type to Result<bool>
+
+    /// Determines whether the graph contains any bubbles.
+    ///
+    /// A bubble is a subgraph that starts at a single source node, branches into multiple paths,
+    /// and then reconverges at a single sink node.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph contains at least one bubble
+    /// * `Ok(false)` - If the graph does not contain any bubbles
+    /// * `Err` - If an error occurs during the analysis
+    fn is_bubble(&self) -> Result<bool>;
+
+    /// Determines whether the graph is a directed acyclic graph (DAG).
+    ///
+    /// A graph is a DAG if it is both connected and does not contain cycles.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph is a DAG
+    /// * `Ok(false)` - If the graph is not a DAG
+    /// * `Err` - If an error occurs during the analysis
     fn is_directed_acyclic_graph(&self) -> Result<bool> {
         Ok(self.is_connected()? && !self.is_cyclic()?)
     }
-}
 
-pub trait TSGraphAnalysis {
+    /// Determines whether the graph is simple.
+    ///
+    /// A graph is considered simple if the maximum path length is 1.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph is simple
+    /// * `Ok(false)` - If the graph is not simple
+    /// * `Err` - If an error occurs during the analysis
+    fn is_simple(&self) -> Result<bool>;
+
+    /// Determines whether the directed graph is a fade-in structure.
+    ///
+    /// A graph is considered a fade-in if it is simple and has only one source node.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph is a fade-in structure
+    /// * `Ok(false)` - If the graph is not a fade-in structure
+    /// * `Err` - If an error occurs during the analysis
+    fn is_fade_in(&self) -> Result<bool>;
+
+    /// Determines whether the directed graph is a fade-out structure.
+    ///
+    /// A graph is considered a fade-out if it is simple and has only one sink node.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph is a fade-out structure
+    /// * `Ok(false)` - If the graph is not a fade-out structure
+    /// * `Err` - If an error occurs during the analysis
+    fn is_fade_out(&self) -> Result<bool>;
+
+    /// Determines whether the graph contains a unique path.
+    ///
+    /// A graph has a unique path if it is not simple and there is only one path
+    /// after traversing the graph.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph contains a unique path
+    /// * `Ok(false)` - If the graph does not contain a unique path
+    /// * `Err` - If an error occurs during the analysis
+    fn is_unique_path(&self) -> Result<bool>;
+
+    /// Determines whether the graph contains equi-paths.
+    ///
+    /// A graph has equi-paths if it is not simple, contains bubbles (alternative paths),
+    /// and all alternative paths have the same length.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph contains equi-paths
+    /// * `Ok(false)` - If the graph does not contain equi-paths
+    /// * `Err` - If an error occurs during the analysis
+    fn is_equi_path(&self) -> Result<bool>;
+
+    /// Determines whether the graph contains hetero-paths.
+    ///
+    /// A graph has hetero-paths if it is not simple, contains bubbles (alternative paths),
+    /// and the alternative paths have different lengths.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph contains hetero-paths
+    /// * `Ok(false)` - If the graph does not contain hetero-paths
+    /// * `Err` - If an error occurs during the analysis
+    fn is_hetero_path(&self) -> Result<bool>;
+
+    /// Generates a summary of the graph's properties.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(BString)` - A summary of the graph's properties
+    /// * `Err` - If an error occurs during the summarization
     fn summarize(&self) -> Result<BString>;
-}
-
-impl TSGraphAnalysis for TSGraph {
-    fn summarize(&self) -> Result<BString> {
-        // Pre-calculate capacity based on expected size
-        let graph_count = self.graphs.len();
-        // Estimate 30 bytes per graph entry (adjust as needed based on actual data sizes)
-        let estimated_capacity = graph_count * 30;
-
-        // Pre-allocate with capacity to avoid reallocations
-        let mut summary = Vec::with_capacity(estimated_capacity);
-        let headers = [
-            "gid",
-            "nodes",
-            "edges",
-            "paths",
-            "max_path_len",
-            "super_path",
-            "bubble",
-        ];
-
-        let delimiter = ",";
-        let header_str = headers.join(delimiter) + "\n";
-        summary.extend_from_slice(header_str.as_bytes());
-
-        for (id, graph) in self.graphs.iter() {
-            let node_count = graph.nodes().len();
-            let edge_count = graph.edges().len();
-            let paths = graph.traverse()?;
-
-            let path_count = paths.len();
-            let max_path_len = paths.iter().map(|path| path.nodes.len()).max().unwrap_or(0);
-
-            let include_super_path = paths.iter().any(|path| {
-                path.is_super()
-                    .context("Failed to check super path")
-                    .unwrap()
-            });
-            let graph_is_bubble = graph.is_bubble()?;
-
-            // Use write! to format directly into the buffer without intermediate allocations
-            use std::io::Write;
-            writeln!(
-                summary,
-                "{},{},{},{},{},{},{}",
-                id,
-                node_count,
-                edge_count,
-                path_count,
-                max_path_len,
-                include_super_path,
-                graph_is_bubble
-            )?;
-        }
-        // Convert to BString only once at the end
-        Ok(BString::from(summary))
-    }
 }
 
 impl GraphAnalysis for GraphSection {
@@ -311,6 +362,67 @@ impl GraphSection {
         }
 
         None
+    }
+}
+
+pub trait TSGraphAnalysis {
+    fn summarize(&self) -> Result<BString>;
+}
+
+impl TSGraphAnalysis for TSGraph {
+    fn summarize(&self) -> Result<BString> {
+        // Pre-calculate capacity based on expected size
+        let graph_count = self.graphs.len();
+        // Estimate 30 bytes per graph entry (adjust as needed based on actual data sizes)
+        let estimated_capacity = graph_count * 30;
+
+        // Pre-allocate with capacity to avoid reallocations
+        let mut summary = Vec::with_capacity(estimated_capacity);
+        let headers = [
+            "gid",
+            "nodes",
+            "edges",
+            "paths",
+            "max_path_len",
+            "super_path",
+            "bubble",
+        ];
+
+        let delimiter = ",";
+        let header_str = headers.join(delimiter) + "\n";
+        summary.extend_from_slice(header_str.as_bytes());
+
+        for (id, graph) in self.graphs.iter() {
+            let node_count = graph.nodes().len();
+            let edge_count = graph.edges().len();
+            let paths = graph.traverse()?;
+
+            let path_count = paths.len();
+            let max_path_len = paths.iter().map(|path| path.nodes.len()).max().unwrap_or(0);
+
+            let include_super_path = paths.iter().any(|path| {
+                path.is_super()
+                    .context("Failed to check super path")
+                    .unwrap()
+            });
+            let graph_is_bubble = graph.is_bubble()?;
+
+            // Use write! to format directly into the buffer without intermediate allocations
+            use std::io::Write;
+            writeln!(
+                summary,
+                "{},{},{},{},{},{},{}",
+                id,
+                node_count,
+                edge_count,
+                path_count,
+                max_path_len,
+                include_super_path,
+                graph_is_bubble
+            )?;
+        }
+        // Convert to BString only once at the end
+        Ok(BString::from(summary))
     }
 }
 
