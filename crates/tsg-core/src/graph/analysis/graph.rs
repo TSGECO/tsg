@@ -181,6 +181,21 @@ impl GraphAnalysis for GraphSection {
 }
 
 impl GraphSection {
+    /// Performs a depth-first search (DFS) traversal of the graph.
+    ///
+    /// This method visits nodes in the graph in a depth-first manner, marking each visited node.
+    /// It considers both outgoing and incoming edges to ensure connectivity in both directions,
+    /// which is necessary for undirected connectivity analysis.
+    ///
+    /// # Parameters
+    ///
+    /// * `node` - The current node being visited in the traversal
+    /// * `visited` - A mutable HashSet tracking which nodes have been visited to avoid cycles
+    ///
+    /// # Note
+    ///
+    /// The method modifies the `visited` set in-place, adding each node encountered during traversal.
+    /// This is primarily used by the `is_connected` method to determine graph connectivity.
     fn dfs(&self, node: NodeIndex, visited: &mut HashSet<NodeIndex>) {
         // If already visited, return
         if visited.contains(&node) {
@@ -205,6 +220,20 @@ impl GraphSection {
         }
     }
 
+    /// Helper method for cycle detection in a graph.
+    ///
+    /// This method implements a depth-first search that tracks both visited nodes
+    /// and nodes currently in the recursion stack to detect cycles.
+    ///
+    /// # Parameters
+    ///
+    /// * `node` - The current node being visited in the traversal
+    /// * `visited` - A mutable HashSet tracking all nodes that have been visited
+    /// * `rec_stack` - A mutable HashSet tracking nodes in the current recursion path
+    ///
+    /// # Returns
+    ///
+    /// `true` if a cycle is detected, `false` otherwise
     fn is_cyclic_util(
         &self,
         node: NodeIndex,
@@ -238,6 +267,22 @@ impl GraphSection {
         false
     }
 
+    /// Identifies bubble structures within the graph starting from a specific node.
+    ///
+    /// A bubble is a pattern where a path splits into multiple alternative paths
+    /// that later reconverge at a single node. This method performs a depth-first search
+    /// to identify such structures.
+    ///
+    /// # Parameters
+    ///
+    /// * `start` - The node to start the bubble detection from
+    /// * `bubbles` - A mutable vector where detected bubbles will be stored
+    /// * `visited` - A mutable HashSet tracking visited nodes to avoid cycles
+    ///
+    /// # Note
+    ///
+    /// This method populates the `bubbles` vector with each detected bubble, where a bubble
+    /// is represented as a vector of node indices forming the complete bubble structure.
     fn find_bubbles(
         &self,
         start: NodeIndex,
@@ -278,6 +323,25 @@ impl GraphSection {
         }
     }
 
+    /// Attempts to find a convergence point between two paths starting from different nodes.
+    ///
+    /// This method performs a breadth-first search (BFS) from two different starting nodes
+    /// to determine if they eventually converge at a common node, forming a bubble structure.
+    ///
+    /// # Parameters
+    ///
+    /// * `source` - The common source node where the paths diverge
+    /// * `path1` - The first divergent path's starting node
+    /// * `path2` - The second divergent path's starting node
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Vec<NodeIndex>)` - A vector of nodes comprising the bubble if convergence is found
+    /// * `None` - If no convergence is found within the search depth limit
+    ///
+    /// # Note
+    ///
+    /// The search is limited to a maximum depth to prevent infinite loops in cyclic graphs.
     fn find_convergence_point(
         &self,
         source: NodeIndex,
@@ -323,6 +387,22 @@ impl GraphSection {
         None
     }
 
+    /// Processes a single path during bubble detection.
+    ///
+    /// This helper method handles one breadth-first search step in the bubble detection algorithm.
+    /// It checks if the current path has converged with another path, and if not, continues
+    /// the search by adding neighbors to the queue.
+    ///
+    /// # Parameters
+    ///
+    /// * `queue` - A queue of nodes to be processed in breadth-first order
+    /// * `visited` - A map tracking visited nodes and their paths from the source for this branch
+    /// * `other_visited` - A map tracking visited nodes from the other branch
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Vec<NodeIndex>)` - A vector of nodes forming a bubble if convergence is found
+    /// * `None` - If no convergence is detected in this iteration
     fn process_bubble_path(
         &self,
         queue: &mut VecDeque<NodeIndex>,
