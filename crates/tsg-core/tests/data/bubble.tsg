@@ -1,0 +1,11 @@
+H	VN	1.0
+H	PN	TestGraph
+N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
+N	node2	chr1:+:300-400	read1:SO,read3:IN
+N	node3	chr1:+:500-600	read1:SO,read4:IN
+N	node4	chr1:+:700-800	read1:SO,read5:IN
+E	edge1	node1	node2	chr1,chr1,1700,2000,INV
+E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
+E	edge3	node2	node4	chr1,chr1,1700,2000,DUP
+E	edge4	node3	node4	chr1,chr1,1700,2000,INV
+E	edge5	node1	node3	chr1,chr1,1700,2000,INV

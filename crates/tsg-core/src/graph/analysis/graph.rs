@@ -2,6 +2,7 @@ use crate::graph::{GraphSection, PathAnalysis, TSGraph};
 use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
 use anyhow::{Context, Ok, Result};
 use bstr::BString;
+use derive_more::Display;
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;
 use std::collections::VecDeque;
@@ -9,7 +10,7 @@ use std::collections::VecDeque;
 /// Enumeration representing different graph topologies.
 /// The topology can be used to classify the structure of the graph.
 /// One graph only include one topology.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Display)]
 pub enum GraphTopology {
     /// The graph is a fade-in structure.
     FadeIn,
@@ -172,14 +173,6 @@ pub trait GraphAnalysis {
     fn is_hetero_path(&self) -> Result<bool> {
         Ok(matches!(self.topo()?, GraphTopology::HeteroPath))
     }
-
-    /// Generates a summary of the graph's properties.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(BString)` - A summary of the graph's properties
-    /// * `Err` - If an error occurs during the summarization
-    fn summarize(&self) -> Result<BString>;
 }
 
 impl GraphAnalysis for GraphSection {
@@ -278,10 +271,6 @@ impl GraphAnalysis for GraphSection {
 
             Ok(GraphTopology::EquiPath)
         }
-    }
-
-    fn summarize(&self) -> Result<BString> {
-        unimplemented!()
     }
 }
 
@@ -399,9 +388,8 @@ impl GraphSection {
             for i in 0..outgoing_edges.len() {
                 let path1_start = outgoing_edges[i].target();
 
-                for j in i + 1..outgoing_edges.len() {
-                    let path2_start = outgoing_edges[j].target();
-
+                for path2_outgoing_edge in outgoing_edges.iter().skip(i + 1) {
+                    let path2_start = path2_outgoing_edge.target();
                     // Find bubbles from these two starting points
                     self.find_bubble_paths(start, path1_start, path2_start, bubbles);
                 }
@@ -465,7 +453,7 @@ impl GraphSection {
             self.process_path(
                 &mut queue1,
                 &mut path1_visited,
-                &mut path2_visited,
+                &path2_visited,
                 &mut convergence_points,
             );
 
@@ -473,7 +461,7 @@ impl GraphSection {
             self.process_path(
                 &mut queue2,
                 &mut path2_visited,
-                &mut path1_visited,
+                &path1_visited,
                 &mut convergence_points,
             );
 
@@ -664,7 +652,7 @@ impl TSGraphAnalysis for TSGraph {
             "paths",
             "max_path_len",
             "super_path",
-            "bubble",
+            "topology",
         ];
 
         let delimiter = ",";
@@ -684,20 +672,15 @@ impl TSGraphAnalysis for TSGraph {
                     .context("Failed to check super path")
                     .unwrap()
             });
-            let graph_is_bubble = graph.is_bubble()?;
+
+            let topo = graph.topo()?;
 
             // Use write! to format directly into the buffer without intermediate allocations
             use std::io::Write;
             writeln!(
                 summary,
                 "{},{},{},{},{},{},{}",
-                id,
-                node_count,
-                edge_count,
-                path_count,
-                max_path_len,
-                include_super_path,
-                graph_is_bubble
+                id, node_count, edge_count, path_count, max_path_len, include_super_path, topo
             )?;
         }
         // Convert to BString only once at the end
