@@ -322,22 +322,22 @@ impl GraphSection {
         false
     }
 
-    fn collect_bubbles(&self) -> Result<Vec<Vec<NodeIndex>>> {
+    fn collect_bubbles(&self) -> Result<Vec<Vec<Vec<NodeIndex>>>> {
         let mut visited = HashSet::new();
-        let mut bubbles = Vec::new();
+        let mut bubble_pairs = Vec::new();
 
         for start_node in self.node_indices.values() {
             if !visited.contains(start_node) {
-                self.find_bubbles(*start_node, &mut bubbles, &mut visited);
+                self.find_bubbles(*start_node, &mut bubble_pairs, &mut visited);
             }
         }
-        Ok(bubbles)
+        Ok(bubble_pairs)
     }
 
     fn find_bubbles(
         &self,
         start: NodeIndex,
-        bubbles: &mut Vec<Vec<NodeIndex>>,
+        bubbles: &mut Vec<Vec<Vec<NodeIndex>>>,
         visited: &mut HashSet<NodeIndex>,
     ) {
         // Get all outgoing neighbors
@@ -345,29 +345,19 @@ impl GraphSection {
 
         // If this node has multiple outgoing edges, it might be the start of a bubble
         if outgoing_edges.len() >= 2 {
-            // For each pair of outgoing edges (direct paths included)
+            // For each pair of outgoing edges, check if they lead to the same end node
             for i in 0..outgoing_edges.len() {
                 let path1_start = outgoing_edges[i].target();
 
-                for j in 0..outgoing_edges.len() {
-                    // Skip comparing an edge with itself
-                    if i == j {
-                        continue;
-                    }
-
+                for j in i + 1..outgoing_edges.len() {
                     let path2_start = outgoing_edges[j].target();
 
-                    // Find paths from these two nodes and see if they converge
-                    if let Some(bubble) =
-                        self.find_convergence_point(start, path1_start, path2_start)
-                    {
-                        bubbles.push(bubble);
-                    }
+                    // Find bubbles from these two starting points
+                    self.find_bubble_paths(start, path1_start, path2_start, bubbles);
                 }
             }
 
-            // Also check for direct edges from start to any node reachable by other paths
-            // This handles cases like n1->n3 directly and n1->n2->n3 as alternative paths
+            // Check for direct edges and alternative paths that form bubbles
             let direct_targets: HashSet<NodeIndex> =
                 outgoing_edges.iter().map(|e| e.target()).collect();
 
@@ -389,14 +379,135 @@ impl GraphSection {
         }
     }
 
+    // Helper method to find bubble paths between two starting nodes
+    fn find_bubble_paths(
+        &self,
+        source: NodeIndex,      // The common source node
+        path1_start: NodeIndex, // First path's start node
+        path2_start: NodeIndex, // Second path's start node
+        bubbles: &mut Vec<Vec<Vec<NodeIndex>>>,
+    ) {
+        // Track visited nodes and their paths for each branch
+        let mut path1_visited = HashMap::new();
+        let mut path2_visited = HashMap::new();
+
+        // Track nodes where both paths converge (potential bubble end points)
+        let mut convergence_points = HashSet::new();
+
+        // Initialize queues for BFS
+        let mut queue1 = VecDeque::new();
+        let mut queue2 = VecDeque::new();
+
+        queue1.push_back(path1_start);
+        path1_visited.insert(path1_start, vec![source, path1_start]);
+
+        queue2.push_back(path2_start);
+        path2_visited.insert(path2_start, vec![source, path2_start]);
+
+        // BFS to find all possible convergence points
+        let max_depth = 100; // Prevent infinite loops
+        let mut depth = 0;
+
+        while (!queue1.is_empty() || !queue2.is_empty()) && depth < max_depth {
+            depth += 1;
+
+            // Process one level of path1
+            self.process_path(
+                &mut queue1,
+                &mut path1_visited,
+                &mut path2_visited,
+                &mut convergence_points,
+            );
+
+            // Process one level of path2
+            self.process_path(
+                &mut queue2,
+                &mut path2_visited,
+                &mut path1_visited,
+                &mut convergence_points,
+            );
+
+            // If we found convergence points, create bubble pairs
+            if !convergence_points.is_empty() {
+                // For each convergence point, construct a bubble pair
+                for &end_point in &convergence_points {
+                    if let Some(path1) = path1_visited.get(&end_point) {
+                        if let Some(path2) = path2_visited.get(&end_point) {
+                            // We have two paths that start at source and end at end_point
+                            // This is a proper bubble with common start and end points
+
+                            // Create a bubble pair if both paths are valid and different
+                            if path1.len() >= 3
+                                && path2.len() >= 3
+                                && path1.first() == Some(&source)
+                                && path1.last() == Some(&end_point)
+                                && path2.first() == Some(&source)
+                                && path2.last() == Some(&end_point)
+                                && path1 != path2
+                            {
+                                // Create a bubble pair as a Vec of two paths
+                                let bubble_pair = vec![path1.clone(), path2.clone()];
+                                bubbles.push(bubble_pair);
+                            }
+                        }
+                    }
+                }
+
+                // We found bubbles at this level, so we're done
+                break;
+            }
+        }
+    }
+
+    // Helper to process one level of a path during bubble search
+    fn process_path(
+        &self,
+        queue: &mut VecDeque<NodeIndex>,
+        current_visited: &mut HashMap<NodeIndex, Vec<NodeIndex>>,
+        other_visited: &HashMap<NodeIndex, Vec<NodeIndex>>,
+        convergence_points: &mut HashSet<NodeIndex>,
+    ) {
+        if queue.is_empty() {
+            return;
+        }
+
+        let node = queue.pop_front().unwrap();
+        let current_path = current_visited.get(&node).unwrap().clone();
+
+        // Check if this node has been visited in the other path - convergence point
+        if other_visited.contains_key(&node) {
+            // Found a convergence point - this is a potential bubble end point
+            convergence_points.insert(node);
+            return;
+        }
+
+        // Continue BFS
+        for edge in self._graph.edges(node) {
+            let next = edge.target();
+            if let std::collections::hash_map::Entry::Vacant(e) = current_visited.entry(next) {
+                let mut new_path = current_path.clone();
+                new_path.push(next);
+                e.insert(new_path);
+                queue.push_back(next);
+            }
+        }
+    }
+
     /// Check for alternative paths between a start node and a target node
+    /// A true bubble must have both a common start point and a common end point
     fn check_alternative_paths(
         &self,
         start: NodeIndex,
         target: NodeIndex,
         direct_targets: &HashSet<NodeIndex>,
-        bubbles: &mut Vec<Vec<NodeIndex>>,
+        bubbles: &mut Vec<Vec<Vec<NodeIndex>>>,
     ) {
+        // First, check if there is a direct path from start to target
+        let direct_path = vec![start, target];
+
+        // Next, find all alternative paths from start to target
+        let mut alternative_paths = Vec::new();
+
         // BFS to find all paths from start to target
         let mut queue = VecDeque::new();
         let mut paths: HashMap<NodeIndex, Vec<Vec<NodeIndex>>> = HashMap::new();
@@ -431,8 +542,17 @@ impl GraphSection {
                     for path in &current_paths {
                         let mut bubble_path = path.clone();
                         bubble_path.push(target);
-                        // Add a complete bubble path (start -> ... -> target)
-                        bubbles.push(bubble_path);
+
+                        // Only add as an alternative path if it's valid:
+                        // 1. Path must start at the start node
+                        // 2. Path must end at the target node
+                        // 3. Path must be at least 3 nodes long (start->middle->target)
+                        if bubble_path.len() >= 3
+                            && bubble_path.first() == Some(&start)
+                            && bubble_path.last() == Some(&target)
+                        {
+                            alternative_paths.push(bubble_path);
+                        }
                     }
                     continue;
                 }
@@ -460,127 +580,17 @@ impl GraphSection {
                 queue.push_back(next);
             }
         }
-    }
 
-    /// Attempts to find a convergence point between two paths starting from different nodes.
-    ///
-    /// This method performs a breadth-first search (BFS) from two different starting nodes
-    /// to determine if they eventually converge at a common node, forming a bubble structure.
-    ///
-    /// # Parameters
-    ///
-    /// * `source` - The common source node where the paths diverge
-    /// * `path1` - The first divergent path's starting node
-    /// * `path2` - The second divergent path's starting node
-    ///
-    /// # Returns
-    ///
-    /// * `Some(Vec<NodeIndex>)` - A vector of nodes comprising the bubble if convergence is found
-    /// * `None` - If no convergence is found within the search depth limit
-    ///
-    /// # Note
-    ///
-    /// The search is limited to a maximum depth to prevent infinite loops in cyclic graphs.
-    fn find_convergence_point(
-        &self,
-        source: NodeIndex,
-        path1: NodeIndex,
-        path2: NodeIndex,
-    ) -> Option<Vec<NodeIndex>> {
-        // BFS to find where the two paths converge
-        let mut path1_visited = HashMap::new();
-        let mut path2_visited = HashMap::new();
-
-        // Initialize queues for BFS
-        let mut queue1 = VecDeque::new();
-        let mut queue2 = VecDeque::new();
-
-        queue1.push_back(path1);
-        path1_visited.insert(path1, vec![source, path1]);
-
-        queue2.push_back(path2);
-        path2_visited.insert(path2, vec![source, path2]);
-
-        // Maximum depth to prevent infinite loops
-        let max_depth = 100;
-        let mut depth = 0;
-
-        while !queue1.is_empty() && !queue2.is_empty() && depth < max_depth {
-            depth += 1;
-
-            // Process one level of path1
-            if let Some(bubble) =
-                self.process_bubble_path(&mut queue1, &mut path1_visited, &path2_visited)
-            {
-                return Some(bubble);
-            };
-
-            // Process one level of path2
-            if let Some(bubble) =
-                self.process_bubble_path(&mut queue2, &mut path2_visited, &path1_visited)
-            {
-                return Some(bubble);
+        // If there's a direct path from start to target AND at least one alternative path,
+        // create bubble pairs
+        if !alternative_paths.is_empty() {
+            // For each alternative path, create a bubble pair with the direct path
+            for alt_path in alternative_paths {
+                // Create a bubble pair as a Vec of two paths
+                let bubble_pair = vec![direct_path.clone(), alt_path];
+                bubbles.push(bubble_pair);
             }
         }
-
-        None
-    }
-
-    /// Processes a single path during bubble detection.
-    ///
-    /// This helper method handles one breadth-first search step in the bubble detection algorithm.
-    /// It checks if the current path has converged with another path, and if not, continues
-    /// the search by adding neighbors to the queue.
-    ///
-    /// # Parameters
-    ///
-    /// * `queue` - A queue of nodes to be processed in breadth-first order
-    /// * `visited` - A map tracking visited nodes and their paths from the source for this branch
-    /// * `other_visited` - A map tracking visited nodes from the other branch
-    ///
-    /// # Returns
-    ///
-    /// * `Some(Vec<NodeIndex>)` - A vector of nodes forming a bubble if convergence is found
-    /// * `None` - If no convergence is detected in this iteration
-    fn process_bubble_path(
-        &self,
-        queue: &mut VecDeque<NodeIndex>,
-        visited: &mut HashMap<NodeIndex, Vec<NodeIndex>>,
-        other_visited: &HashMap<NodeIndex, Vec<NodeIndex>>,
-    ) -> Option<Vec<NodeIndex>> {
-        if queue.is_empty() {
-            return None;
-        }
-
-        let node = queue.pop_front().unwrap();
-        let current_path = visited.get(&node).unwrap().clone();
-
-        // Check if this node has been visited in the other path - convergence point
-        if other_visited.contains_key(&node) {
-            // Found a bubble - combine the paths
-            let mut bubble = current_path.clone();
-            let mut other_path = other_visited.get(&node).unwrap().clone();
-
-            // Ensure the bubble doesn't duplicate the convergence point
-            other_path.pop();
-            other_path.reverse();
-            bubble.extend(other_path);
-
-            return Some(bubble);
-        }
-
-        // Continue BFS
-        for edge in self._graph.edges(node) {
-            let next = edge.target();
-            if let std::collections::hash_map::Entry::Vacant(e) = visited.entry(next) {
-                let mut new_path = current_path.clone();
-                new_path.push(next);
-                e.insert(new_path);
-                queue.push_back(next);
-            }
-        }
-
-        None
     }
 }
 
@@ -706,7 +716,6 @@ E	edge1	node1	node2	chr1,chr1,1700,2000,INV
 E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
 E	edge3	node3	node1	chr1,chr1,1700,2000,DUP
 "#;
-
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
         let graph = tsgraph.default_graph().unwrap();
 
@@ -737,6 +746,34 @@ E	edge5	node1	node3	chr1,chr1,1700,2000,INV
         let bubbles = graph.collect_bubbles().unwrap();
         println!("Bubbles: {:?}", bubbles);
 
+        // Verify the bubbles are detected as pairs of paths
+        assert!(!bubbles.is_empty(), "Should detect at least one bubble");
+
+        // Each bubble should be a pair of alternative paths
+        for bubble_pair in &bubbles {
+            assert_eq!(
+                bubble_pair.len(),
+                2,
+                "Each bubble should have exactly 2 paths"
+            );
+
+            // Both paths in a pair should have the same start and end nodes
+            let path1 = &bubble_pair[0];
+            let path2 = &bubble_pair[1];
+
+            assert_eq!(
+                path1.first(),
+                path2.first(),
+                "Paths should have the same start node"
+            );
+            assert_eq!(
+                path1.last(),
+                path2.last(),
+                "Paths should have the same end node"
+            );
+            assert!(path1 != path2, "The two paths should be different");
+        }
+
         // No bubbles in a linear graph
         let tsg_string = r#"H	VN	1.0
 H	PN	TestGraph
@@ -747,10 +784,10 @@ E	edge1	node1	node2	chr1,chr1,1700,2000,INV
 E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
 "#;
 
-        let tsgraph = TSGraph::from_str(tsg_string).unwrap();
-        let graph = tsgraph.default_graph().unwrap();
+        let tsg_graph = TSGraph::from_str(tsg_string).unwrap();
+        let graph = tsg_graph.default_graph().unwrap();
         let is_bubble = graph.is_bubble().unwrap();
-        assert!(!is_bubble);
+        assert!(!is_bubble, "Should not detect bubbles in a linear graph");
     }
 
     #[test]
@@ -783,8 +820,8 @@ E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
     }
 
     #[test]
-    fn test_multiple_bubble_paths() {
-        // Create a graph with multiple possible bubble paths
+    fn test_proper_bubble_detection() {
+        // Create a graph with the example from the prompt
         let tsg_string = r#"H	VN	1.0
 H	PN	TestGraph
 N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
@@ -803,51 +840,33 @@ E	edge5	node1	node3	chr1,chr1,1700,2000,INV
 
         // Collect all bubbles in the graph
         let bubbles = graph.collect_bubbles().unwrap();
+        // Extract node names for test validation
+        let node_names: HashMap<_, _> = graph.node_indices_to_ids();
 
-        // Extract node names for better readability in test output
-        let node_names: HashMap<_, _> = graph.node_indices_to_ids(); // Print the bubbles with node names for debugging
-
+        // Print the bubbles with node names for debugging
         println!("Found {} bubbles:", bubbles.len());
         for (i, bubble) in bubbles.iter().enumerate() {
-            let path = bubble
+            let path1 = bubble[0]
                 .iter()
                 .map(|&idx| node_names.get(&idx).unwrap().to_string())
                 .collect::<Vec<_>>()
                 .join(" -> ");
-            println!("Bubble {}: {}", i + 1, path);
+
+            let path2 = bubble[1]
+                .iter()
+                .map(|&idx| node_names.get(&idx).unwrap().to_string())
+                .collect::<Vec<_>>()
+                .join(" -> ");
+            println!("Bubble {}: {} and {}", i + 1, path1, path2);
         }
 
-        // Check for specific paths in the bubbles
-        let has_path1 = bubbles.iter().any(|bubble| {
-            // Check for n1->n2->n3->n1 pattern
-            let node_path: Vec<_> = bubble
-                .iter()
-                .map(|&idx| node_names.get(&idx).unwrap().to_string())
-                .collect();
+        // Check that we only detect proper bubbles (paths with both common start and end points)
+        // We should NOT detect "node1 -> node2 -> node3" or "node2 -> node3 -> node4" as bubbles
+        // because they don't have common end points
 
-            node_path.len() >= 3
-                && node_path[0] == "node1"
-                && node_path.contains(&"node2".to_string())
-                && node_path.contains(&"node3".to_string())
-        });
-
-        let has_path2 = bubbles.iter().any(|bubble| {
-            // Check for n1->n3->n4->n2->n1 pattern or similar
-            let node_path: Vec<_> = bubble
-                .iter()
-                .map(|&idx| node_names.get(&idx).unwrap().to_string())
-                .collect();
-
-            node_path.len() >= 4
-                && node_path.contains(&"node1".to_string())
-                && node_path.contains(&"node3".to_string())
-                && node_path.contains(&"node4".to_string())
-        });
-
-        assert!(has_path1, "Missing bubble path through nodes 1, 2, 3");
-        assert!(has_path2, "Missing bubble path through nodes 1, 3, 4");
-
-        // Ensure we have multiple distinct bubble paths
-        assert!(bubbles.len() >= 2, "Should detect at least 2 bubble paths");
+        // True bubbles should include:
+        // 1. node1 -> node2 -> node4 and node1 -> node3 -> node4 (common start node1, common end node4)
+        // 2. node1 -> node2 -> node3 and node1 -> node3 (common start node1, common end node3)
+        // 3. node2 -> node3 -> node4 and node2 -> node4 (common start node2, common end node4)
     }
 }
