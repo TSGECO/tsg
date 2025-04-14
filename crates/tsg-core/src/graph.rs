@@ -62,6 +62,20 @@ impl GraphSection {
         Self::new(DEFAULT_GRAPH_ID.into())
     }
 
+    pub fn node_indices_to_ids(&self) -> HashMap<NodeIndex, BString> {
+        self.node_indices
+            .par_iter()
+            .map(|(id, &idx)| (idx, id.clone()))
+            .collect()
+    }
+
+    pub fn edge_indices_to_ids(&self) -> HashMap<EdgeIndex, BString> {
+        self.edge_indices
+            .par_iter()
+            .map(|(id, &idx)| (idx, id.clone()))
+            .collect()
+    }
+
     pub fn node_weight(&self, node_idx: NodeIndex) -> Option<&NodeData> {
         self._graph.node_weight(node_idx)
     }

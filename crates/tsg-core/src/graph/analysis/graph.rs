@@ -233,50 +233,6 @@ impl GraphAnalysis for GraphSection {
     fn summarize(&self) -> Result<BString> {
         unimplemented!()
     }
-
-    // fn topo(&self) -> Result<GraphTopology> {
-    //     // check if the graph is fade-in or fade-out
-    //     let sources = self
-    //         ._graph
-    //         .node_indices()
-    //         .filter(|node| self._graph.edges(*node).count() == 0)
-    //         .collect::<Vec<_>>();
-
-    //     let sinks = self
-    //         ._graph
-    //         .node_indices()
-    //         .filter(|node| {
-    //             self._graph
-    //                 .edges_directed(*node, petgraph::Direction::Incoming)
-    //                 .count()
-    //                 == 0
-    //         })
-    //         .collect::<Vec<_>>();
-
-    //     if self.is_simple()? {
-    //         if sources.len() > 1 && sinks.len() == 1 {
-    //             return Ok(GraphTopology::FadeIn);
-    //         } else if sources.len() == 1 && sinks.len() > 1 {
-    //             return Ok(GraphTopology::FadeOut);
-    //         } else if sources.len() > 1 && sinks.len() > 1 {
-    //             return Ok(GraphTopology::Bipartite);
-    //         } else {
-    //             return Ok(GraphTopology::NotDefined);
-    //         }
-    //     } else {
-    //         let bubbles = self.collect_bubbles()?;
-    //         if bubbles.is_empty() && sources.len() == 1 && sinks.len() == 1 {
-    //             return Ok(GraphTopology::UniquePath);
-    //         } else {
-    //             if !bubbles.is_empty() {
-    //                 // the bubble is like a b c d a
-    //                 // the alternative path is like abc adc
-
-    //                 // the bubble may be a b c d e a
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 impl GraphSection {
@@ -389,12 +345,17 @@ impl GraphSection {
 
         // If this node has multiple outgoing edges, it might be the start of a bubble
         if outgoing_edges.len() >= 2 {
-            // For each pair of outgoing edges
+            // For each pair of outgoing edges (direct paths included)
             for i in 0..outgoing_edges.len() {
                 let path1_start = outgoing_edges[i].target();
 
-                for outgoing_edge in outgoing_edges.iter().skip(i + 1) {
-                    let path2_start = outgoing_edge.target();
+                for j in 0..outgoing_edges.len() {
+                    // Skip comparing an edge with itself
+                    if i == j {
+                        continue;
+                    }
+
+                    let path2_start = outgoing_edges[j].target();
 
                     // Find paths from these two nodes and see if they converge
                     if let Some(bubble) =
@@ -403,6 +364,16 @@ impl GraphSection {
                         bubbles.push(bubble);
                     }
                 }
+            }
+
+            // Also check for direct edges from start to any node reachable by other paths
+            // This handles cases like n1->n3 directly and n1->n2->n3 as alternative paths
+            let direct_targets: HashSet<NodeIndex> =
+                outgoing_edges.iter().map(|e| e.target()).collect();
+
+            for target in &direct_targets {
+                // For each direct target, check if there are alternative paths to it
+                self.check_alternative_paths(start, *target, &direct_targets, bubbles);
             }
         }
 
@@ -414,6 +385,79 @@ impl GraphSection {
             let next_node = edge.target();
             if !visited.contains(&next_node) {
                 self.find_bubbles(next_node, bubbles, visited);
+            }
+        }
+    }
+
+    /// Check for alternative paths between a start node and a target node
+    fn check_alternative_paths(
+        &self,
+        start: NodeIndex,
+        target: NodeIndex,
+        direct_targets: &HashSet<NodeIndex>,
+        bubbles: &mut Vec<Vec<NodeIndex>>,
+    ) {
+        // BFS to find all paths from start to target
+        let mut queue = VecDeque::new();
+        let mut paths: HashMap<NodeIndex, Vec<Vec<NodeIndex>>> = HashMap::new();
+
+        // Initialize with all direct neighbors except the target
+        for edge in self._graph.edges(start) {
+            let next = edge.target();
+            if next != target {
+                queue.push_back(next);
+                paths.insert(next, vec![vec![start, next]]);
+            }
+        }
+
+        // Track visited nodes to avoid cycles
+        let mut visited = HashSet::new();
+        visited.insert(start);
+
+        // BFS with path tracking
+        while let Some(node) = queue.pop_front() {
+            if visited.contains(&node) {
+                continue;
+            }
+
+            visited.insert(node);
+            let current_paths = paths.get(&node).unwrap().clone();
+
+            for edge in self._graph.edges(node) {
+                let next = edge.target();
+
+                // If we reached our target, we found an alternative path
+                if next == target {
+                    for path in &current_paths {
+                        let mut bubble_path = path.clone();
+                        bubble_path.push(target);
+                        // Add a complete bubble path (start -> ... -> target)
+                        bubbles.push(bubble_path);
+                    }
+                    continue;
+                }
+
+                // Skip if we've seen this node already to avoid cycles
+                if visited.contains(&next) || direct_targets.contains(&next) {
+                    continue;
+                }
+
+                // Create new paths by extending current paths
+                let mut new_paths = Vec::new();
+                for path in &current_paths {
+                    let mut new_path = path.clone();
+                    new_path.push(next);
+                    new_paths.push(new_path);
+                }
+
+                // Update or insert paths for this node
+                paths
+                    .entry(next)
+                    .and_modify(|e| e.extend(new_paths.clone()))
+                    .or_insert(new_paths.clone());
+
+                // Add to queue for further exploration
+                queue.push_back(next);
             }
         }
     }
@@ -736,5 +780,74 @@ E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
         assert!(summary_str.contains("g2"));
         assert!(summary_str.contains("edges"));
         assert!(summary_str.contains("paths"));
+    }
+
+    #[test]
+    fn test_multiple_bubble_paths() {
+        // Create a graph with multiple possible bubble paths
+        let tsg_string = r#"H	VN	1.0
+H	PN	TestGraph
+N	node1	chr1:+:100-200	read1:SO,read2:IN	ACGT
+N	node2	chr1:+:300-400	read1:SO,read3:IN
+N	node3	chr1:+:500-600	read1:SO,read4:IN
+N	node4	chr1:+:700-800	read1:SO,read5:IN
+E	edge1	node1	node2	chr1,chr1,1700,2000,INV
+E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
+E	edge3	node2	node4	chr1,chr1,1700,2000,DUP
+E	edge4	node3	node4	chr1,chr1,1700,2000,INV
+E	edge5	node1	node3	chr1,chr1,1700,2000,INV
+"#;
+
+        let tsgraph = TSGraph::from_str(tsg_string).unwrap();
+        let graph = tsgraph.default_graph().unwrap();
+
+        // Collect all bubbles in the graph
+        let bubbles = graph.collect_bubbles().unwrap();
+
+        // Extract node names for better readability in test output
+        let node_names: HashMap<_, _> = graph.node_indices_to_ids(); // Print the bubbles with node names for debugging
+
+        println!("Found {} bubbles:", bubbles.len());
+        for (i, bubble) in bubbles.iter().enumerate() {
+            let path = bubble
+                .iter()
+                .map(|&idx| node_names.get(&idx).unwrap().to_string())
+                .collect::<Vec<_>>()
+                .join(" -> ");
+            println!("Bubble {}: {}", i + 1, path);
+        }
+
+        // Check for specific paths in the bubbles
+        let has_path1 = bubbles.iter().any(|bubble| {
+            // Check for n1->n2->n3->n1 pattern
+            let node_path: Vec<_> = bubble
+                .iter()
+                .map(|&idx| node_names.get(&idx).unwrap().to_string())
+                .collect();
+
+            node_path.len() >= 3
+                && node_path[0] == "node1"
+                && node_path.contains(&"node2".to_string())
+                && node_path.contains(&"node3".to_string())
+        });
+
+        let has_path2 = bubbles.iter().any(|bubble| {
+            // Check for n1->n3->n4->n2->n1 pattern or similar
+            let node_path: Vec<_> = bubble
+                .iter()
+                .map(|&idx| node_names.get(&idx).unwrap().to_string())
+                .collect();
+
+            node_path.len() >= 4
+                && node_path.contains(&"node1".to_string())
+                && node_path.contains(&"node3".to_string())
+                && node_path.contains(&"node4".to_string())
+        });
+
+        assert!(has_path1, "Missing bubble path through nodes 1, 2, 3");
+        assert!(has_path2, "Missing bubble path through nodes 1, 3, 4");
+
+        // Ensure we have multiple distinct bubble paths
+        assert!(bubbles.len() >= 2, "Should detect at least 2 bubble paths");
     }
 }
