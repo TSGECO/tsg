@@ -1,12 +1,37 @@
 use crate::graph::{GraphSection, PathAnalysis, TSGraph};
 use ahash::{HashMap, HashMapExt, HashSet, HashSetExt};
-use anyhow::{Context, Result};
+use anyhow::{Context, Ok, Result};
 use bstr::BString;
 use petgraph::graph::NodeIndex;
 use petgraph::visit::EdgeRef;
 use std::collections::VecDeque;
 
+/// Enumeration representing different graph topologies.
+/// The topology can be used to classify the structure of the graph.
+/// One graph only include one topology.
+#[derive(Debug, Clone)]
+pub enum GraphTopology {
+    /// The graph is a fade-in structure.
+    FadeIn,
+    /// The graph is a fade-out structure.
+    FadeOut,
+    /// The graph is bipartite.
+    Bipartite,
+
+    /// The graph is a unique path.
+    UniquePath,
+    /// The graph is an equi-path.
+    EquiPath,
+    /// The graph is a hetero-path.
+    HeteroPath,
+
+    /// The category is not defined.
+    NotDefined,
+}
+
 pub trait GraphAnalysis {
+    fn topo(&self) -> Result<GraphTopology>;
+
     /// Determines whether the graph is connected.
     ///
     /// A graph is connected if there is a path between every pair of vertices.
@@ -76,7 +101,9 @@ pub trait GraphAnalysis {
     /// * `Ok(true)` - If the graph is a fade-in structure
     /// * `Ok(false)` - If the graph is not a fade-in structure
     /// * `Err` - If an error occurs during the analysis
-    fn is_fade_in(&self) -> Result<bool>;
+    fn is_fade_in(&self) -> Result<bool> {
+        Ok(matches!(self.topo()?, GraphTopology::FadeIn))
+    }
 
     /// Determines whether the directed graph is a fade-out structure.
     ///
@@ -87,7 +114,9 @@ pub trait GraphAnalysis {
     /// * `Ok(true)` - If the graph is a fade-out structure
     /// * `Ok(false)` - If the graph is not a fade-out structure
     /// * `Err` - If an error occurs during the analysis
-    fn is_fade_out(&self) -> Result<bool>;
+    fn is_fade_out(&self) -> Result<bool> {
+        Ok(matches!(self.topo()?, GraphTopology::FadeOut))
+    }
 
     /// Determines whether the graph is bipartite.
     ///
@@ -99,11 +128,7 @@ pub trait GraphAnalysis {
     /// * `Ok(false)` - If the graph is not bipartite
     /// * `Err` - If an error occurs during the analysis
     fn is_bipartite(&self) -> Result<bool> {
-        // A graph is bipartite if it is simple but not fade-in and fade-out
-        let is_simple = self.is_simple()?;
-        let is_fade_in = self.is_fade_in()?;
-        let is_fade_out = self.is_fade_out()?;
-        Ok(is_simple && !is_fade_in && !is_fade_out)
+        Ok(matches!(self.topo()?, GraphTopology::Bipartite))
     }
 
     /// Determines whether the graph contains a unique path.
@@ -116,7 +141,9 @@ pub trait GraphAnalysis {
     /// * `Ok(true)` - If the graph contains a unique path
     /// * `Ok(false)` - If the graph does not contain a unique path
     /// * `Err` - If an error occurs during the analysis
-    fn is_unique_path(&self) -> Result<bool>;
+    fn is_unique_path(&self) -> Result<bool> {
+        Ok(matches!(self.topo()?, GraphTopology::UniquePath))
+    }
 
     /// Determines whether the graph contains equi-paths.
     ///
@@ -128,7 +155,9 @@ pub trait GraphAnalysis {
     /// * `Ok(true)` - If the graph contains equi-paths
     /// * `Ok(false)` - If the graph does not contain equi-paths
     /// * `Err` - If an error occurs during the analysis
-    fn is_equi_path(&self) -> Result<bool>;
+    fn is_equi_path(&self) -> Result<bool> {
+        Ok(matches!(self.topo()?, GraphTopology::EquiPath))
+    }
 
     /// Determines whether the graph contains hetero-paths.
     ///
@@ -140,7 +169,9 @@ pub trait GraphAnalysis {
     /// * `Ok(true)` - If the graph contains hetero-paths
     /// * `Ok(false)` - If the graph does not contain hetero-paths
     /// * `Err` - If an error occurs during the analysis
-    fn is_hetero_path(&self) -> Result<bool>;
+    fn is_hetero_path(&self) -> Result<bool> {
+        Ok(matches!(self.topo()?, GraphTopology::HeteroPath))
+    }
 
     /// Generates a summary of the graph's properties.
     ///
@@ -184,15 +215,7 @@ impl GraphAnalysis for GraphSection {
     }
 
     fn is_bubble(&self) -> Result<bool> {
-        let mut visited = HashSet::new();
-        let mut bubbles = Vec::new();
-
-        for start_node in self.node_indices.values() {
-            if !visited.contains(start_node) {
-                self.find_bubbles(*start_node, &mut bubbles, &mut visited);
-            }
-        }
-
+        let bubbles = self.collect_bubbles()?;
         Ok(!bubbles.is_empty())
     }
 
@@ -203,34 +226,57 @@ impl GraphAnalysis for GraphSection {
         Ok(max_path_len == 1)
     }
 
-    fn is_fade_in(&self) -> Result<bool> {
-        // A graph is a fade-in if it is simple and has only one source node
-        let is_simple = self.is_simple()?;
-        let source_count = self
-            .node_indices
-            .values()
-            .filter(|&&node| self.in_degree(node) == 0)
-            .count();
-        Ok(is_simple && source_count == 1)
+    fn topo(&self) -> Result<GraphTopology> {
+        unimplemented!()
     }
 
-    fn is_fade_out(&self) -> Result<bool> {
-        // A graph is a fade-out if it is simple and has only one sink node
-        let is_simple = self.is_simple()?;
-        let sink_count = self
-            .node_indices
-            .values()
-            .filter(|&&node| self.out_degree(node) == 0)
-            .count();
-        Ok(is_simple && sink_count == 1)
+    fn summarize(&self) -> Result<BString> {
+        unimplemented!()
     }
 
-    fn is_unique_path(&self) -> Result<bool> {
-        // A graph has a unique path if it is not simple and there is only one path
-        let paths = self.traverse()?;
-        let unique_path_count = paths.len();
-        Ok(!self.is_simple()? && unique_path_count == 1)
-    }
+    // fn topo(&self) -> Result<GraphTopology> {
+    //     // check if the graph is fade-in or fade-out
+    //     let sources = self
+    //         ._graph
+    //         .node_indices()
+    //         .filter(|node| self._graph.edges(*node).count() == 0)
+    //         .collect::<Vec<_>>();
+
+    //     let sinks = self
+    //         ._graph
+    //         .node_indices()
+    //         .filter(|node| {
+    //             self._graph
+    //                 .edges_directed(*node, petgraph::Direction::Incoming)
+    //                 .count()
+    //                 == 0
+    //         })
+    //         .collect::<Vec<_>>();
+
+    //     if self.is_simple()? {
+    //         if sources.len() > 1 && sinks.len() == 1 {
+    //             return Ok(GraphTopology::FadeIn);
+    //         } else if sources.len() == 1 && sinks.len() > 1 {
+    //             return Ok(GraphTopology::FadeOut);
+    //         } else if sources.len() > 1 && sinks.len() > 1 {
+    //             return Ok(GraphTopology::Bipartite);
+    //         } else {
+    //             return Ok(GraphTopology::NotDefined);
+    //         }
+    //     } else {
+    //         let bubbles = self.collect_bubbles()?;
+    //         if bubbles.is_empty() && sources.len() == 1 && sinks.len() == 1 {
+    //             return Ok(GraphTopology::UniquePath);
+    //         } else {
+    //             if !bubbles.is_empty() {
+    //                 // the bubble is like a b c d a
+    //                 // the alternative path is like abc adc
+
+    //                 // the bubble may be a b c d e a
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 impl GraphSection {
@@ -320,22 +366,18 @@ impl GraphSection {
         false
     }
 
-    /// Identifies bubble structures within the graph starting from a specific node.
-    ///
-    /// A bubble is a pattern where a path splits into multiple alternative paths
-    /// that later reconverge at a single node. This method performs a depth-first search
-    /// to identify such structures.
-    ///
-    /// # Parameters
-    ///
-    /// * `start` - The node to start the bubble detection from
-    /// * `bubbles` - A mutable vector where detected bubbles will be stored
-    /// * `visited` - A mutable HashSet tracking visited nodes to avoid cycles
-    ///
-    /// # Note
-    ///
-    /// This method populates the `bubbles` vector with each detected bubble, where a bubble
-    /// is represented as a vector of node indices forming the complete bubble structure.
+    fn collect_bubbles(&self) -> Result<Vec<Vec<NodeIndex>>> {
+        let mut visited = HashSet::new();
+        let mut bubbles = Vec::new();
+
+        for start_node in self.node_indices.values() {
+            if !visited.contains(start_node) {
+                self.find_bubbles(*start_node, &mut bubbles, &mut visited);
+            }
+        }
+        Ok(bubbles)
+    }
+
     fn find_bubbles(
         &self,
         start: NodeIndex,
@@ -640,13 +682,16 @@ E	edge1	node1	node2	chr1,chr1,1700,2000,INV
 E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
 E	edge3	node2	node4	chr1,chr1,1700,2000,DUP
 E	edge4	node3	node4	chr1,chr1,1700,2000,INV
-E	edge6	node1	node3	chr1,chr1,1700,2000,INV
+E	edge5	node1	node3	chr1,chr1,1700,2000,INV
 "#;
 
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
         let graph = tsgraph.default_graph().unwrap();
-        let bubbles = graph.is_bubble().unwrap();
-        assert!(bubbles);
+        let is_bubble = graph.is_bubble().unwrap();
+        assert!(is_bubble);
+
+        let bubbles = graph.collect_bubbles().unwrap();
+        println!("Bubbles: {:?}", bubbles);
 
         // No bubbles in a linear graph
         let tsg_string = r#"H	VN	1.0
@@ -660,8 +705,8 @@ E	edge2	node2	node3	chr1,chr1,1700,2000,DUP
 
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
         let graph = tsgraph.default_graph().unwrap();
-        let bubbles = graph.is_bubble().unwrap();
-        assert!(!bubbles);
+        let is_bubble = graph.is_bubble().unwrap();
+        assert!(!is_bubble);
     }
 
     #[test]
