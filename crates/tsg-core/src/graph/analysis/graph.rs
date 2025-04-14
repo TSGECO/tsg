@@ -227,7 +227,57 @@ impl GraphAnalysis for GraphSection {
     }
 
     fn topo(&self) -> Result<GraphTopology> {
-        unimplemented!()
+        // Check if the graph is simple first since we need this for classification
+        let is_simple = self.is_simple()?;
+
+        // Count sources and sinks only once
+        let sources = self
+            ._graph
+            .node_indices()
+            .filter(|&n| {
+                self._graph
+                    .edges_directed(n, petgraph::Direction::Incoming)
+                    .count()
+                    == 0
+            })
+            .count();
+
+        let sinks = self
+            ._graph
+            .node_indices()
+            .filter(|&n| self._graph.edges(n).count() == 0)
+            .count();
+
+        if is_simple {
+            // Simple graph classification
+            match (sources, sinks) {
+                (s, 1) if s > 1 => Ok(GraphTopology::FadeIn),
+                (1, s) if s > 1 => Ok(GraphTopology::FadeOut),
+                (s, t) if s > 1 && t > 1 => Ok(GraphTopology::Bipartite),
+                _ => Ok(GraphTopology::NotDefined),
+            }
+        } else {
+            // Handle non-simple graph
+            if sources == 1 && sinks == 1 {
+                return Ok(GraphTopology::UniquePath);
+            }
+
+            // Only collect bubbles if needed
+            let bubbles = self.collect_bubbles()?;
+
+            if bubbles.is_empty() {
+                return Ok(GraphTopology::NotDefined);
+            }
+
+            // Check if any bubble has paths of different lengths
+            for bubble in &bubbles {
+                if bubble[0].len() != bubble[1].len() {
+                    return Ok(GraphTopology::HeteroPath);
+                }
+            }
+
+            Ok(GraphTopology::EquiPath)
+        }
     }
 
     fn summarize(&self) -> Result<BString> {
