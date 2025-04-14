@@ -124,7 +124,8 @@ impl<'a> TSGPath<'a> {
 
         debug!("Node ID string: {}", node_id_string);
         let id = to_hash_identifier(&node_id_string, Some(16))?;
-        Ok(id.into())
+        let id_with_prefix = format!("P.{}", id);
+        Ok(id_with_prefix.into())
     }
 
     pub fn validate(&self) -> Result<()> {
