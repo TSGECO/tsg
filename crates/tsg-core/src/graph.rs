@@ -36,7 +36,7 @@ use rayon::prelude::*;
 use serde_json::json;
 use std::collections::VecDeque;
 
-pub const DEFAULT_GRAPH_ID: &str = "graph";
+pub const DEFAULT_GRAPH_ID: &str = "G.graph";
 /// Represents a graph section within the TSG file
 #[derive(Debug, Clone, Default, Builder)]
 pub struct GraphSection {
