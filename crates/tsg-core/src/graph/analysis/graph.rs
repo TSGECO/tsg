@@ -918,5 +918,7 @@ E	edge5	node1	node3	chr1,chr1,1700,2000,INV
         // 1. node1 -> node2 -> node4 and node1 -> node3 -> node4 (common start node1, common end node4)
         // 2. node1 -> node2 -> node3 and node1 -> node3 (common start node1, common end node3)
         // 3. node2 -> node3 -> node4 and node2 -> node4 (common start node2, common end node4)
+
+        assert_eq!(bubbles.len(), 3, "Should detect exactly 3 bubbles");
     }
 }
