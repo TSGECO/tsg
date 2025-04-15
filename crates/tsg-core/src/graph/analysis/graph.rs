@@ -367,7 +367,8 @@ impl GraphSection {
 
         for start_node in self.node_indices.values() {
             if !visited.contains(start_node) {
-                self.find_bubbles(*start_node, &mut bubble_pairs, &mut visited);
+                self.find_bubbles(*start_node, &mut bubble_pairs, &mut visited)
+                    .context("Failed to find bubbles")?;
             }
         }
         Ok(bubble_pairs)
@@ -378,7 +379,7 @@ impl GraphSection {
         start: NodeIndex,
         bubbles: &mut Vec<Vec<Vec<NodeIndex>>>,
         visited: &mut HashSet<NodeIndex>,
-    ) {
+    ) -> Result<()> {
         // Get all outgoing neighbors
         let outgoing_edges = self._graph.edges(start).collect::<Vec<_>>();
 
@@ -412,9 +413,10 @@ impl GraphSection {
         for edge in outgoing_edges {
             let next_node = edge.target();
             if !visited.contains(&next_node) {
-                self.find_bubbles(next_node, bubbles, visited);
+                self.find_bubbles(next_node, bubbles, visited)?;
             }
         }
+        Ok(())
     }
 
     // Helper method to find bubble paths between two starting nodes
