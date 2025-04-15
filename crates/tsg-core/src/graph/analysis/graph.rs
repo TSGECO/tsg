@@ -95,7 +95,8 @@ pub trait GraphAnalysis {
 
     /// Determines whether the directed graph is a fade-in structure.
     ///
-    /// A graph is considered a fade-in if it is simple and has only one source node.
+    /// A graph is considered a fade-in if it is simple and has multiple source nodes
+    /// but only one sink node.
     ///
     /// # Returns
     ///
@@ -108,7 +109,8 @@ pub trait GraphAnalysis {
 
     /// Determines whether the directed graph is a fade-out structure.
     ///
-    /// A graph is considered a fade-out if it is simple and has only one sink node.
+    /// A graph is considered a fade-out if it is simple and has only one source node
+    /// but multiple sink nodes.
     ///
     /// # Returns
     ///
@@ -121,7 +123,9 @@ pub trait GraphAnalysis {
 
     /// Determines whether the graph is bipartite.
     ///
-    /// A bipartite graph is a graph which is simple but not fade-in and fade-out
+    /// A bipartite graph is a simple graph with multiple source nodes and multiple sink nodes,
+    /// where the nodes can be divided into two disjoint sets with edges only between nodes of
+    /// different sets.
     ///
     /// # Returns
     ///
@@ -172,6 +176,24 @@ pub trait GraphAnalysis {
     /// * `Err` - If an error occurs during the analysis
     fn is_hetero_path(&self) -> Result<bool> {
         Ok(matches!(self.topo()?, GraphTopology::HeteroPath))
+    }
+
+    /// Helper method to check if the graph matches a specific topology.
+    ///
+    /// This internal method can be used to avoid redundant calls to `topo()`
+    /// when checking for multiple topology types.
+    ///
+    /// # Parameters
+    ///
+    /// * `topology` - The GraphTopology variant to check against
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - If the graph matches the specified topology
+    /// * `Ok(false)` - If the graph does not match the specified topology
+    /// * `Err` - If an error occurs during the analysis
+    fn matches_topology(&self, topology: GraphTopology) -> Result<bool> {
+        Ok(self.topo()? == topology)
     }
 }
 
