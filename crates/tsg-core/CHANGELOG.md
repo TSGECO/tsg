@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.1.10](https://github.com/TSGECO/tsg/compare/tsg-core-v0.1.9...tsg-core-v0.1.10)
+
+### Added
+
+
+- Add cyclic and connectivity checks to TSGraph analysis summary - ([0bae55c](https://github.com/TSGECO/tsg/commit/0bae55c67a1ae08f0e04194245fe8d940c00a8ce))
+
+### Fixed
+
+
+- Reorder fields in GTF and VCF files for consistency; update test_write.tsg for clarity - ([f617af2](https://github.com/TSGECO/tsg/commit/f617af2884597f9b40fc07052e8986482e13f186))
+- Reorder entries in test files for consistency and clarity - ([46da604](https://github.com/TSGECO/tsg/commit/46da6041120c711fafa63bc75bd8ef025ff7e432))
+
+
 ## [0.1.9](https://github.com/TSGECO/tsg/compare/tsg-core-v0.1.8...tsg-core-v0.1.9)
 
 ### Added

@@ -4,7 +4,7 @@ members = ["crates/*"]
 default-members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.9"
+version = "0.1.10"
 edition = "2024"
 authors = ["Yangyang Li <yangyang.li@northwestern.edu>"]
 description = "A tool to analyze and manipulate transcript segment graph (TSG)"
@@ -34,7 +34,7 @@ byteorder = "1"
 zstd = "0.13"
 derive_more = { version = "2", features = ['full'] }
 
-tsg-core = { version = "0.1.9", path = "crates/tsg-core" }
+tsg-core = { version = "0.1.10", path = "crates/tsg-core" }
 
 [profile.opt-dev]
 inherits = "dev"
