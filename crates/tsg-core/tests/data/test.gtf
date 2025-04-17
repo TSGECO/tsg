@@ -1,9 +1,9 @@
-.	tsg	transcript	.	.	.	.	.	transcript_id "P.b0f6cc3c26a37e1c";
-chr1	tsg	exon	1000	1200	.	+	.	exon_id "001"; ptc "10"; expression "10.5"; segment_id "001"; transcript_id "P.b0f6cc3c26a37e1c"; 
-chr1	tsg	exon	1500	1700	.	+	.	exon_id "002"; ptc "10"; expression "10.5"; segment_id "001"; transcript_id "P.b0f6cc3c26a37e1c"; 
-chr1	tsg	exon	2500	2700	.	+	.	exon_id "001"; segment_id "002"; transcript_id "P.b0f6cc3c26a37e1c"; 
-chr1	tsg	exon	2500	2700	.	-	.	exon_id "001"; segment_id "003"; transcript_id "P.b0f6cc3c26a37e1c"; 
-.	tsg	transcript	.	.	.	.	.	transcript_id "P.a00d0fe27431e9da";
-chr1	tsg	exon	2000	2200	.	+	.	exon_id "001"; segment_id "001"; transcript_id "P.a00d0fe27431e9da"; 
-chr1	tsg	exon	2500	2700	.	+	.	exon_id "001"; segment_id "002"; transcript_id "P.a00d0fe27431e9da"; 
-chr1	tsg	exon	2500	2700	.	+	.	exon_id "001"; segment_id "003"; transcript_id "P.a00d0fe27431e9da"; 
+.	tsg	transcript	.	.	.	.	.	transcript_id "P.b0f6cc3c26a37e1c"; gene_id "G.graph"; 
+chr1	tsg	exon	1000	1200	.	+	.	exon_id "001"; ptc "10"; expression "10.5"; transcript_id "P.b0f6cc3c26a37e1c"; gene_id "G.graph"; 
+chr1	tsg	exon	1500	1700	.	+	.	exon_id "002"; ptc "10"; expression "10.5"; transcript_id "P.b0f6cc3c26a37e1c"; gene_id "G.graph"; 
+chr1	tsg	exon	2500	2700	.	+	.	exon_id "001"; transcript_id "P.b0f6cc3c26a37e1c"; gene_id "G.graph"; 
+chr1	tsg	exon	2500	2700	.	-	.	exon_id "001"; transcript_id "P.b0f6cc3c26a37e1c"; gene_id "G.graph"; 
+.	tsg	transcript	.	.	.	.	.	transcript_id "P.a00d0fe27431e9da"; gene_id "G.graph"; 
+chr1	tsg	exon	2000	2200	.	+	.	exon_id "001"; transcript_id "P.a00d0fe27431e9da"; gene_id "G.graph"; 
+chr1	tsg	exon	2500	2700	.	+	.	exon_id "001"; transcript_id "P.a00d0fe27431e9da"; gene_id "G.graph"; 
+chr1	tsg	exon	2500	2700	.	+	.	exon_id "001"; transcript_id "P.a00d0fe27431e9da"; gene_id "G.graph"; 
