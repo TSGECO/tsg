@@ -138,10 +138,7 @@ impl GraphSection {
             Some(&idx) => idx,
             None => {
                 // Create a placeholder node if it doesn't exist
-                let placeholder_node = NodeData {
-                    id: source_id.to_owned(),
-                    ..Default::default()
-                };
+                let placeholder_node = NodeData::builder().id(source_id.to_owned()).build();
                 self.add_node(placeholder_node)?
             }
         };
@@ -151,10 +148,7 @@ impl GraphSection {
             Some(&idx) => idx,
             None => {
                 // Create a placeholder node if it doesn't exist
-                let placeholder_node = NodeData {
-                    id: sink_id.to_owned(),
-                    ..Default::default()
-                };
+                let placeholder_node = NodeData::builder().id(sink_id.to_owned()).build();
                 self.add_node(placeholder_node)?
             }
         };
