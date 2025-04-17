@@ -217,25 +217,25 @@ mod tests {
 
     #[test]
     fn test_attribute_as_float() {
-        let attr = Attribute {
-            tag: "ptf".into(),
-            attribute_type: 'f',
-            value: "3.1".into(),
-        };
+        let attr = Attribute::builder()
+            .tag("ptf")
+            .attribute_type('f')
+            .value("3.1")
+            .build();
         assert_eq!(attr.as_float().unwrap(), 3.1);
 
-        let attr = Attribute {
-            tag: "ptf".into(),
-            attribute_type: 'i',
-            value: "3.14".into(),
-        };
+        let attr = Attribute::builder()
+            .tag("ptf")
+            .attribute_type('i')
+            .value("3.14")
+            .build();
         assert!(attr.as_float().is_err());
 
-        let attr = Attribute {
-            tag: "ptf".into(),
-            attribute_type: 'f',
-            value: "not_a_number".into(),
-        };
+        let attr = Attribute::builder()
+            .tag("ptf")
+            .attribute_type('f')
+            .value("not_a_number")
+            .build();
         assert!(attr.as_float().is_err());
     }
 
@@ -258,43 +258,44 @@ mod tests {
 
     #[test]
     fn test_attribute_as_json() {
-        let attr = Attribute {
-            tag: "data".into(),
-            attribute_type: 'J',
-            value: "{\"key\":\"value\"}".into(),
-        };
+        let attr = Attribute::builder()
+            .tag("data")
+            .attribute_type('J')
+            .value("{\"key\":\"value\"}")
+            .build();
+
         let json = attr.as_json().unwrap();
         assert_eq!(json["key"], "value");
 
-        let attr = Attribute {
-            tag: "data".into(),
-            attribute_type: 'Z',
-            value: "{\"key\":\"value\"}".into(),
-        };
+        let attr = Attribute::builder()
+            .tag("data")
+            .attribute_type('Z')
+            .value("{\"key\":\"value\"}")
+            .build();
         assert!(attr.as_json().is_err());
 
-        let attr = Attribute {
-            tag: "data".into(),
-            attribute_type: 'J',
-            value: "invalid_json".into(),
-        };
+        let attr = Attribute::builder()
+            .tag("data")
+            .attribute_type('J')
+            .value("invalid_json")
+            .build();
         assert!(attr.as_json().is_err());
     }
 
     #[test]
     fn test_attribute_display() {
-        let attr = Attribute {
-            tag: "ptc".into(),
-            attribute_type: 'i',
-            value: "1".into(),
-        };
+        let attr = Attribute::builder()
+            .tag("ptc")
+            .attribute_type('i')
+            .value("1")
+            .build();
         assert_eq!(attr.to_string(), "ptc:i:1");
 
-        let attr = Attribute {
-            tag: "ptf".into(),
-            attribute_type: 'f',
-            value: "0.5".into(),
-        };
+        let attr = Attribute::builder()
+            .tag("ptf")
+            .attribute_type('f')
+            .value("0.5")
+            .build();
         assert_eq!(attr.to_string(), "ptf:f:0.5");
     }
 }
