@@ -137,42 +137,45 @@ impl<'a> TSGPath<'a> {
 
     pub fn to_gtf(&self) -> Result<BString> {
         let id = self.id()?;
-        let mut transcript = format!(
-            ".\ttsg\ttranscript\t.\t.\t.\t.\t.\ttranscript_id \"{}\";",
-            id
-        );
+        let gid = &self.graph().unwrap().id;
+        let mut transcript = ".\ttsg\ttranscript\t.\t.\t.\t.\t.\t".to_string();
+
+        let sharing_attributes = vec![
+            Attribute::builder()
+                .tag("transcript_id")
+                .value(id.clone())
+                .build(),
+            Attribute::builder()
+                .tag("gene_id")
+                .value(gid.clone())
+                .build(),
+        ];
 
         for attr in &self.attributes {
-            let attr_str = format!("{} \"{}\";", attr.tag, attr.value);
+            let attr_str = format!("{} \"{}\"; ", attr.tag, attr.value);
             transcript.push_str(&attr_str);
         }
 
-        let mut exons: Vec<BString> = vec![transcript.into()];
-        for (idx, node_idx) in self.nodes.iter().enumerate() {
+        // Add the attributes to the transcript line
+        for attr in &sharing_attributes {
+            let attr_str = format!("{} \"{}\"; ", attr.tag, attr.value);
+            transcript.push_str(&attr_str);
+        }
+
+        let mut nodes: Vec<BString> = vec![transcript.into()];
+        for (_idx, node_idx) in self.nodes.iter().enumerate() {
             let graph = self.graph.ok_or_else(|| anyhow!("Graph not available"))?;
             let node_data = graph
                 .node_by_idx(*node_idx)
                 .with_context(|| format!("Node not found for index: {}", node_idx.index()))?;
 
-            // Create a new attributes vector for each node with just the transcript_id
-            let node_attributes = vec![
-                Attribute::builder()
-                    .tag("transcript_id")
-                    .value(id.clone())
-                    .build(),
-                Attribute::builder()
-                    .tag("segment_id")
-                    .value(format!("{:03}", idx + 1))
-                    .build(),
-            ];
-
-            let exon = node_data.to_gtf(Some(&node_attributes))?;
-            exons.push(exon);
+            let exon = node_data.to_gtf(Some(&sharing_attributes))?;
+            nodes.push(exon);
         }
 
         // Convert Vec<BString> to a format that can be joined
-        let exon_strs: Vec<&str> = exons.iter().map(|b| b.to_str().unwrap()).collect();
-        Ok(exon_strs.join("\n").into())
+        let nodes_str: Vec<&str> = nodes.iter().map(|b| b.to_str().unwrap()).collect();
+        Ok(nodes_str.join("\n").into())
     }
 
     pub fn to_vcf(&self) -> Result<BString> {

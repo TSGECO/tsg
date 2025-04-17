@@ -374,7 +374,7 @@ impl NodeData {
             }
 
             if let Some(attributes) = attributes.as_ref() {
-                for attr in attributes.iter().rev() {
+                for attr in attributes.iter() {
                     gtf.push_str(format!("{} \"{}\"; ", attr.tag, attr.value).as_str());
                 }
             }
@@ -503,24 +503,24 @@ mod tests {
 
     #[test]
     fn test_node_reference_start_end() {
-        let node = NodeData {
-            id: "node1".into(),
-            reference_id: "chr1".into(),
-            exons: Exons {
-                exons: vec![
-                    Interval {
-                        start: 100,
-                        end: 200,
-                    },
-                    Interval {
-                        start: 300,
-                        end: 400,
-                    },
-                ],
-            },
-            ..Default::default()
-        };
-
+        let node = NodeData::builder()
+            .id("node1")
+            .reference_id("chr1")
+            .exons(
+                Exons::builder()
+                    .exons(vec![
+                        Interval {
+                            start: 100,
+                            end: 200,
+                        },
+                        Interval {
+                            start: 300,
+                            end: 400,
+                        },
+                    ])
+                    .build(),
+            )
+            .build();
         assert_eq!(node.reference_start(), 100);
         assert_eq!(node.reference_end(), 400);
     }
