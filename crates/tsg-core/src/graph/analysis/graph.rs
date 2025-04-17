@@ -676,6 +676,8 @@ impl TSGraphAnalysis for TSGraph {
             "paths",
             "max_path_len",
             "super_path",
+            "is_cyclic",
+            "is_connected",
             "topology",
         ];
 
@@ -697,14 +699,25 @@ impl TSGraphAnalysis for TSGraph {
                     .unwrap()
             });
 
+            let is_cyclic = graph.is_cyclic().context("Failed to check cyclic")?;
+            let is_connected = graph.is_connected().context("Failed to check connected")?;
+
             let topo = graph.topo()?;
 
             // Use write! to format directly into the buffer without intermediate allocations
             use std::io::Write;
             writeln!(
                 summary,
-                "{},{},{},{},{},{},{}",
-                id, node_count, edge_count, path_count, max_path_len, include_super_path, topo
+                "{},{},{},{},{},{},{},{},{}",
+                id,
+                node_count,
+                edge_count,
+                path_count,
+                max_path_len,
+                include_super_path,
+                is_cyclic,
+                is_connected,
+                topo
             )?;
         }
         // Convert to BString only once at the end
