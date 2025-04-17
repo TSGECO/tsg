@@ -119,6 +119,7 @@ impl fmt::Display for StructuralVariant {
 pub struct EdgeData {
     pub id: BString,
     pub sv: StructuralVariant,
+    #[builder(default)]
     pub attributes: HashMap<BString, Attribute>,
 }
 

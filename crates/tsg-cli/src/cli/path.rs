@@ -6,8 +6,7 @@ use tracing::info;
 use tsg::graph::TSGraph;
 
 // traverse the graph and output the path to the output file
-// the output file is plain text file
-// each line is a path
+// the output file is plain text file each line is a path
 // P transcript1	n1+	e1+	n3+	e2+	n4+
 pub fn traverse<P: AsRef<Path>>(input: P, text_path: bool, output: Option<PathBuf>) -> Result<()> {
     let tsg_graph = TSGraph::from_file(input.as_ref())?;

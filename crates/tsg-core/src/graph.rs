@@ -537,6 +537,7 @@ pub struct InterGraphLink {
     pub target_graph: BString,
     pub target_element: BString,
     pub link_type: BString,
+    #[builder(default)]
     pub attributes: HashMap<BString, Attribute>,
 }
 
@@ -657,15 +658,14 @@ impl TSGraph {
 
         let link_type: BString = fields[4].into();
 
-        let mut link = InterGraphLink {
-            id,
-            source_graph,
-            source_element,
-            target_graph,
-            target_element,
-            link_type,
-            attributes: HashMap::new(),
-        };
+        let mut link = InterGraphLink::builder()
+            .id(id)
+            .source_graph(source_graph)
+            .source_element(source_element)
+            .target_graph(target_graph)
+            .target_element(target_element)
+            .link_type(link_type)
+            .build();
 
         // Parse optional attributes
         if fields.len() > 5 {
@@ -698,11 +698,7 @@ impl TSGraph {
         let sink_id: BString = fields[3].into();
         let sv = fields[4].parse::<StructuralVariant>()?;
 
-        let edge_data = EdgeData {
-            id,
-            sv,
-            attributes: HashMap::new(),
-        };
+        let edge_data = EdgeData::builder().id(id).sv(sv).build();
 
         let graph = self.current_graph_mut()?;
         graph.add_edge(source_id.as_bstr(), sink_id.as_bstr(), edge_data)?;
@@ -1404,11 +1400,7 @@ mod tests {
     #[test]
     fn test_add_node() -> Result<()> {
         let mut graph = TSGraph::new();
-        let node = NodeData {
-            id: "node1".into(),
-            reference_id: "chr1".into(),
-            ..Default::default()
-        };
+        let node = NodeData::builder().id("node1").reference_id("chr1").build();
 
         graph.default_graph_mut().unwrap().add_node(node.clone())?;
         assert_eq!(graph.nodes(DEFAULT_GRAPH_ID).len(), 1);
@@ -1421,25 +1413,21 @@ mod tests {
         let mut graph = TSGraph::new();
 
         // Add nodes first
-        let node1 = NodeData {
-            id: "node1".into(),
-            reference_id: "chr1".into(),
-            ..Default::default()
-        };
-
-        let node2 = NodeData {
-            id: "node2".into(),
-            ..Default::default()
-        };
+        let node1 = NodeData::builder().id("node1").reference_id("chr1").build();
+        let node2 = NodeData::builder().id("node2").reference_id("chr1").build();
 
         graph.graph_mut(DEFAULT_GRAPH_ID).unwrap().add_node(node1)?;
         graph.graph_mut(DEFAULT_GRAPH_ID).unwrap().add_node(node2)?;
 
         // Add edge
-        let edge = EdgeData {
-            id: "edge1".into(),
-            ..Default::default()
-        };
+        let sv_from_builder = StructuralVariant::builder()
+            .reference_name1("chr1")
+            .reference_name2("chr1")
+            .breakpoint1(1000)
+            .breakpoint2(5000)
+            .sv_type(BString::from("DEL"))
+            .build();
+        let edge = EdgeData::builder().id("edge1").sv(sv_from_builder).build();
 
         graph.graph_mut(DEFAULT_GRAPH_ID).unwrap().add_edge(
             "node1".into(),
