@@ -1,0 +1,611 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegray}{rgb}{0.95,0.95,0.95}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{codegray},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{codepurple},
+    numberstyle=\tiny\color{gray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\title{Transcript Segment Graph (TSG) Format Specification}
+\author{TSGECO}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+
+The Transcript Segment Graph (TSG) format is designed for representing transcript assemblies and splicing relationships, adapting concepts from the Graphical Fragment Assembly (GFA) 2.0 specification.
+TSG allows for the representation of exons, splice junctions, isoforms, and structural variants in a graph-based format. The format supports multiple graphs within a single file.
+
+\section{Conceptual Model}
+
+In the TSG model:
+
+\begin{enumerate}
+	\item \textbf{Graphs (G)} represent independent transcript graphs, each with its own set of nodes and edges.
+	\item \textbf{Chains (C)} are used to build the graph structure. They define the nodes and edges that make up the graph.
+	\item \textbf{Paths (P)} are traversals through the constructed graph.
+	\item The complete TSG is built by combining all nodes and edges from all chains within each graph.
+	\item After constructing the graph from chains, paths can be defined to represent ways of traversing the graph.
+\end{enumerate}
+
+\section{File Format}
+
+TSG is a tab/space-delimited text format with each line beginning with a single letter that defines the record type.
+Fields within each line are separated by tabs/spaces, and each line represents a distinct element of the transcript graph.
+
+\section{Multi-Graph Support}
+
+TSG supports multiple graphs within a single file using:
+
+\begin{enumerate}
+	\item \textbf{Graph separators (G)} to define the start of each graph section
+	\item \textbf{Graph ID namespace} to qualify element IDs with their respective graph
+\end{enumerate}
+
+All elements in a graph section belong to that graph until a new graph section is encountered.
+
+\section{Record Types}
+
+\subsection{Global Header (H)}
+
+Contains metadata about the entire file.
+These appear at the beginning of the file before any graph sections.
+
+\begin{lstlisting}
+H  <tag>  <value>
+\end{lstlisting}
+
+Fields:
+\begin{itemize}
+	\item \texttt{tag}: Identifier for the header entry
+	\item \texttt{value}: Header value
+\end{itemize}
+
+\subsection{Graph Separator (G)}
+
+Indicates the start of a new graph section and provides graph metadata.
+
+\begin{lstlisting}
+G  <graph_id>  [<tag>:<type>:<value> ...]
+\end{lstlisting}
+
+Fields:
+\begin{itemize}
+	\item \texttt{graph\_id}: Unique identifier for the graph
+	\item Optional list of attribute tags in \texttt{tag:type:value} format
+\end{itemize}
+
+Example:
+\begin{lstlisting}
+G  gene_a  name:Z:BRCA1  source:Z:RefSeq  version:Z:GRCh38
+\end{lstlisting}
+
+\subsection{Nodes (N)}
+
+Represent exons or transcript segments.
+
+\begin{lstlisting}
+N  <id>  <genomic_location>  <reads>  [<seq>]
+\end{lstlisting}
+
+Fields:
+\begin{itemize}
+	\item \texttt{id}: Unique identifier for the node (within the current graph section)
+	\item \texttt{genomic\_location}: Format \texttt{chromosome:strand:coordinates} where:
+	      \begin{itemize}
+		      \item \texttt{chromosome}: Chromosome name (e.g., "chr1")
+		      \item \texttt{strand}: "+" for forward strand, "-" for reverse strand
+		      \item \texttt{coordinates}: Comma-separated list of exon coordinates in "start-end" format
+	      \end{itemize}
+	\item \texttt{reads}: Comma-separated list of reads supporting this node, in format \texttt{read\_id:type}
+	      \begin{itemize}
+		      \item Types might include SO (spanning), IN (internal), SI (significant), etc.
+	      \end{itemize}
+	\item \texttt{seq} (optional): Sequence of the node
+\end{itemize}
+
+\subsection{Edges (E)}
+
+Represent connections between nodes, including splice junctions or structural variants.
+
+\begin{lstlisting}
+E  <id>  <source_id>  <sink_id>  <SV>
+\end{lstlisting}
+
+Fields:
+\begin{itemize}
+	\item \texttt{id}: Unique identifier for the edge (within the current graph section)
+	\item \texttt{source\_id}: ID of the source node
+	\item \texttt{sink\_id}: ID of the target node
+	\item \texttt{SV}: Structural variant information in format "reference\_name1,reference\_name2,breakpoint1,breakpoint2,sv\_type"
+\end{itemize}
+
+\subsection{Unordered Groups/Sets (U)}
+
+Represent unordered collections of graph elements.
+
+\begin{lstlisting}
+U  <group_id>  <element_id_1> <element_id_2> ... <element_id_n>
+\end{lstlisting}
+
+Fields:
+\begin{itemize}
+	\item \texttt{group\_id}: Unique identifier for the unordered group (within the current graph section)
+	\item \texttt{element\_id\_*}: Space-separated list of element identifiers (nodes, edges, or other groups)
+\end{itemize}
+
+\subsection{Ordered Groups/Paths (P)}
+
+Represent ordered collections of graph elements where orientation matters.
+
+\begin{lstlisting}
+P  <path_id>  <oriented_element_id_1> <oriented_element_id_2> ... <oriented_element_id_n>
+\end{lstlisting}
+
+Fields:
+\begin{itemize}
+	\item \texttt{path\_id}: Unique identifier for the ordered group (within the current graph section)
+	\item \texttt{oriented\_element\_id\_*}: Space-separated list of element identifiers with orientation (+ or -)
+\end{itemize}
+
+\subsection{Chains (C)}
+
+Represent explicit paths through the graph with alternating nodes and edges.
+
+\begin{lstlisting}
+C  <chain_id>  <node_id_1> <edge_id_1> <node_id_2> <edge_id_2> ... <node_id_n>
+\end{lstlisting}
+
+Fields:
+\begin{itemize}
+	\item \texttt{chain\_id}: Unique identifier for the chain (within the current graph section)
+	\item Elements: Space-separated list of alternating node and edge identifiers
+	      \begin{itemize}
+		      \item Must start and end with node identifiers
+		      \item Must have an odd number of elements
+		      \item Adjacent elements must be connected in the graph
+	      \end{itemize}
+\end{itemize}
+
+\subsection{Attributes (A)}
+
+Optional metadata attached to other elements.
+
+\begin{lstlisting}
+A  <element_type>  <element_id>  <tag>:<type>:<value>
+\end{lstlisting}
+
+Fields:
+\begin{itemize}
+	\item \texttt{element\_type}: Type of element (N, E, U, P, or C)
+	\item \texttt{element\_id}: Identifier of the element to attach the attribute to
+	\item \texttt{tag}: Name of the attribute
+	\item \texttt{type}: Single letter code for the attribute data type
+	\item \texttt{value}: Value of the attribute
+\end{itemize}
+
+\subsection{Inter-Graph Links (L)}
+
+Represents connections between elements in different graphs.
+
+\begin{lstlisting}
+L  <id>  <graph_id1>:<element_id1>  <graph_id2>:<element_id2>  <link_type>  [<tag>:<type>:<value> ...]
+\end{lstlisting}
+
+Fields:
+\begin{itemize}
+	\item \texttt{id}: Unique identifier for the link
+	\item \texttt{graph\_id1:element\_id1}: Graph-qualified identifier for the first element
+	\item \texttt{graph\_id2:element\_id2}: Graph-qualified identifier for the second element
+	\item \texttt{link\_type}: Type of link (e.g., "fusion", "reference", "containment")
+	\item Optional list of attribute tags in \texttt{tag:type:value} format
+\end{itemize}
+
+\section{Semantics}
+
+\subsection{Graph Sections}
+
+Each graph section in a TSG file defines an independent transcript segment graph:
+
+\begin{enumerate}
+	\item \textbf{Section Boundaries}: A graph section begins with a G record and continues until the next G record or the end of the file.
+	\item \textbf{Element Scope}: All elements (N, E, C, P, U, A) defined within a graph section belong to that graph.
+	\item \textbf{Element Reference}: Elements can only reference other elements within the same graph section, except through inter-graph links (L).
+	\item \textbf{Element IDs}: Element IDs must be unique within their graph section but can be reused in different graph sections.
+\end{enumerate}
+
+\subsection{Node Semantics}
+
+Nodes in TSG represent exons or transcript segments.
+Each node has a genomic location that includes chromosome, strand, and coordinates.
+The genomic location specifies where the node is located in the reference genome.
+Nodes can be supported by different types of read evidence through the \texttt{reads} field, and can optionally include the sequence.
+
+\subsection{Edge Semantics}
+
+Edges in TSG represent connections between nodes, such as splice junctions or structural variants.
+The \texttt{SV} field provides details about the genomic context of the connection, including reference names, breakpoints, and the type of structural variant or splice.
+
+\subsection{Read Continuity}
+
+Read continuity is a critical concept in TSG that ensures valid traversals through the graph:
+
+\begin{enumerate}
+	\item \textbf{Definition}: Read continuity requires that specific patterns of read support exist between connected nodes in a path, depending on node types.
+
+	\item \textbf{Node Types and Continuity Requirements}:
+	      \begin{itemize}
+		      \item \textbf{SO (Source Node)}: Represents the start of a read. No read continuity required with previous nodes.
+		      \item \textbf{SI (Sink Node)}: Represents the end of a read. No read continuity required with subsequent nodes.
+		      \item \textbf{IN (Intermediary Node)}: Represents an internal segment of a read. Must share at least one read ID with both its previous and next nodes in the path.
+	      \end{itemize}
+
+	\item \textbf{Validation}:
+	      \begin{itemize}
+		      \item For IN nodes, implementations must verify that at least one common read ID exists between the current node and both its adjacent nodes.
+		      \item SO and SI nodes provide more flexible continuity, allowing for extended paths without requiring end-to-end read support.
+		      \item A path can be considered valid even if it doesn't have a single read spanning its entire length.
+	      \end{itemize}
+
+	\item \textbf{Constraints}:
+	      \begin{itemize}
+		      \item Each IN node in a valid path must maintain read continuity with its adjacent nodes.
+		      \item The specific read type (SO, SI, IN) determines the continuity requirements at each position in the path.
+	      \end{itemize}
+
+	\item \textbf{Representation}: The read IDs in each node's \texttt{reads} field implicitly define the continuity relationships in the graph, while the read types determine the continuity constraints.
+\end{enumerate}
+
+\subsection{Chains vs. Paths}
+
+Chains and paths serve fundamentally different purposes in the TSG format:
+
+\begin{enumerate}
+	\item \textbf{Chains as Graph Construction Elements}:
+	      \begin{itemize}
+		      \item Chains (C) are used to build the TSG graph itself.
+		      \item Each chain contributes nodes and edges to the graph structure.
+		      \item The complete graph is constructed by collecting all nodes and edges from all chains.
+		      \item Chains represent the source evidence (e.g., transcript sequences) from which the graph was built.
+	      \end{itemize}
+
+	\item \textbf{Paths as Graph Traversals}:
+	      \begin{itemize}
+		      \item Paths (P) are traversals through the already-constructed graph.
+		      \item Paths don't add any new structural elements to the graph.
+		      \item They represent ways of traveling through the existing nodes and edges.
+		      \item Paths can represent transcript isoforms, alternative splicing patterns, or other biological features.
+	      \end{itemize}
+\end{enumerate}
+
+This distinction is critical: chains define what the graph is, while paths define ways to traverse the graph.
+
+\subsection{Inter-Graph Links}
+
+Inter-graph links provide a way to represent relationships between elements in different graphs:
+
+\begin{enumerate}
+	\item \textbf{Types of Links}:
+	      \begin{itemize}
+		      \item \textbf{Fusion}: Represents a fusion between transcripts in different graphs
+		      \item \textbf{Reference}: Indicates that one element references another
+		      \item \textbf{Containment}: Shows that one element contains or is a superset of another
+		      \item \textbf{Identity}: Indicates that elements across graphs are identical
+	      \end{itemize}
+
+	\item \textbf{Usage Scenarios}:
+	      \begin{itemize}
+		      \item Connecting fusion transcripts across genes
+		      \item Linking alternative assemblies of the same region
+		      \item Creating hierarchical relationships between graphs
+		      \item Cross-referencing between different transcript annotations
+	      \end{itemize}
+\end{enumerate}
+
+\section{Processing Model}
+
+The typical processing flow for a TSG file depends on whether the graph structure (nodes and edges) already exists:
+
+\subsection{Case 1: Nodes and Edges Are Explicitly Defined}
+
+If the TSG file contains explicit node (N) and edge (E) records:
+
+\begin{enumerate}
+	\item Process the global headers at the beginning of the file
+	\item For each graph section (started by a G record):
+	      \begin{itemize}
+		      \item Create a new graph with the given ID and attributes
+		      \item Read and create the graph structure directly from the records in the section
+		      \item Process chains (C) as additional evidence or source information
+		      \item Process paths (P) as traversals through the explicitly defined graph
+	      \end{itemize}
+	\item Process inter-graph links (L) to establish connections between graphs
+	\item Validate read continuity by checking for shared read IDs across adjacent nodes in paths
+\end{enumerate}
+
+\subsection{Case 2: Nodes and Edges Are Not Explicitly Defined}
+
+If the TSG file does not contain explicit node and edge records, or contains only partial definitions:
+
+\begin{enumerate}
+	\item Process the global headers at the beginning of the file
+	\item For each graph section (started by a G record):
+	      \begin{itemize}
+		      \item Create a new graph with the given ID and attributes
+		      \item Extract and construct all nodes and edges from chains (C) in the section
+		      \item Build the complete graph structure from these extracted elements
+		      \item Process paths (P) as traversals through the graph constructed from chains
+	      \end{itemize}
+	\item Process inter-graph links (L) to establish connections between graphs
+	\item Verify read continuity for all paths by ensuring adjacent nodes share common read support
+\end{enumerate}
+
+\section{Type Definitions for Attributes}
+
+\begin{itemize}
+	\item \texttt{i}: Integer
+	\item \texttt{f}: Float
+	\item \texttt{Z}: String
+	\item \texttt{J}: JSON
+	\item \texttt{H}: Hex string
+	\item \texttt{B}: Byte array
+\end{itemize}
+
+\section{Example}
+
+\begin{lstlisting}
+# Global headers
+H  TSG  1.0
+H  reference  GRCh38
+
+# First graph
+G  gene_a  name:Z:BRCA1  locus:Z:chr17q21.31
+
+# Nodes for gene_a
+N  n1  chr17:+:41196312-41196402  read1:SO,read2:SO  ACGTACGT
+N  n2  chr17:+:41199660-41199720  read2:IN,read3:IN  TGCATGCA
+N  n3  chr17:+:41203080-41203134  read1:SI,read2:SI  CTGACTGA
+
+# Edges for gene_a
+E  e1  n1  n2  chr17,chr17,41196402,41199660,DEL
+E  e2  n2  n3  chr17,chr17,41199720,41203080,INV
+
+# Chains for gene_a
+C  chain1  n1  e1  n2  e2  n3
+
+# Paths for gene_a
+P  transcript1  n1+  e1+  n2+  e2+  n3+
+
+# Sets for gene_a
+U  exon_set  n1  n2  n3
+
+# Attributes for gene_a elements
+A  N  n1  expression:f:10.5
+A  N  n1  ptc:i:10
+A  P  transcript1  tpm:f:8.2
+
+# Second graph
+G  gene_b  name:Z:BRCA2  locus:Z:chr13q13.1
+
+# Nodes for gene_b
+N  n1  chr13:+:32315480-32315652  read4:SO,read5:SO  GATTACA
+N  n2  chr13:+:32316528-32316800  read4:IN,read5:IN  TACGATCG
+N  n3  chr13:+:32319077-32319325  read4:SI,read5:SI  CGTACGTA
+
+# Edges for gene_b
+E  e1  n1  n2  chr13,chr13,32315652,32316528,splice
+E  e2  n2  n3  chr13,chr13,32316800,32319077,splice
+
+# Chains for gene_b
+C  chain1  n1  e1  n2  e2  n3
+
+# Paths for gene_b
+P  transcript1  n1+  e1+  n2+  e2+  n3+
+
+# Sets for gene_b
+U  exon_set  n1  n2  n3
+
+# Attributes for gene_b elements
+A  P  transcript1  tpm:f:3.7
+
+# Inter-graph links (appears after all graph sections)
+L  fusion1  gene_a:n3  gene_b:n1  fusion  type:Z:chromosomal
+\end{lstlisting}
+
+In this example:
+
+\begin{enumerate}
+	\item The file begins with global headers that apply to the entire file
+	\item Two graph sections are defined (gene\_a and gene\_b), each started by a G record
+	\item Each graph has its own nodes, edges, chains, paths, and attributes
+	\item Element IDs (n1, e1, etc.) are local to each graph section
+	\item An inter-graph link represents a fusion between elements from different graphs
+	\item To reference elements across graphs (in the L record), graph-qualified IDs are used (graph\_id:element\_id)
+\end{enumerate}
+
+\section{Implementation Considerations}
+
+\subsection{Graph Section Handling}
+
+Implementations should:
+
+\begin{itemize}
+	\item Initialize a new graph context whenever a G record is encountered
+	\item Associate all subsequent elements with the current graph until the next G record
+	\item Maintain separate data structures for each graph
+	\item Enforce that connections (edges, chains, paths) only exist between elements in the same graph
+	\item Process inter-graph links separately from within-graph connections
+\end{itemize}
+
+\subsection{Element ID Resolution}
+
+When processing elements:
+
+\begin{itemize}
+	\item Within a graph section, element IDs are resolved in the context of that graph
+	\item In inter-graph links, element IDs must be qualified with their graph ID (graph\_id:element\_id)
+	\item Implementations should maintain a mapping of (graph\_id, element\_id) pairs to resolve references
+\end{itemize}
+
+\subsection{Genomic Location Parsing}
+
+Implementations should carefully parse the genomic location field, which contains:
+
+\begin{itemize}
+	\item Chromosome (e.g., "chr1")
+	\item Strand ("+" or "-")
+	\item Coordinates (comma-separated list of "start-end" pairs)
+\end{itemize}
+
+These components are separated by colons.
+
+\subsection{Read Evidence}
+
+Read evidence is recorded with both read identifiers and types. Implementations should:
+
+\begin{itemize}
+	\item Parse the read identifier and read type, separated by a colon
+	\item Support different read types (SO, IN, SI, etc.) as used in the implementation
+\end{itemize}
+
+\subsection{Validation Requirements}
+
+Implementations should validate that:
+
+\begin{itemize}
+	\item Each graph section has a unique graph ID
+	\item Element IDs are unique within their graph section
+	\item Chains have an odd number of elements (starting and ending with nodes)
+	\item Adjacent elements in chains are correctly connected in the graph
+	\item Group identifiers are unique across U, P, and C types within each graph section
+	\item Paths (P-lines) only reference elements that exist in the same graph section
+	\item Inter-graph links only reference elements that exist in their respective graphs
+\end{itemize}
+
+\subsection{Chain Processing}
+
+\begin{itemize}
+	\item Process chains within each graph section independently
+	\item When encountering a chain, extract all nodes and edges and add them to the current graph
+	\item The same node or edge can appear in multiple chains within the same graph
+	\item The structural integrity of each graph is defined by its chains
+\end{itemize}
+
+\subsection{Path Processing}
+
+\begin{itemize}
+	\item Paths do not add new elements to the graph
+	\item Paths must reference existing nodes and edges within the same graph section
+	\item Paths can include orientation information (+ or -) for elements
+\end{itemize}
+
+\subsection{Read Continuity Verification}
+
+When processing TSG files, implementations should:
+
+\begin{itemize}
+	\item Extract read IDs from each node's \texttt{reads} field along with their types (SO, SI, IN)
+	\item For each path or chain traversal:
+	      \begin{itemize}
+		      \item For IN nodes: Ensure at least one read ID is shared with both the previous and next nodes
+		      \item For SO nodes: No continuity check required with previous nodes
+		      \item For SI nodes: No continuity check required with subsequent nodes
+	      \end{itemize}
+	\item Flag paths where IN nodes lack proper read continuity as potentially unsupported by the data
+	\item Recognize that valid paths may be constructed even without end-to-end read support, as long as the IN node continuity requirements are satisfied
+	\item Provide options to filter or annotate paths based on different levels of read continuity stringency
+\end{itemize}
+
+\subsection{Biological Interpretation in Transcript Analysis}
+
+In the context of transcript analysis, the TSG format elements typically represent:
+
+\subsubsection{Graphs (G)}
+
+\begin{itemize}
+	\item \textbf{Genes}: Independent genetic loci
+	\item \textbf{Transcription Units}: Coordinated transcriptional regions
+	\item \textbf{Alternative Assemblies}: Different representations of the same region
+\end{itemize}
+
+\subsubsection{Nodes (N)}
+
+\begin{itemize}
+	\item \textbf{Exons}: Genomic regions that are transcribed and remain in the mature RNA
+	\item Can include multiple segments (e.g., for complex exon structures)
+	\item Read support indicates which sequencing reads support this exon, with different types of support
+\end{itemize}
+
+\subsubsection{Edges (E)}
+
+\begin{itemize}
+	\item \textbf{Splice Junctions}: Connections between exons
+	\item \textbf{Structural Variants}: Genomic rearrangements like fusions, deletions, or insertions
+	\item The SV field provides details on the exact genomic coordinates
+\end{itemize}
+
+\subsubsection{Chains (C)}
+
+\begin{itemize}
+	\item \textbf{Original Transcripts}: Complete transcript sequences observed in the data
+	\item \textbf{Source Evidence}: The actual RNA molecules detected
+	\item \textbf{Assembled Transcripts}: Transcripts assembled from read data
+	\item These build the structure of the transcript graph
+\end{itemize}
+
+\subsubsection{Paths (P)}
+
+\begin{itemize}
+	\item \textbf{Transcript Isoforms}: Alternative splicing variants
+	\item \textbf{Expression Patterns}: Different ways genes are expressed
+	\item \textbf{Predicted Transcripts}: Computationally predicted transcript models
+	\item These are ways to traverse the established transcript graph
+\end{itemize}
+
+\subsubsection{Inter-Graph Links (L)}
+
+\begin{itemize}
+	\item \textbf{Fusion Transcripts}: Transcripts spanning multiple genes
+	\item \textbf{Reference Relationships}: Cross-references between different transcript annotations
+	\item \textbf{Containment Relationships}: Hierarchical organization of transcripts
+\end{itemize}
+
+This separation aligns with how many transcript assembly algorithms work:
+
+\begin{enumerate}
+	\item First, chains of exons and splice junctions are identified from the data
+	\item Then, potential transcripts are derived by traversing the graph in different ways
+	\item Finally, relationships between different transcript graphs are established
+\end{enumerate}
+
+\end{document}
