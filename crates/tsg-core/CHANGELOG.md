@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [0.1.9](https://github.com/TSGECO/tsg/compare/tsg-core-v0.1.8...tsg-core-v0.1.9)
+
+### Added
+
+
+- Update maximum path length check to 2; add new test data for graph analysis - ([db26aad](https://github.com/TSGECO/tsg/commit/db26aadd5cfecf6754620b8271974b8bb2aa7439))
+
+### Fixed
+
+
+- Add missing newlines at the end of several JSON and TSG files for consistency - ([cbb2e55](https://github.com/TSGECO/tsg/commit/cbb2e555a6f2193fbc14fc94812e8c75a3337a10))
+- Update VCF output format to include SVTYPE and additional attributes; adjust GTF and TSG test data for consistency - ([aadde38](https://github.com/TSGECO/tsg/commit/aadde389e3348287f84bc497e97e07cd0431af92))
+- Update GTF and TSG test data for consistency; add gene_id to transcripts - ([eca405f](https://github.com/TSGECO/tsg/commit/eca405f6db6b9a1054ab9d3d4c979c36ade74c4e))
+- Update pre-commit hooks version; refactor tests to use builder pattern for attributes; adjust GTF and TSG test data for consistency - ([392077b](https://github.com/TSGECO/tsg/commit/392077b0bad6a794fd5bcc484d66211d39f0ae93))
+- Update Makefile to use pdflatex for PDF generation; refactor README for clarity and consistency - ([f620d6a](https://github.com/TSGECO/tsg/commit/f620d6a50494f8c9a68ea3f76010defc60770a17))
+- Refactor EdgeData and InterGraphLink to use builder pattern; update test data for consistency - ([cdc4533](https://github.com/TSGECO/tsg/commit/cdc4533be1e2f382e09213b2c0681760d2a15434))
+- Update dependencies in Cargo.toml and reorder attributes in test files for consistency - ([8d23a1c](https://github.com/TSGECO/tsg/commit/8d23a1c6b645013bc93ee965786acb1c6ec12756))
+- Enhance is_super method in PathAnalysis for better performance and error handling - ([5b02627](https://github.com/TSGECO/tsg/commit/5b02627f191b852347bd0867f9209075285609a9))
+- Update GraphAnalysis documentation for fade-in and fade-out structures and add matches_topology method; reorder attributes in test files for consistency - ([73a9c95](https://github.com/TSGECO/tsg/commit/73a9c952b1435a002e4e902bb59d0db6efdee4a4))
+- Improve error handling in GraphSection and ensure consistent formatting in test files - ([d82f0ed](https://github.com/TSGECO/tsg/commit/d82f0ed5a700c12157ed848a868d6d133509e4d2))
+- Update .gitignore to include .env and reorder attributes in test files for consistency - ([e965a12](https://github.com/TSGECO/tsg/commit/e965a129ee38f6d4a996bdb2a1f59e689f9a413e))
+
+### Other
+
+
+- Remove unused path module; add traverse functionality to output graph paths - ([ed20cf2](https://github.com/TSGECO/tsg/commit/ed20cf2579eba3a7dc9bdcc05bf66a7018e22414))
+- Implement code changes to enhance functionality and improve performance - ([c852d53](https://github.com/TSGECO/tsg/commit/c852d530a44f5a481161d6d84b084db6e0a11e2b))
+
+
 ## [0.1.8](https://github.com/TSGECO/tsg/compare/tsg-core-v0.1.7...tsg-core-v0.1.8)
 
 ### Added
