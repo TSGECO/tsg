@@ -3,6 +3,7 @@ use std::fmt;
 use super::Attribute;
 use super::GraphSection;
 use super::utils::to_hash_identifier;
+use ahash::HashSet;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
@@ -179,16 +180,76 @@ impl<'a> TSGPath<'a> {
     }
 
     pub fn to_vcf(&self) -> Result<BString> {
-        let _id = self.id()?;
+        let id = self.id()?;
+        let gid = &self.graph().unwrap().id;
         let mut edges = vec![];
 
-        for edge_idx in self.edges.iter() {
+        let sharing_attributes = vec![
+            Attribute::builder().tag("transcript_id").value(id).build(),
+            Attribute::builder()
+                .tag("gene_id")
+                .value(gid.clone())
+                .build(),
+        ];
+
+        for (index, edge_idx) in self.edges.iter().enumerate() {
             let graph = self.graph.ok_or_else(|| anyhow!("Graph not available"))?;
+            // find source node and target node for the edge
+            let source_node_idx = self.nodes[index];
+            let target_node_idx = self.nodes[index + 1];
+            let source_node_data = graph.node_by_idx(source_node_idx).with_context(|| {
+                format!("Node not found for index: {}", source_node_idx.index())
+            })?;
+            let target_node_data = graph.node_by_idx(target_node_idx).with_context(|| {
+                format!("Node not found for index: {}", target_node_idx.index())
+            })?;
+
+            let source_read_ids = &source_node_data
+                .reads
+                .iter()
+                .map(|r| r.id.clone())
+                .collect::<HashSet<_>>();
+            let target_read_ids = &target_node_data
+                .reads
+                .iter()
+                .map(|r| r.id.clone())
+                .collect::<HashSet<_>>();
+            // get sharing read ids
+            let sharing_read_ids = source_read_ids
+                .intersection(target_read_ids)
+                .into_iter()
+                .map(|r| r.to_string())
+                .collect::<Vec<_>>();
+
+            let mut node_attributes = vec![
+                Attribute::builder()
+                    .tag("SEGMENT1")
+                    .value(source_node_data.id.clone())
+                    .build(),
+                Attribute::builder()
+                    .tag("SEGMENT2")
+                    .value(target_node_data.id.clone())
+                    .build(),
+                Attribute::builder()
+                    .tag("STRAND1")
+                    .value(source_node_data.strand.to_string())
+                    .build(),
+                Attribute::builder()
+                    .tag("STRAND2")
+                    .value(target_node_data.strand.to_string())
+                    .build(),
+                Attribute::builder()
+                    .tag("SR_ID")
+                    .value(sharing_read_ids.join(","))
+                    .build(),
+            ];
+            node_attributes.extend_from_slice(&sharing_attributes);
+
             let edge_data = graph
                 .edge_by_idx(*edge_idx)
                 .with_context(|| format!("Edge not found for index: {}", edge_idx.index()))?;
 
-            let edge_vcf = edge_data.to_vcf(None)?;
+            let edge_vcf = edge_data.to_vcf(Some(&node_attributes))?;
             edges.push(edge_vcf);
         }
 
