@@ -1,0 +1,56 @@
+{
+    "data": [],
+    "directed": true,
+    "multigraph": true,
+    "elements": {
+        "nodes": [
+            {
+                "data": {
+                    "chrom": "chr11",
+                    "ref_start": 65499044,
+                    "ref_end": 65503698,
+                    "strand": "+",
+                    "is_head": true,
+                    "exons": "[65499044-65503698]",
+                    "reads": "m64135_220621_211550/96274993/ccs:SO",
+                    "ptc": 1,
+                    "ptf": 0.0,
+                    "id": "N.ac7d62907d2c3c54",
+                    "value": "N.ac7d62907d2c3c54",
+                    "name": "N.ac7d62907d2c3c54"
+                }
+            },
+            {
+                "data": {
+                    "chrom": "chr11",
+                    "ref_start": 65499403,
+                    "ref_end": 65499743,
+                    "strand": "+",
+                    "is_head": false,
+                    "exons": "[65499403-65499743]",
+                    "reads": "m64135_220621_211550/96274993/ccs:SI",
+                    "ptc": 1,
+                    "ptf": 0.0,
+                    "id": "N.e82ac894258bbbb9",
+                    "value": "N.e82ac894258bbbb9",
+                    "name": "N.e82ac894258bbbb9"
+                }
+            }
+        ],
+        "edges": [
+            {
+                "data": {
+                    "id": "E.cce57a9c0bac395b",
+                    "weight": 1,
+                    "read_ids": [
+                        "m64135_220621_211550/96274993/ccs"
+                    ],
+                    "breakpoints": "chr11,chr11,65503698,65499403,TDUP",
+                    "source": "N.ac7d62907d2c3c54",
+                    "target": "N.e82ac894258bbbb9",
+                    "key": 0
+                }
+            }
+        ]
+    }
+}

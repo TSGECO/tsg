@@ -238,7 +238,7 @@ impl GraphAnalysis for GraphSection {
         // A graph is simple if the maximum path length is 1
         let paths = self.traverse()?;
         let max_path_len = paths.iter().map(|path| path.len()).max().unwrap_or(0);
-        Ok(max_path_len == 1)
+        Ok(max_path_len == 2)
     }
 
     fn topo(&self) -> Result<GraphTopology> {
