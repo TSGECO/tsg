@@ -31,7 +31,8 @@ pre-commit: ## Run pre-commit checks
 	pre-commit run --all-files
 
 tsg-pdf: ## Convert tsg format  to PDF
-	pandoc docs/tsg.md -o docs/tsg.pdf
+	@echo "Building tsg-pdf..."
+	@pdflatex -shell-escape -interaction=nonstopmode -output-directory=docs/ docs/tsg.tex
 
 sanitize: test pre-commit ## Sanitize the repo
 	@echo "Sanitizing Repo..."
