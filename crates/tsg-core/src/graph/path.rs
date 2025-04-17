@@ -4,13 +4,9 @@ use super::Attribute;
 use super::GraphSection;
 use super::utils::to_hash_identifier;
 use ahash::HashSet;
-use anyhow::Context;
-use anyhow::Result;
-use anyhow::anyhow;
+use anyhow::{Context, Result, anyhow};
 use bon::Builder;
-use bstr::BString;
-use bstr::ByteSlice;
-use bstr::ByteVec;
+use bstr::{BString, ByteSlice, ByteVec};
 use petgraph::graph::{EdgeIndex, NodeIndex};
 use tracing::debug;
 
