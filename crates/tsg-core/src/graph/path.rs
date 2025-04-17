@@ -164,7 +164,7 @@ impl<'a> TSGPath<'a> {
         }
 
         let mut nodes: Vec<BString> = vec![transcript.into()];
-        for (_idx, node_idx) in self.nodes.iter().enumerate() {
+        for node_idx in self.nodes.iter() {
             let graph = self.graph.ok_or_else(|| anyhow!("Graph not available"))?;
             let node_data = graph
                 .node_by_idx(*node_idx)
@@ -217,7 +217,6 @@ impl<'a> TSGPath<'a> {
             // get sharing read ids
             let sharing_read_ids = source_read_ids
                 .intersection(target_read_ids)
-                .into_iter()
                 .map(|r| r.to_string())
                 .collect::<Vec<_>>();
 
