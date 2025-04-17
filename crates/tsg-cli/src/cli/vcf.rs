@@ -5,6 +5,18 @@ use std::io::Write;
 use tracing::info;
 use tsg::graph::TSGraph;
 
+/// Convert a TSGraph to VCF format
+///
+/// This function reads a TSGraph from a file and outputs it in VCF (Variant Call Format).
+///
+/// # Arguments
+///
+/// * `input` - Path to the input TSGraph file
+/// * `output` - Optional path for the output VCF file. If None, writes to stdout
+///
+/// # Returns
+///
+/// * `Result<()>` - Ok if successful, or an error
 pub fn to_vcf<P: AsRef<Path>>(input: P, output: Option<PathBuf>) -> Result<()> {
     let tsg_graph = TSGraph::from_file(input.as_ref())?;
     let mut writer: Box<dyn Write> = match output {
