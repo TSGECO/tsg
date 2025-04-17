@@ -4,10 +4,10 @@ mod gtf;
 mod header;
 mod json;
 mod merge;
-mod traverse;
 mod query;
 mod split;
 mod summary;
+mod traverse;
 mod vcf;
 
 pub use dot::*;
@@ -16,10 +16,10 @@ pub use gtf::*;
 pub use header::*;
 pub use json::*;
 pub use merge::*;
-pub use traverse::*;
 pub use query::*;
 pub use split::*;
 pub use summary::*;
+pub use traverse::*;
 pub use vcf::*;
 
 use clap::Subcommand;
