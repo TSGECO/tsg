@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.1.9](https://github.com/TSGECO/tsg/compare/tsg-cli-v0.1.8...tsg-cli-v0.1.9)
+
+### Added
+
+
+- Add documentation for to_gtf and to_vcf functions to clarify usage and parameters - ([a72c0f4](https://github.com/TSGECO/tsg/commit/a72c0f420ff9bf606ac3a1929bd6e9a4a25c1dad))
+
+### Fixed
+
+
+- Restore traverse module usage in CLI; ensure proper command functionality - ([23d63b8](https://github.com/TSGECO/tsg/commit/23d63b8287ce934fe546ee23ecd215b63c65714e))
+- Update Makefile to use pdflatex for PDF generation; refactor README for clarity and consistency - ([f620d6a](https://github.com/TSGECO/tsg/commit/f620d6a50494f8c9a68ea3f76010defc60770a17))
+- Refactor EdgeData and InterGraphLink to use builder pattern; update test data for consistency - ([cdc4533](https://github.com/TSGECO/tsg/commit/cdc4533be1e2f382e09213b2c0681760d2a15434))
+
+### Other
+
+
+- Remove unused path module; add traverse functionality to output graph paths - ([ed20cf2](https://github.com/TSGECO/tsg/commit/ed20cf2579eba3a7dc9bdcc05bf66a7018e22414))
+
+
 ## [0.1.8](https://github.com/TSGECO/tsg/compare/tsg-cli-v0.1.7...tsg-cli-v0.1.8)
 
 ### Added
