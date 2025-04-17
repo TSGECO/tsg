@@ -34,7 +34,7 @@
 ##ALT=<ID=INV,Description="Inversion">
 ##ALT=<ID=TRA,Description="Translocation">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT
-chr1	1700	e1	.	<INV>	.	.	SVTYPE=INV;CHR2=chr1;SVEND=2000;SEGMENT1=n1;SEGMENT2=n3;STRAND1=+;STRAND2=+;SR_ID=read1,read2;transcript_id=P.b0f6cc3c26a37e1c;gene_id=G.graph;	GT	0/1
+chr1	1700	e1	.	<INV>	.	.	SVTYPE=INV;CHR2=chr1;SVEND=2000;SEGMENT1=n1;SEGMENT2=n3;STRAND1=+;STRAND2=+;SR_ID=read2,read1;transcript_id=P.b0f6cc3c26a37e1c;gene_id=G.graph;	GT	0/1
 chr1	1700	e2	.	<DUP>	.	.	SVTYPE=DUP;CHR2=chr1;SVEND=2000;SEGMENT1=n3;SEGMENT2=n4;STRAND1=+;STRAND2=-;SR_ID=read2,read1;transcript_id=P.b0f6cc3c26a37e1c;gene_id=G.graph;	GT	0/1
 chr1	2200	e3	.	<TDUP>	.	.	SVTYPE=TDUP;CHR2=chr1;SVEND=2500;SEGMENT1=n2;SEGMENT2=n3;STRAND1=+;STRAND2=+;SR_ID=read4;transcript_id=P.a00d0fe27431e9da;gene_id=G.graph;	GT	0/1
 chr1	1700	e4	.	<DUP>	.	.	SVTYPE=DUP;CHR2=chr1;SVEND=2500;SEGMENT1=n3;SEGMENT2=n5;STRAND1=+;STRAND2=+;SR_ID=read4,read3;transcript_id=P.a00d0fe27431e9da;gene_id=G.graph;	GT	0/1
