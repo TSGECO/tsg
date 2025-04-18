@@ -1,8 +1,9 @@
 use std::fmt;
 
+use crate::graph::to_numeric_identifier;
+
 use super::Attribute;
 use super::GraphSection;
-use super::utils::to_hash_identifier;
 use ahash::HashSet;
 use anyhow::{Context, Result, anyhow};
 use bon::Builder;
@@ -120,8 +121,8 @@ impl<'a> TSGPath<'a> {
             .join("-");
 
         debug!("Node ID string: {}", node_id_string);
-        let id = to_hash_identifier(&node_id_string, Some(16))?;
-        let id_with_prefix = format!("P.{}", id);
+        let id = to_numeric_identifier(&node_id_string, Some(10))?;
+        let id_with_prefix = format!("TSP{}", id);
         Ok(id_with_prefix.into())
     }
 

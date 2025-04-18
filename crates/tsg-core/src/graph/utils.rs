@@ -3,6 +3,58 @@ use anyhow::anyhow;
 use regex::Regex;
 use sha2::{Digest, Sha256};
 
+/// Convert a string to a numeric identifier using SHA-256.
+///
+/// # Arguments
+///
+/// * `input_string` - The string to convert
+/// * `length` - The desired length of the output identifier (default: 64)
+///   If None, returns the full numeric representation
+///
+/// # Returns
+///
+/// A string of decimal numbers derived from the SHA-256 hash
+///
+/// # Examples
+///
+/// ```
+/// use tsg_core::graph::to_numeric_identifier;
+///
+/// let numeric_id = to_numeric_identifier("Hello World!", Some(10)).unwrap();
+/// assert_eq!(numeric_id.len(), 10);
+/// ```
+pub fn to_numeric_identifier(input_string: &str, length: Option<usize>) -> Result<String> {
+    let length = match length {
+        Some(len) => {
+            if len == 0 {
+                return Err(anyhow!("Length must be positive"));
+            }
+            len
+        }
+        None => 64, // Default length
+    };
+
+    // Create SHA-256 hash
+    let mut hasher = Sha256::new();
+    hasher.update(input_string.as_bytes());
+    let hash_bytes = hasher.finalize();
+
+    // Convert bytes to decimal numbers
+    let mut numeric_string = String::new();
+    for byte in hash_bytes.iter() {
+        numeric_string.push_str(&format!("{:03}", byte));
+    }
+
+    // Take specified length of the numeric string
+    let result = if length < numeric_string.len() {
+        numeric_string[..length].to_string()
+    } else {
+        numeric_string
+    };
+
+    Ok(result)
+}
+
 /// Convert a string to a hash-based identifier using SHA-256.
 ///
 /// # Arguments
@@ -86,5 +138,12 @@ mod tests {
     fn test_invalid_length() {
         let result = to_hash_identifier("Invalid", Some(0));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_numeric_identifier() {
+        let result = to_numeric_identifier("Hello World!", Some(10)).unwrap();
+        println!("Numeric Identifier: {}", result);
+        assert_eq!(result.len(), 10);
     }
 }
