@@ -93,7 +93,8 @@ mod tests {
         "#;
 
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
-        let paths = tsgraph.default_graph().unwrap().traverse().unwrap();
+        let default_graph = tsgraph.default_graph().unwrap();
+        let paths = default_graph.traverse().unwrap();
 
         for path in paths {
             assert!(path.is_super().unwrap());
@@ -127,7 +128,6 @@ mod tests {
         "#;
 
         let tsgraph = TSGraph::from_str(tsg_string).unwrap();
-
         let paths = tsgraph.default_graph().unwrap().traverse().unwrap();
 
         assert_eq!(paths[0].len(), 1);
